@@ -459,6 +459,26 @@ export function excessKurtosis(
 }
 
 /**
+ * Calculates the standard skewness coefficient (3rd standardized moment) of an array of numbers.
+ *
+ * @param values - Array of numerical values.
+ * @param [isSample=false] - Whether to use sample statistics.
+ * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @returns The skewness coefficient.
+ * @throws {Error} If standard deviation is zero.
+ */
+export function skewness(values: number[], isSample: boolean = false, digits: number = -1): number {
+    validateValues(values, isSample);
+    const s = std(values, isSample);
+
+    if (s === 0) {
+        throw new Error('Cannot calculate skewness for constant or zero-variance dataset.');
+    }
+
+    return round(centralMoment(values, 3, isSample) / Math.pow(s, 3), digits);
+}
+
+/**
  * Calculates the statistical range (difference between maximum and minimum values) of an array of numbers.
  *
  * @param values - Array of numerical values.
@@ -506,26 +526,6 @@ export function rsd(values: number[], isSample: boolean = false, digits: number 
     }
 
     return round(std(values, isSample) / m, digits);
-}
-
-/**
- * Calculates the standard skewness coefficient (3rd standardized moment) of an array of numbers.
- *
- * @param values - Array of numerical values.
- * @param [isSample=false] - Whether to use sample statistics.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
- * @returns The skewness coefficient.
- * @throws {Error} If standard deviation is zero.
- */
-export function skewness(values: number[], isSample: boolean = false, digits: number = -1): number {
-    validateValues(values, isSample);
-    const s = std(values, isSample);
-
-    if (s === 0) {
-        throw new Error('Cannot calculate skewness for constant or zero-variance dataset.');
-    }
-
-    return round(centralMoment(values, 3, isSample) / Math.pow(s, 3), digits);
 }
 
 /**

@@ -114,15 +114,15 @@ function calculateVarianceCIFromSampleVar(
     const df = n - 1;
     const chi2Obj = getChi2CriticalBounds(alpha, df);
 
-    if (chi2Obj.lower <= 0 || chi2Obj.upper <= 0) {
+    if (chi2Obj.lower! <= 0 || chi2Obj.upper! <= 0) {
         throw new Error("Chi-square critical values could not be calculated.");
     }
 
     const numerator = df * sampleVar;
 
     return {
-        lower: numerator / chi2Obj.upper,
-        upper: numerator / chi2Obj.lower
+        lower: numerator / chi2Obj.upper!,
+        upper: numerator / chi2Obj.lower!
     };
 }
 

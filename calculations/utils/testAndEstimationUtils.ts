@@ -1,4 +1,5 @@
 import chisquareQuantile  from "../distributions/chiSquareDist";
+import fQuantile from "../distributions/fDist";
 import normalQuantile from "../distributions/normalDist";
 import tQuantile from "../distributions/studentDist";
 import { mean, variance } from "../statistics/univariate";
@@ -112,18 +113,69 @@ export function getTCritical(
 }
 
 /**
- * Calculates the lower and upper critical bounds for a Chi-square distribution
- * given a significance level alpha and degrees of freedom.
+ * Calculates the critical boundaries for a Chi-squared distribution based on the test direction.
  *
- * @param alpha - Significance level (e.g., 0.05 for a 95% confidence level). Must be strictly between 0 and 1.
- * @param df - Degrees of freedom (n - 1). Must be a positive integer.
- * @returns An object containing the lower (alpha/2 quantile) and upper (1 - alpha/2 quantile) critical values.
+ * @param {number} alpha - The significance level for the test (e.g., 0.05).
+ * @param {number} df - The degrees of freedom (typically n - 1 for a single sample).
+ * @param {'left' | 'right' | 'two-sided'} [testDirection='two-sided'] - The direction of the hypothesis test. 
+ *                                                                       Defaults to 'two-sided'.
+ * 
+ * @returns {{ lower?: number, upper?: number }} An object containing the required critical boundaries:
+ *          - For 'two-sided': both `lower` and `upper` are returned.
+ *          - For 'left': only `lower` is returned.
+ *          - For 'right': only `upper` is returned.
  */
-export function getChi2CriticalBounds(alpha: number, df: number): { lower: number; upper: number } {
-    return {
-        lower: chisquareQuantile(alpha / 2, df),
-        upper: chisquareQuantile(1 - alpha / 2, df)
-    };
+export function getChi2CriticalBounds(
+    alpha: number, 
+    df: number, 
+    testDirection: 'left' | 'right' | 'two-sided' = 'two-sided'
+): { lower?: number; upper?: number } {
+    if (testDirection === 'two-sided') {
+        return {
+            lower: chisquareQuantile(alpha / 2, df),
+            upper: chisquareQuantile(1 - alpha / 2, df)
+        };
+    } else if (testDirection === 'left') {
+        return {
+            lower: chisquareQuantile(alpha, df)
+        };
+    } else {
+        return {
+            upper: chisquareQuantile(1 - alpha, df)
+        };
+    }
+}
+
+/**
+ * Calculates the critical boundaries for an F-distribution based on the test direction.
+ *
+ * @param {number} alpha - The significance level for the test (e.g., 0.05).
+ * @param {number} df1 - The degrees of freedom for the numerator.
+ * @param {number} df2 - The degrees of freedom for the denominator.
+ * @param {'left' | 'right' | 'two-sided'} [testDirection='two-sided'] - The direction of the hypothesis test. Defaults to 'two-sided'.
+ * 
+ * @returns {{ lower?: number, upper?: number }} An object containing the required critical boundaries.
+ */
+export function getFCriticalBounds(
+    alpha: number, 
+    df1: number, 
+    df2: number, 
+    testDirection: 'left' | 'right' | 'two-sided' = 'two-sided'
+): { lower?: number; upper?: number } {
+    if (testDirection === 'two-sided') {
+        return {
+            lower: fQuantile(alpha / 2, df1, df2),
+            upper: fQuantile(1 - alpha / 2, df1, df2)
+        };
+    } else if (testDirection === 'left') {
+        return {
+            lower: fQuantile(alpha, df1, df2)
+        };
+    } else {
+        return {
+            upper: fQuantile(1 - alpha, df1, df2)
+        };
+    }
 }
 
 /**

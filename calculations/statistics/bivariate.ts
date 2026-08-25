@@ -233,20 +233,25 @@ export function totalSSD(table: number[][], digits: number = -1): number {
  * @returns The between-group sum of squared deviations.
  * @throws {Error} If the table structure is invalid.
  */
-export function betweenSSD(table: number[][], digits: number = -1): number {
+export function betweenSSD(
+    table: number[][],
+    digits: number = -1
+): number {
     validateContingencyTable(table);
 
     const columns = getColumns(table);
     const totalMean = mean(table.flat());
-    const n = columns[0].length;
 
-    let totalSSD = 0;
+    let totalSsd = 0;
 
     for (const column of columns) {
-        totalSSD += Math.pow(mean(column) - totalMean, 2);
+        totalSsd += column.length * Math.pow(
+            mean(column) - totalMean,
+            2
+        );
     }
 
-    return round(n * totalSSD, digits);
+    return round(totalSsd, digits);
 }
 
 /**
@@ -259,7 +264,7 @@ export function betweenSSD(table: number[][], digits: number = -1): number {
 export function etaSquared(table: number[][], digits: number = -1) {
     const between = betweenSSD(table);
     const total = totalSSD(table);
-    
+
     return round(total === 0 ? 0 : between / total, digits);
 }
 
@@ -273,13 +278,13 @@ export function etaSquared(table: number[][], digits: number = -1) {
  * @returns The calculated covariance.
  * @throws {Error} If arrays are invalid, empty, unequal in length, or sample size is less than 2.
  */
-export function covariance(values1:number[], values2:number[], 
-    isSample:boolean = false, digits: number = -1):number {
-    if(!values1 || values1.length === 0 || !values2 || values2.length === 0) {
+export function covariance(values1: number[], values2: number[],
+    isSample: boolean = false, digits: number = -1): number {
+    if (!values1 || values1.length === 0 || !values2 || values2.length === 0) {
         throw new Error('Invalid values!');
     }
 
-    if(values1.length !== values2.length) {
+    if (values1.length !== values2.length) {
         throw new Error('The number of elements must match in the two arrays!');
     }
 
@@ -293,10 +298,10 @@ export function covariance(values1:number[], values2:number[],
     const mean2 = mean(values2);
 
     const coSSD = values1.reduce(
-        (total, val, i)=> total + ((val - mean1)*(values2[i] - mean2)), 0
+        (total, val, i) => total + ((val - mean1) * (values2[i] - mean2)), 0
     );
-    
-    return round(coSSD/length, digits);
+
+    return round(coSSD / length, digits);
 }
 
 /**
@@ -309,9 +314,9 @@ export function covariance(values1:number[], values2:number[],
  * @returns The Pearson correlation coefficient, clamped to [-1, 1]. Returns 0 if standard deviation of either array is zero.
  */
 export function correlation(
-    values1: number[], 
-    values2: number[], 
-    isSample: boolean = false, 
+    values1: number[],
+    values2: number[],
+    isSample: boolean = false,
     digits: number = -1
 ): number {
     const std1 = std(values1, isSample);
@@ -334,7 +339,7 @@ export function correlation(
  * @returns A Map mapping each unique numerical value to its calculated fractional rank.
  * @throws {Error} If `values` is empty or contains fewer than 2 numbers.
  */
-export function getRanks(values:number[]):Map<number, number> {
+export function getRanks(values: number[]): Map<number, number> {
     if (!values || values.length < 2) {
         throw new Error('Values array must contain at least 2 numbers!');
     }
@@ -342,9 +347,9 @@ export function getRanks(values:number[]):Map<number, number> {
     const uniqueVals = orderAsc([...values]);
     const stats = new Map();
 
-    for(const val of uniqueVals) {
-        if(stats.has(val)) {
-            stats.set(val, stats.get(val)+1);
+    for (const val of uniqueVals) {
+        if (stats.has(val)) {
+            stats.set(val, stats.get(val) + 1);
         } else {
             stats.set(val, 1);
         }
@@ -355,7 +360,7 @@ export function getRanks(values:number[]):Map<number, number> {
 
     for (const [key, value] of stats) {
         const rank = range(serial, (serial + value) - 1)
-        .reduce((total, val)=>total + val, 0)/value;
+            .reduce((total, val) => total + val, 0) / value;
         ranks.set(key, rank);
         serial += value;
     }
@@ -373,16 +378,16 @@ export function getRanks(values:number[]):Map<number, number> {
  * @returns The Spearman rank correlation coefficient.
  */
 export function rankCorrelation(
-    values1:number[], 
-    values2:number[], 
-    isSample:boolean = false, 
-    digits:number = -1
+    values1: number[],
+    values2: number[],
+    isSample: boolean = false,
+    digits: number = -1
 ) {
     const ranks1 = getRanks(values1);
     const ranks2 = getRanks(values2);
 
     const rankValues1 = values1.map(val => ranks1.get(val)!);
     const rankValues2 = values2.map(val => ranks2.get(val)!);
-    
+
     return correlation(rankValues1, rankValues2, isSample, digits);
 }
