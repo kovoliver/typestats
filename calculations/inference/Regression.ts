@@ -2,6 +2,10 @@ import { RegressionType } from "../../types";
 import { covariance } from "../statistics/bivariate";
 import { mean, variance } from "../statistics/univariate";
 
+/**
+ * Represents a statistical tool for calculating linear, exponential, and power regression models.
+ * Calculates and caches the coefficients based on the provided independent and dependent variables.
+ */
 export default class Regression {
     private _x: number[];
     private _y: number[];
@@ -20,6 +24,14 @@ export default class Regression {
     private _xHasNonPositive: boolean = false;
     private _yHasNonPositive: boolean = false;
 
+    /**
+     * Initializes the regression model with independent and dependent variable datasets.
+     * 
+     * @param {number[]} x - An array of values for the independent variable.
+     * @param {number[]} y - An array of values for the dependent variable.
+     * @throws {Error} If fewer than two values are provided for either array.
+     * @throws {Error} If the lengths of the `x` and `y` arrays do not match.
+     */
     constructor(x: number[], y: number[]) {
         if (x.length < 2 || y.length < 2) {
             throw new Error(
@@ -52,6 +64,15 @@ export default class Regression {
         this._lnyMean = mean(this._lnY);
     }
 
+    /**
+     * Calculates the core regression coefficients (b0 and b1) using the least squares method.
+     * 
+     * @param {number[]} x - The input array for the independent variable (can be transformed to ln(x)).
+     * @param {number[]} y - The input array for the dependent variable (can be transformed to ln(y)).
+     * @param {RegressionType} type - The type of regression being calculated ('LINEAR', 'EXPONENTIAL', or 'POWER').
+     * @returns {{ b0: number, b1: number }} An object containing the calculated intercept (b0) and slope (b1).
+     * @throws {Error} If the variance of the independent variable is zero.
+     */
     private calculate(
         x: number[],
         y: number[],
@@ -78,7 +99,13 @@ export default class Regression {
         };
     }
 
-    public linear() {
+    /**
+     * Calculates the linear regression parameters for the equation: y = b0 + b1 * x.
+     * The result is cached after the first calculation.
+     * 
+     * @returns {{ b0: number, b1: number }} An object containing the y-intercept (b0) and the slope (b1).
+     */
+    public linear(): { b0: number, b1: number } {
         if (this._b0 !== null && this._b1 !== null) {
             return {
                 b0: this._b0,
@@ -99,7 +126,14 @@ export default class Regression {
         };
     }
 
-    public exponential() {
+    /**
+     * Calculates the exponential regression parameters for the equation: y = b0 * (b1 ^ x).
+     * The result is cached after the first calculation.
+     * 
+     * @returns {{ b0: number, b1: number }} An object containing the scale factor (b0) and the growth/decay base (b1).
+     * @throws {Error} If the dependent variable (y) contains non-positive values, as logarithms cannot be calculated.
+     */
+    public exponential(): { b0: number, b1: number } {
         if (this._yHasNonPositive) {
             throw new Error(
                 'Exponential regression could not be calculated because of\
@@ -127,7 +161,14 @@ export default class Regression {
         };
     }
 
-    public power() {
+    /**
+     * Calculates the power regression parameters for the equation: y = b0 * (x ^ b1).
+     * The result is cached after the first calculation.
+     * 
+     * @returns {{ b0: number, b1: number }} An object containing the proportionality constant (b0) and the exponent (b1).
+     * @throws {Error} If either the independent (x) or dependent (y) variable contains non-positive values.
+     */
+    public power(): { b0: number, b1: number } {
         if (this._xHasNonPositive || this._yHasNonPositive) {
             throw new Error(
                 'Power regression could not be calculated because of \
