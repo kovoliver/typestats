@@ -14,12 +14,12 @@ TypeStats is a comprehensive, robust TypeScript-based statistical and mathematic
 
 The project is organized into the following core modules:
 
-### 1. Descriptive Statistics (`calculations/statistics/`)
+### 1. Descriptive Statistics (`core/statistics/`)
 - **Univariate Analysis (`univariate.ts`)**: Measures of central tendency and dispersion (mean, mode, median, quartiles, variance, standard deviation), along with shape metrics like skewness and kurtosis (based on central moments). Contains tools for frequency series and Lorenz curve data.
 - **Bivariate Analysis (`bivariate.ts`)**: Relationship and correlation testing, including covariance, Pearson correlation, rank correlation, Cramér's V, and ANOVA for independence.
 - **Frequency Tables (`FrequencyTable.ts`)**: Generation of frequency distributions, grouping data, and calculating base, chain, and intensity ratios.
 
-### 2. Statistical Inference & Modeling (`calculations/inference/`)
+### 2. Statistical Inference & Modeling (`core/inference/`)
 - **Hypothesis Testing (`hypothesis.ts`)**: Extensive suite of tests including:
   - One-sample and two-sample Z-tests and t-tests (for population means and proportions).
   - Asymptotic Z-tests.
@@ -31,17 +31,17 @@ The project is organized into the following core modules:
 - **Regression (`Regression.ts`)**: Linear regression computations and parameter estimations.
 - **Trend Analysis (`Trend.ts`)**: Time series modeling and trend line fitting.
 
-### 3. Probability Distributions (`calculations/distributions/`)
+### 3. Probability Distributions (`core/distributions/`)
 Core distribution functions and their inverses required for determining p-values, critical values, and confidence intervals:
 - **Normal Distribution (`normalDist.ts`)**: Z-distribution calculations and standard normal inverse values.
 - **Student's t-Distribution (`studentDist.ts`)**: t-values and inverse distribution features.
 - **Chi-Square Distribution (`chiSquareDist.ts`)**: Chi-square probabilities and inverse functions.
 - **F-Distribution (`fDist.ts`)**: F-distribution probabilities and inverse limits.
 
-### 4. Mathematical Operations (`calculations/math/`)
+### 4. Mathematical Operations (`core/math/`)
 - **Matrix (`Matrix.ts`)**: Multi-dimensional data structures and matrix operations (multiplication, transposition, determinants, inverses) that serve as the foundational math for multivariate regression and ANOVA calculations.
 
-### 5. Utility Functions (`calculations/utils/`)
+### 5. Utility Functions (`core/utils/`)
 - **`numberUtils.ts`**: Helper functions for precision handling, number formatting, and rounding.
 - **`testAndEstimationUtils.ts`**: Internal utility functions that support the execution of hypothesis tests and estimations (e.g., iterative calculations for degrees of freedom).
 
