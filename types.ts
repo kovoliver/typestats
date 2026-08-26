@@ -18,6 +18,14 @@ export const TrendType = {
 
 export type TrendType = (typeof TrendType)[keyof typeof TrendType];
 
+export const RegressionType = {
+    Linear: 'LINEAR',
+    Exponential: 'EXPONENTIAL',
+    Polynomial: 'POWER',
+} as const;
+
+export type RegressionType = (typeof RegressionType)[keyof typeof RegressionType];
+
 export interface Stratum {
     label: string;
     samples: number[];

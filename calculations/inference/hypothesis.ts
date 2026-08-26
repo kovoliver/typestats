@@ -327,7 +327,6 @@ export function chiSquaredIndependenceTest(
         throw new Error("Contingency table must have at least 2 columns.");
     }
 
-    // Validate table structure and calculate sums
     let grandTotal = 0;
     const rowTotals = new Array(numRows).fill(0);
     const colTotals = new Array(numCols).fill(0);
@@ -351,7 +350,6 @@ export function chiSquaredIndependenceTest(
         throw new Error("The contingency table must contain non-zero data.");
     }
 
-    // Calculate Chi-squared test statistic
     let chi2 = 0;
     for (let i = 0; i < numRows; i++) {
         for (let j = 0; j < numCols; j++) {
@@ -366,14 +364,11 @@ export function chiSquaredIndependenceTest(
         }
     }
 
-    // Degrees of freedom calculation: (rows - 1) * (cols - 1)
     const df = (numRows - 1) * (numCols - 1);
 
-    // Independence test is always a right-tailed test
     const testDirection = 'right';
     const criticalBounds = getChi2CriticalBounds(alpha, df, testDirection);
 
-    // We pass (fail to reject H0 of independence) if chi2 is smaller than the upper critical bound
     const passed = chi2 <= criticalBounds.upper!;
 
     return {
