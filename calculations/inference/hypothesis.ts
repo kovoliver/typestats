@@ -43,7 +43,7 @@ export function getPassed(
  *   - `passed`: `true` if H0 is retained (accepted), `false` if H0 is rejected.
  * @throws {Error} Throws an error if the sample is empty or if sigma is less than or equal to 0.
  */
-export function oneSampleZTest(
+export function zTest(
     sample: number[],
     sigma: number,
     alpha: number,
@@ -81,7 +81,7 @@ export function oneSampleZTest(
  *   - `passed`: `true` if H0 is retained (accepted), `false` if H0 is rejected.
  * @throws {Error} Throws an error if the sample size is less than 2 or if the sample standard deviation is zero.
  */
-export function oneSampleTTest(
+export function tTest(
     sample: number[],
     alpha: number,
     mu: number,
@@ -132,7 +132,7 @@ export function oneSampleTTest(
  * @throws {Error} If `pSample` is not between 0 and 1 inclusive.
  * @throws {Error} If the sample size `n` is less than or equal to 0.
  */
-export function oneSampleZProportionTest(
+export function zTestProportion(
     pPopulation: number,
     pSample: number,
     n: number,
@@ -181,7 +181,7 @@ export function oneSampleZProportionTest(
  * 
  * @throws {Error} If `hypotheticalVar` is less than or equal to 0.
  */
-export function oneSampleChiSquaredTest(
+export function chi2Test(
     sample: number[],
     hypotheticalVar: number,
     alpha: number,
@@ -241,7 +241,7 @@ export function oneSampleChiSquaredTest(
  * @throws {Error} If any expected frequency is less than or equal to 0.
  * @throws {Error} If the resulting degrees of freedom are less than or equal to 0.
  */
-export function chiSquaredGoodnessOfFitTest(
+export function chi2FitTest(
     observed: number[],
     expected: number[],
     alpha: number,
@@ -283,7 +283,6 @@ export function chiSquaredGoodnessOfFitTest(
 
     return {
         chi2,
-        df,
         criticalBounds,
         passed
     };
@@ -373,7 +372,6 @@ export function chiSquaredIndependenceTest(
 
     return {
         chi2,
-        df,
         criticalBounds,
         passed
     };
@@ -402,7 +400,7 @@ export function chiSquaredIndependenceTest(
  * @throws {Error} If either sample array is empty.
  * @throws {Error} If either population variance is less than or equal to 0.
  */
-export function twoSampleZMeanTest(
+export function zTestTwoSamples(
     sample1: number[],
     sample2: number[],
     popVar1: number,
@@ -462,7 +460,7 @@ export function twoSampleZMeanTest(
  * @throws {Error} If either sample contains fewer than 2 elements.
  * @throws {Error} If the standard error is zero (e.g., both samples have zero variance).
  */
-export function twoSampleTMeanTest(
+export function tTestTwoSamples(
     sample1: number[],
     sample2: number[],
     alpha: number,
@@ -508,7 +506,6 @@ export function twoSampleTMeanTest(
     return {
         t,
         T,
-        df,
         passed
     };
 }
@@ -598,7 +595,7 @@ export function twoSampleAsymptoticZMeanTest(
  * @throws {Error} If either sample size is less than or equal to 0.
  * @throws {Error} If the standard error is zero.
  */
-export function twoSampleZProportionTest(
+export function zTestProportionTwoSamples(
     pSample1: number,
     n1: number,
     pSample2: number,
@@ -663,7 +660,7 @@ export function twoSampleZProportionTest(
  * @throws {Error} If either sample contains fewer than 2 elements.
  * @throws {Error} If the variance of the second sample is zero (leads to division by zero).
  */
-export function twoSampleFVarianceTest(
+export function fTestTwoSamples(
     sample1: number[],
     sample2: number[],
     alpha: number,
@@ -700,8 +697,6 @@ export function twoSampleFVarianceTest(
 
     return {
         F,
-        df1,
-        df2,
         criticalBounds,
         passed
     };
@@ -720,7 +715,7 @@ export function twoSampleFVarianceTest(
  *   - `passed`: `true` if H0 is retained (accepted), `false` if H0 is rejected.
  * @throws {Error} Throws an error if samples have fewer than 2 items or if the pooled standard deviation is zero.
  */
-export function twoSampleIndependentTTest(
+export function tTestIndependent(
     sample1: number[],
     sample2: number[],
     alpha: number,
@@ -828,8 +823,6 @@ export function oneWayAnova(
 
     return {
         F,
-        dfBetween,
-        dfWithin,
         msBetween,
         msWithin,
         criticalBounds,
@@ -859,7 +852,7 @@ export function oneWayAnova(
  * @throws {Error} If any group contains fewer than 2 elements (cannot calculate sample variance).
  * @throws {Error} If the calculated variance for any group is 0 or negative (logarithm is undefined).
  */
-export function bartlettTest(
+export function bartlett(
     groups: number[][],
     alpha: number
 ) {
@@ -913,7 +906,6 @@ export function bartlettTest(
 
     return {
         chi2,
-        df,
         criticalBounds,
         passed
     };

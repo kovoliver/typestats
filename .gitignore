@@ -1,0 +1,27 @@
+# Dependencies (ezt hagyja ki a képeden látható node_modules mappából)
+node_modules/
+
+# Vitest / coverage reportok (ha később lefedettséget mérsz)
+coverage/
+.vitest/
+
+# Fordítási kimenetek (ha TypeScript kimenetet generálsz)
+dist/
+build/
+*.tsbuildinfo
+
+# Környezeti változók (titkos kulcsok, jelszavak)
+.env
+.env.local
+.env.production
+
+# Szerkesztő és OS fájlok
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Npm logok
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

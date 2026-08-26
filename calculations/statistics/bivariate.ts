@@ -1,4 +1,4 @@
-import { orderAsc, range, round } from "../utils/numberUtils";
+import { clampSymmetric, orderAsc, range, round } from "../utils/numberUtils";
 import { mean, ssd, std } from "../statistics/univariate";
 import { getDegreesOfFreedom } from "../statistics/univariate";
 
@@ -108,24 +108,6 @@ export function calcCombinationTable(table: number[][]): number[][] {
 }
 
 /**
- * Generates an extended contingency table with marginal totals and appends a row containing the column averages.
- *
- * @param table - 2D matrix representing the contingency table.
- * @returns A new 2D matrix including row totals, column totals, grand total, and a final column-average row.
- * @throws {Error} If the table structure is invalid.
- */
-export function averageTable(table: number[][]): number[][] {
-    validateContingencyTable(table);
-    const rows = table.length;
-    const comb = calcCombinationTable(table);
-
-    const avgRow = comb[rows].map(val => val / rows);
-    comb.push(avgRow);
-
-    return comb;
-}
-
-/**
  * Calculates the Chi-Square (χ²) statistic of independence for a contingency table.
  *
  * @param table - 2D matrix representing the contingency table.
@@ -195,18 +177,19 @@ export function cramerV(table: number[][], digits: number = -1): number {
  * @returns The total within-group sum of squared deviations.
  * @throws {Error} If the table structure is invalid.
  */
-export function withinSSD(table: number[][], digits: number = -1): number {
+export function withinSSD(
+    table: number[][],
+    digits: number = -1
+): number {
     validateContingencyTable(table);
 
-    const columns = getColumns(table);
-    let totalSSD = 0;
+    let totalSsd = 0;
 
-    for (const column of columns) {
-        const colSSD = ssd(column);
-        totalSSD += colSSD;
+    for (const group of table) {
+        totalSsd += ssd(group);
     }
 
-    return round(totalSSD, digits);
+    return round(totalSsd, digits);
 }
 
 /**
@@ -239,14 +222,12 @@ export function betweenSSD(
 ): number {
     validateContingencyTable(table);
 
-    const columns = getColumns(table);
     const totalMean = mean(table.flat());
-
     let totalSsd = 0;
 
-    for (const column of columns) {
-        totalSsd += column.length * Math.pow(
-            mean(column) - totalMean,
+    for (const group of table) {
+        totalSsd += group.length * Math.pow(
+            mean(group) - totalMean,
             2
         );
     }
@@ -327,9 +308,8 @@ export function correlation(
     }
 
     const covar = covariance(values1, values2, isSample);
-    const corr = Math.min(Math.max(covar / (std1 * std2), -1), 1);
-
-    return round(corr, digits);
+    const rawCorr = covar / (std1 * std2);
+    return clampSymmetric(rawCorr, 12);
 }
 
 /**

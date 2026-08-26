@@ -1,5 +1,5 @@
 import type {PercentMode} from "../../types";
-import { orderAsc, orderDesc, round } from "../utils/numberUtils";
+import { orderAsc, round } from "../utils/numberUtils";
 
 /**
  * Validates an array of numerical values to ensure it is non-empty and meets minimum length requirements.
@@ -187,7 +187,7 @@ export function percentile(
         throw new Error('The given percentage should be between 0 and 1!');
     }
 
-    const sortedVals = orderDesc([...values]);
+    const sortedVals = orderAsc([...values]);
 
     if (percent === 0) return round(sortedVals[0], digits);
     if (percent === 1) return round(sortedVals[sortedVals.length - 1], digits);

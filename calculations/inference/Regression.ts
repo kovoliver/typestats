@@ -13,8 +13,8 @@ export default class Regression {
     private _lnX: number[];
     private _xMean: number;
     private _yMean: number;
-    private _lnxMean: number;
-    private _lnyMean: number;
+    private _lnxMean: number|null = null;
+    private _lnyMean: number|null = null;
     private _b0: number | null = null;
     private _b1: number | null = null;
     private _b0Exp: number | null = null;
@@ -52,16 +52,18 @@ export default class Regression {
         this._xHasNonPositive = x.some((val) => val <= 0);
         this._yHasNonPositive = y.some((val) => val <= 0);
 
-        if (!this._xHasNonPositive)
+        if (!this._xHasNonPositive) {
             this._lnX = x.map((val) => Math.log(val));
+            this._lnxMean = mean(this._lnX);
+        }
 
-        if (!this._yHasNonPositive)
+        if (!this._yHasNonPositive) {
             this._lnY = y.map((val) => Math.log(val));
-
+            this._lnyMean = mean(this._lnY);
+        }
+            
         this._xMean = mean(this._x);
         this._yMean = mean(this._y);
-        this._lnxMean = mean(this._lnX);
-        this._lnyMean = mean(this._lnY);
     }
 
     /**
@@ -82,7 +84,7 @@ export default class Regression {
 
         if (xVar === 0) {
             throw new Error(
-                'Regression could not be calculated because the\
+                'Regression could not be calculated because the \
                 independent variable has zero variance!'
             );
         }
@@ -92,7 +94,7 @@ export default class Regression {
         const xMean = type === 'POWER' ? this._lnxMean : this._xMean;
         const yMean = type === 'LINEAR' ? this._yMean : this._lnyMean;
 
-        const b0 = yMean - b1 * xMean;
+        const b0 = yMean! - b1 * xMean!;
 
         return {
             b0, b1
@@ -136,7 +138,7 @@ export default class Regression {
     public exponential(): { b0: number, b1: number } {
         if (this._yHasNonPositive) {
             throw new Error(
-                'Exponential regression could not be calculated because of\
+                'Exponential regression could not be calculated because of \
                 non-positive values in the dependent variable!'
             );
         }
