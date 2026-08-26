@@ -1,4 +1,4 @@
-import { RegressionType } from "../../types";
+import { RegressionType } from "../types";
 import { covariance } from "../statistics/bivariate";
 import { mean, variance } from "../statistics/univariate";
 

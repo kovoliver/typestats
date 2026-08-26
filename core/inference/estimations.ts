@@ -1,5 +1,5 @@
 import { mean, std, variance } from '../statistics/univariate';
-import type { ConfidenceInterval, Stratum } from '../../types';
+import type { ConfidenceInterval, Stratum } from '../types';
 import { FPC, getChi2CriticalBounds, getPooledTContext, getTCritical, getZCritical } from '../utils/testAndEstimationUtils';
 
 

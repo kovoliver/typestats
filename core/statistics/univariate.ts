@@ -1,4 +1,4 @@
-import type {PercentMode} from "../../types";
+import type {PercentMode} from "../types";
 import { orderAsc, round } from "../utils/numberUtils";
 
 /**
