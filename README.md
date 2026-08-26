@@ -1,6 +1,8 @@
 # TypeStats
 
-A comprehensive, robust TypeScript-based statistical and mathematical library designed for data analysis, research, and modeling tasks. The package covers essential tools for descriptive statistics, hypothesis testing, probability distributions, and matrix operations.
+**Note:** This is a personal educational project. It was created to master the foundational statistical concepts, probability theories, and mathematical programming required for data analysis. 
+
+TypeStats is a comprehensive, robust TypeScript-based statistical and mathematical library designed for data analysis, research, and modeling tasks. The package covers essential tools for descriptive statistics, hypothesis testing, probability distributions, and matrix operations.
 
 ## 📂 Project Structure & Implemented Features
 
@@ -39,6 +41,9 @@ Core distribution functions and their inverses required for determining p-values
 
 ### 6. Type Definitions
 - **`types.ts`**: TypeScript interfaces and custom type definitions. These ensure strict type checking, robust error handling, and comprehensive IntelliSense support throughout the library.
+
+## 🚀 Usage
+*(Insert a quick start guide or code snippet here showing how to import and instantiate calculations, such as running a t-test or generating a frequency table.)*
 
 ## 📜 License
 Please refer to the `LICENSE` file for usage and distribution terms.
