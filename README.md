@@ -51,7 +51,7 @@ Core distribution functions and their inverses required for determining p-values
 ## 🚀 Usage
 Runnable examples can be found in the **examples** folder.
 
-## Tests
+## 🛡️Tests
 The **tests** folder contains the test suite for the library. All directly used and exported functions, methods, and classes are covered by tests.
 
 ## 📜 License
