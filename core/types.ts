@@ -36,3 +36,11 @@ export type ConfidenceInterval = {
     lower: number;
     upper: number;
 }
+
+export const ImputeType = {
+    mode:'MODE',
+    mediam:'MEDIAN',
+    mean:'MEAN'
+}
+
+export type ImputeType = (typeof ImputeType)[keyof typeof ImputeType];
