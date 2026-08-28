@@ -142,3 +142,49 @@ export function standardize(value: number, avg: number, sigma: number) {
 
     return (value - avg) / sigma;
 }
+
+/**
+ * Finds the minimum number in an array.
+ * Highly optimized for performance and safe for large datasets.
+ *
+ * @param {number[]} values - The array of numbers to evaluate.
+ * @returns {number} The smallest number in the array.
+ * @throws {Error} Throws an error if the input array is empty.
+ */
+export function getMin(values: number[]): number {
+    if (values.length === 0) {
+        throw new Error('Cannot get minimum of an empty array!');
+    }
+
+    let min = values[0];
+    for (let i = 1; i < values.length; i++) {
+        if (values[i] < min) {
+            min = values[i];
+        }
+    }
+
+    return min;
+}
+
+/**
+ * Finds the maximum number in an array.
+ * Highly optimized for performance and safe for large datasets.
+ *
+ * @param {number[]} values - The array of numbers to evaluate.
+ * @returns {number} The largest number in the array.
+ * @throws {Error} Throws an error if the input array is empty.
+ */
+export function getMax(values: number[]): number {
+    if (values.length === 0) {
+        throw new Error('Cannot get maximum of an empty array!');
+    }
+
+    let max = values[0];
+    for (let i = 1; i < values.length; i++) {
+        if (values[i] > max) {
+            max = values[i];
+        }
+    }
+
+    return max;
+}
