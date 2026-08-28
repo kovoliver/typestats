@@ -50,6 +50,17 @@ function isInvalidValue(val: any, boundaries?: Boundaries): boolean {
     return false;
 }
 
+function getLabels(values: string[]): Record<string, number> {
+    const keys = Array.from(new Set(values));
+    const labels: Record<string, number> = {};
+
+    keys.forEach((key, index) => {
+        labels[key] = index;
+    });
+
+    return labels;
+}
+
 /**
  * Replaces empty values (and optionally outliers) in a 1D array or a specific column of a 2D matrix 
  * with a statistical imputation value (e.g., MEAN, MEDIAN, MODE).
@@ -234,7 +245,7 @@ export function removeInvalidRows(
 /**
  * Scales a dataset (1D array or a specific column of a 2D matrix) using either Normalization or Standardization.
  *
- * @param values - A 1D array of numbers or a 2D matrix of numbers to scale.
+ * @param values - A 1D array or a 2D matrix to scale.
  * @param type - The scaling method to apply: `'NORMALIZE'` or `'STANDARDIZE'`.
  * @param colIndex - The 0-based column index to scale. Required when `values` is a 2D array.
  * @returns A new 1D array or 2D matrix with the updated scaled values.
@@ -243,10 +254,10 @@ export function removeInvalidRows(
  * @throws {Error} If `values` contains invalid, non-numeric, or `NaN` elements.
  */
 export function scaleValues(
-    values: number[] | number[][],
+    values: number[] | any[][],
     type: ScaleType,
     colIndex?: number,
-): number[] | number[][] {
+): number[] | any[][] {
     if (values.length === 0) {
         throw new Error('You must add at least one value!');
     }
@@ -301,17 +312,74 @@ export function scaleValues(
  * @param colIndex - The target column index to normalize (required for 2D arrays).
  * @returns A new 1D array or 2D matrix containing the normalized values.
  */
-export function normalizeValues(values: number[] | number[][], colIndex?: number) {
+export function normalizeValues(values: number[] | any[][], colIndex?: number) {
     return scaleValues(values, 'NORMALIZE', colIndex);
 }
 
 /**
  * Standardizes a 1D array of numbers or a specific column of a 2D matrix using Z-score standardization.
  *
- * @param values - A 1D array of numbers or a 2D matrix of numbers.
+ * @param values - A 1D array or a 2D matrix.
  * @param colIndex - The target column index to standardize (required for 2D arrays).
  * @returns A new 1D array or 2D matrix containing the standardized values.
  */
-export function standardizeValues(values: number[] | number[][], colIndex?: number) {
+export function standardizeValues(values: number[] | any[][], colIndex?: number) {
     return scaleValues(values, 'STANDARDIZE', colIndex);
+}
+
+/**
+ * Converts categorical string values into numerical labels (0 to N-1).
+ * Supports both 1D string arrays and targeted columns in 2D matrices.
+ *
+ * @param values - A 1D array of string values or a 2D matrix containing string values in the target column.
+ * @param colIndex - The 0-based column index to encode. Required when `values` is a 2D array.
+ * @returns A new 1D array of encoded numbers or a new 2D matrix with the specified column replaced by numerical labels.
+ * @throws {Error} If `values` is empty.
+ * @throws {Error} If `values` is a 2D matrix but `colIndex` is omitted.
+ * @throws {Error} If `values` is not a strictly two-dimensional matrix when passed as a 2D array.
+ * @throws {Error} If any target element in the specified column or array is not a string.
+ */
+export function labelEncoding(
+    values: string[] | any[][], colIndex?: number
+): number[] | any[][] {
+    if (values.length === 0) {
+        throw new Error('You must add at least one value!');
+    }
+
+    const is2D = Array.isArray(values[0]);
+
+    if (is2D && colIndex === undefined) {
+        throw new Error(
+            'You must provide column index when \
+            the given values are in a 2d array!'
+        );
+    }
+
+    if (is2D && !values.every(arr => Array.isArray(arr))) {
+        throw new Error('You must provide a strictly two-dimensional array!');
+    }
+
+    const column:unknown[] = is2D ? 
+    getColumn((values as any[][]), colIndex!) : values;
+
+    if (!(column as any[]).every(val => typeof val === 'string')) {
+        throw new Error(
+            'Label encoding is only possible \
+            with strictly string values!'
+        );
+    }
+
+    const labels = getLabels((column as string[])) as Record<string, number>;
+
+    if (!is2D) {
+        return (column as string[]).map((val: string) => labels[val]);
+    }
+
+    const matrix = values as any[][];
+
+    return matrix.map((row, rIdx) => {
+        const newRow = [...row];
+        newRow[colIndex!] = labels[column[rIdx] as string];
+        return newRow;
+    });
 }
