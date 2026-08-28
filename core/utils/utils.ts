@@ -31,7 +31,7 @@ export function defaultValue<T>(value: T, defaultVal: T): T {
  * @param {number[] | number[][]} values - A 1D or 2D array of numeric values.
  * @returns {number[]} A flat array containing only non-empty, valid numbers.
  */
-export function getNonEmptyValues(values: number[] | number[][]):number[] {
+export function getNonEmptyValues(values: any[] | any[][]): any[] {
     return values.flat().filter((val) => !isEmpty(val));
 }
 
@@ -49,8 +49,8 @@ export function replaceOutlier(
     replacement: number,
     min?: number,
     max?: number
-):number {
-    if(isOutlier(value, min, max)) {
+): number {
+    if (isOutlier(value, min, max)) {
         return replacement;
     }
 
@@ -67,10 +67,10 @@ export function replaceOutlier(
  * @throws {Error} Throws an error if neither `min` nor `max` is provided.
  */
 export function isOutlier(
-    value:number, 
-    min?:number, 
-    max?:number
-):boolean {
+    value: number,
+    min?: number,
+    max?: number
+): boolean {
     if (min === undefined && max === undefined) {
         throw new Error(
             'You must provide at least the minimum or the maximum value!'
@@ -86,4 +86,21 @@ export function isOutlier(
     }
 
     return false;
+}
+
+export function isNumeric(value: any): boolean {
+    if (typeof value === 'number') return !isNaN(value);
+    if (typeof value !== 'string') return false;
+    return value.trim() !== '' && !isNaN(Number(value));
+}
+
+export function toNumberArray(values: unknown[]): number[] {
+    return values.map(val => {
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string' && val.trim() !== '') {
+            const parsed = Number(val);
+            return isNaN(parsed) ? NaN : parsed;
+        }
+        return NaN;
+    });
 }
