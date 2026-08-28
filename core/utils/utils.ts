@@ -104,3 +104,41 @@ export function toNumberArray(values: unknown[]): number[] {
         return NaN;
     });
 }
+
+/**
+ * Normalizes a single numeric value to a [0, 1] range using Min-Max scaling.
+ *
+ * @param value - The numeric value to normalize.
+ * @param min - The minimum value of the dataset.
+ * @param max - The maximum value of the dataset.
+ * @returns The normalized value as a number.
+ * @throws {Error} If `min` and `max` are equal, as division by zero cannot be performed.
+ */
+export function normalize(value: number, min: number, max: number) {
+    if (max === min) {
+        throw new Error(
+            'Normalization cannot be performed because the minimum and maximum values are equal!'
+        );
+    }
+
+    return (value - min) / (max - min);
+}
+
+/**
+ * Standardizes a single numeric value (Z-score normalization) based on the mean and standard deviation.
+ *
+ * @param value - The numeric value to standardize.
+ * @param avg - The arithmetic mean (average) of the dataset.
+ * @param sigma - The standard deviation of the dataset.
+ * @returns The standardized value (Z-score).
+ * @throws {Error} If `sigma` is zero, as division by zero cannot be performed.
+ */
+export function standardize(value: number, avg: number, sigma: number) {
+    if (sigma === 0) {
+        throw new Error(
+            'Standardization cannot be performed because the standard deviation is zero!'
+        );
+    }
+
+    return (value - avg) / sigma;
+}

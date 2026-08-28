@@ -57,3 +57,10 @@ export type Boundaries = {
     min?:number,
     max?:number,
 };
+
+export const ScaleType = {
+    normalize:'NORMALIZE',
+    standardize:'STANDARDIZE'
+};
+
+export type ScaleType = (typeof ScaleType)[keyof typeof ScaleType];

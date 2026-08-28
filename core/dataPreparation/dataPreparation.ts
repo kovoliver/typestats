@@ -1,7 +1,7 @@
 import { getColumn } from "../statistics/bivariate";
-import { mean, median, mode } from "../statistics/univariate";
-import { Boundaries, ImputeType } from "../types";
-import { defaultValue, getNonEmptyValues, isEmpty, isNumeric, isOutlier, replaceOutlier, toNumberArray } from "../utils/utils";
+import { mean, median, mode, std } from "../statistics/univariate";
+import { Boundaries, ImputeType, ScaleType } from "../types";
+import { defaultValue, getNonEmptyValues, isEmpty, isNumeric, isOutlier, normalize, replaceOutlier, standardize, toNumberArray } from "../utils/utils";
 
 function getSubstitute(
     values: number[],
@@ -86,7 +86,7 @@ export function replaceValues(
 
         const newValues = values.map(row => [...row]);
 
-        let column = toNumberArray(getNonEmptyValues(getColumn(values, colIndex!)));
+        const column = toNumberArray(getNonEmptyValues(getColumn(values, colIndex!)));
         const substitute = getSubstitute(column, type, boundaries);
 
         for (let row = 0; row < values.length; row++) {
@@ -229,4 +229,89 @@ export function removeInvalidRows(
 
     const numericArray = toNumberArray(values);
     return numericArray.filter(val => !isInvalidValue(val, boundaries));
+}
+
+/**
+ * Scales a dataset (1D array or a specific column of a 2D matrix) using either Normalization or Standardization.
+ *
+ * @param values - A 1D array of numbers or a 2D matrix of numbers to scale.
+ * @param type - The scaling method to apply: `'NORMALIZE'` or `'STANDARDIZE'`.
+ * @param colIndex - The 0-based column index to scale. Required when `values` is a 2D array.
+ * @returns A new 1D array or 2D matrix with the updated scaled values.
+ * @throws {Error} If `values` is empty.
+ * @throws {Error} If `values` is a 2D array but `colIndex` is omitted.
+ * @throws {Error} If `values` contains invalid, non-numeric, or `NaN` elements.
+ */
+export function scaleValues(
+    values: number[] | number[][],
+    type: ScaleType,
+    colIndex?: number,
+): number[] | number[][] {
+    if (values.length === 0) {
+        throw new Error('You must add at least one value!');
+    }
+
+    const is2D = Array.isArray(values[0]);
+
+    if (is2D && colIndex === undefined) {
+        throw new Error('You must provide column index when the given values are in a 2d array!');
+    }
+
+    let rawColumn: unknown[];
+
+    if (is2D) {
+        if (!values.every(arr => Array.isArray(arr))) {
+            throw new Error('You must provide a strictly two-dimensional array!');
+        }
+        rawColumn = getColumn(values as number[][], colIndex!);
+    } else {
+        rawColumn = values as number[];
+    }
+
+    const column = toNumberArray(rawColumn);
+
+    if (column.some(val => Number.isNaN(val))) {
+        throw new Error(
+            'The given dataset has invalid values. You can use, e.g., the replaceEmptyValues function.'
+        );
+    }
+
+    const param1 = type === 'NORMALIZE' ? Math.min(...column) : mean(column);
+    const param2 = type === 'NORMALIZE' ? Math.max(...column) : std(column);
+
+    const scaleFn = type === 'NORMALIZE' ? normalize : standardize;
+    const scaledColumn = column.map(val => scaleFn(val, param1, param2));
+
+    if (is2D) {
+        const matrix = values as number[][];
+        return matrix.map((row, rIdx) => {
+            const newRow = [...row];
+            newRow[colIndex!] = scaledColumn[rIdx];
+            return newRow;
+        });
+    }
+
+    return scaledColumn;
+}
+
+/**
+ * Normalizes a 1D array of numbers or a specific column of a 2D matrix using Min-Max scaling.
+ *
+ * @param values - A 1D array of numbers or a 2D matrix of numbers.
+ * @param colIndex - The target column index to normalize (required for 2D arrays).
+ * @returns A new 1D array or 2D matrix containing the normalized values.
+ */
+export function normalizeValues(values: number[] | number[][], colIndex?: number) {
+    return scaleValues(values, 'NORMALIZE', colIndex);
+}
+
+/**
+ * Standardizes a 1D array of numbers or a specific column of a 2D matrix using Z-score standardization.
+ *
+ * @param values - A 1D array of numbers or a 2D matrix of numbers.
+ * @param colIndex - The target column index to standardize (required for 2D arrays).
+ * @returns A new 1D array or 2D matrix containing the standardized values.
+ */
+export function standardizeValues(values: number[] | number[][], colIndex?: number) {
+    return scaleValues(values, 'STANDARDIZE', colIndex);
 }
