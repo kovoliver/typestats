@@ -40,7 +40,20 @@ export type ConfidenceInterval = {
 export const ImputeType = {
     mode:'MODE',
     mediam:'MEDIAN',
-    mean:'MEAN'
+    mean:'MEAN',
+    none:'NONE'
 }
 
 export type ImputeType = (typeof ImputeType)[keyof typeof ImputeType];
+
+export const OutlierStrategy = {
+    delete:'DELETE',
+    impute:'IMPUTE'
+};
+
+export type OutlierStrategy = (typeof OutlierStrategy)[keyof typeof OutlierStrategy];
+
+export type Boundaries = {
+    min?:number,
+    max?:number,
+};
