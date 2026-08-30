@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import fQuantile from '../../calculations/distributions/fDist';
-import chiSquareQuantile from '../../calculations/distributions/chiSquareDist';
+import fQuantile from '../../core/distributions/fDist';
+import chiSquareQuantile from '../../core/distributions/chiSquareDist';
 
 function exactQuantileD1eq2(p: number, d2: number): number {
     return (d2 / 2) * (Math.pow(1 - p, -2 / d2) - 1);

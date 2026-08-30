@@ -1,5 +1,6 @@
 import type {PercentMode} from "../types";
 import { orderAsc, round } from "../utils/numberUtils";
+import { hasEmptyValues } from "../utils/utils";
 
 /**
  * Validates an array of numerical values to ensure it is non-empty and meets minimum length requirements.
@@ -7,6 +8,7 @@ import { orderAsc, round } from "../utils/numberUtils";
  * @param values - Array of numerical values to validate.
  * @param [isSample=false] - Whether the calculation requires sample statistics (requires at least 2 values).
  * @throws {Error} If the array is empty/null, or if sample validation fails (fewer than 2 values).
+ * @throws {Error} If the array contains empty (null|undefined|NaN) values.
  */
 function validateValues(values: number[], isSample: boolean = false): void {
     if (!values || values.length === 0) {
@@ -15,6 +17,13 @@ function validateValues(values: number[], isSample: boolean = false): void {
 
     if (isSample && values.length < 2) {
         throw new Error('Sample statistics require at least two numbers!');
+    }
+
+    if (hasEmptyValues(values)) {
+        throw new Error(
+            'The given dataset contains empty or invalid values (null, undefined, NaN, or empty strings). ' +
+            'Please impute or filter missing values before performing statistical calculations.'
+        );
     }
 }
 

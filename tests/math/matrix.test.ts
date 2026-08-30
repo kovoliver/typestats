@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import Matrix from '../../calculations/math/Matrix';
+import Matrix from '../../core/math/Matrix';
 
 describe('Matrix', () => {
     describe('Constructor and basic properties', () => {

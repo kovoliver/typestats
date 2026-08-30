@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import chiSquareQuantile from '../../calculations/distributions/chiSquareDist';
-import normalQuantile from '../../calculations/distributions/normalDist';
+import chiSquareQuantile from '../../core/distributions/chiSquareDist';
+import normalQuantile from '../../core/distributions/normalDist';
 
 function exactQuantileDf2(p: number): number {
     return -2 * Math.log(1 - p);

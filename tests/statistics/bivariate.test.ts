@@ -13,7 +13,7 @@ import getColumns, {
     correlation,
     getRanks,
     rankCorrelation
-} from '../../calculations/statistics/bivariate';
+} from '../../core/statistics/bivariate';
 
 describe('Bivariate and Matrix Statistical Functions', () => {
     const contingencyTable = [

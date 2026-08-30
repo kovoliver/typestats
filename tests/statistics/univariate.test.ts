@@ -24,7 +24,7 @@ import {
     iqr,
     rsd,
     mse
-} from "../../calculations/statistics/univariate";
+} from "../../core/statistics/univariate";
 
 describe('Statisztikai Függvények Tesztelése', () => {
     const sampleData = [1, 2, 3, 4, 5];
@@ -128,20 +128,22 @@ describe('Statisztikai Függvények Tesztelése', () => {
     describe('Skewness and Kurtosis', () => {
         const skewedData = [1, 2, 2, 3, 10];
 
-        it('should calculate Pearson, Bowley, and Kelly skewness', () => {
-            expect(typeof pearsonMeSkewness(skewedData)).toBe('number');
-            expect(typeof bowleySkewness(skewedData)).toBe('number');
-            expect(typeof kellySkewness(skewedData)).toBe('number');
+        it('should calculate Pearson, Bowley, and Kelly skewness accurately', () => {
+            expect(pearsonMeSkewness(skewedData)).toBeCloseTo(1.4715, 4);
+            expect(bowleySkewness(skewedData)).toBe(1);
+            expect(kellySkewness(skewedData)).toBeCloseTo(0.7931, 4);
         });
 
-        it('should calculate central moments, skewness, and excess kurtosis', () => {
-            expect(centralMoment(skewedData, 2)).toBeGreaterThan(0);
+        it('should calculate central moments, skewness, and excess kurtosis accurately', () => {
+            expect(centralMoment(skewedData, 2, false)).toBeCloseTo(10.64, 2);
+            expect(typeof centralMoment(skewedData, 2)).toBe('number');
             expect(typeof skewness(skewedData)).toBe('number');
             expect(typeof excessKurtosis(skewedData)).toBe('number');
         });
 
         it('should throw error for zero-variance dataset in skewness/kurtosis', () => {
             expect(() => skewness([5, 5, 5])).toThrowError('Cannot calculate skewness for constant or zero-variance dataset.');
+            expect(() => excessKurtosis([5, 5, 5])).toThrowError('Cannot calculate excess kurtosis for constant or zero-variance dataset.');
         });
     });
 
@@ -158,7 +160,7 @@ describe('Statisztikai Függvények Tesztelése', () => {
 
         it('should calculate Mean Squared Error (MSE)', () => {
             expect(mse([1, 2, 3], [1, 2, 3])).toBe(0);
-            expect(mse([1, 2, 3], [2, 2, 2])).toBe(2/3);
+            expect(mse([1, 2, 3], [2, 2, 2])).toBe(2 / 3);
             expect(() => mse([1, 2], [1])).toThrowError('The number of actual values must match the number of predicted values.');
         });
     });

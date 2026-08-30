@@ -1,4 +1,4 @@
-import tQuantile from "../../calculations/distributions/studentDist";
+import tQuantile from "../../core/distributions/studentDist";
 
 describe('tQuantile', () => {
     it('should return 0 when p = 0.5 for any degrees of freedom', () => {

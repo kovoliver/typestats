@@ -1,5 +1,6 @@
 # Dependencies (ezt hagyja ki a képeden látható node_modules mappából)
 node_modules/
+done_plus_plans/
 
 # Vitest / coverage reportok (ha később lefedettséget mérsz)
 coverage/

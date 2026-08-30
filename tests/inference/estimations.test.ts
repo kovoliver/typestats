@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Stratum } from '../../types'; // Adjust path if needed
+import type { Stratum } from '../../core/types'; // Adjust path if needed
 import {
     meanEstimationIIDwithSTD,
     meanEstimationIIDwithoutSTD,
@@ -16,7 +16,7 @@ import {
     getMeanDiffPooledCI,
     getProportionDiff,
     getPairedMeanDiff
-} from '../../calculations/inference/estimations';
+} from '../../core/inference/estimations';
 
 describe('Statistical Estimation and Confidence Intervals', () => {
     describe('Mean Estimation (IID)', () => {

@@ -42,14 +42,14 @@ export const ImputeType = {
     mediam:'MEDIAN',
     mean:'MEAN',
     none:'NONE'
-}
+} as const;
 
 export type ImputeType = (typeof ImputeType)[keyof typeof ImputeType];
 
 export const OutlierStrategy = {
     delete:'DELETE',
     impute:'IMPUTE'
-};
+} as const;
 
 export type OutlierStrategy = (typeof OutlierStrategy)[keyof typeof OutlierStrategy];
 
@@ -61,6 +61,6 @@ export type Boundaries = {
 export const ScaleType = {
     normalize:'NORMALIZE',
     standardize:'STANDARDIZE'
-};
+} as const;
 
 export type ScaleType = (typeof ScaleType)[keyof typeof ScaleType];

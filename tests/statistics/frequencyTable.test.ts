@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import FrequencyTable from '../../calculations/statistics/FrequencyTable';
+import FrequencyTable from '../../core/statistics/FrequencyTable';
 
 describe('FrequencyTable Class', () => {
     const intervals: [number, number][] = [

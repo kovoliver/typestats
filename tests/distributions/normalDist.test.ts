@@ -1,4 +1,4 @@
-import normalQuantile from "../../calculations/distributions/normalDist";
+import normalQuantile from "../../core/distributions/normalDist";
 
 describe('normalQuantile', () => {
     it('should return 0 when p = 0.5', () => {
