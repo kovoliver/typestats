@@ -66,7 +66,7 @@ A high-performance, strongly typed object-oriented layer built on an extensible 
   - In-place negation (`invert`).
   - Element-wise bitwise operations (`and`, `or`, `xor`).
 
-### 8. Utility Functions (`core/utils/`)
+### 7. Utility Functions (`core/utils/`)
 - **`numberUtils.ts`**: Helper functions for precision handling, number formatting, and rounding.
 - **`testAndEstimationUtils.ts`**: Internal utility functions that support the execution of hypothesis tests and estimations (e.g., iterative calculations for degrees of freedom).
 - **`utils.ts`**: General data parsing, validation, numeric conversions, and optimized array operations.
