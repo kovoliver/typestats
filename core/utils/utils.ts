@@ -7,10 +7,22 @@
  */
 export function isEmpty<T>(value: T): boolean {
     if (typeof value === 'number') {
-        return isNaN(value);
+        return !Number.isFinite(value);
     }
 
     return value === null || value === "" || value === undefined;
+}
+
+/**
+ * Checks whether an array contains any empty or invalid values (`null`, `undefined`, `NaN`, or empty strings).
+ *
+ * @template T - The type of elements in the array.
+ * @param {T[]} values - The array to evaluate for empty values.
+ * @returns {boolean} `true` if at least one element is empty or invalid, `false` otherwise (or if the array is empty/falsy).
+ */
+export function hasEmptyValues<T>(values: T[]): boolean {
+    if (!values || values.length === 0) return false;
+    return values.some(val => isEmpty(val));
 }
 
 /**
@@ -77,6 +89,10 @@ export function isOutlier(
         );
     }
 
+    if (!Number.isFinite(value)) {
+        return false;
+    }
+
     if (min !== undefined && value < min) {
         return true;
     }
@@ -88,20 +104,118 @@ export function isOutlier(
     return false;
 }
 
+/**
+ * Determines whether a given value is a finite numeric value or a valid numeric string.
+ *
+ * @param {any} value - The value to check.
+ * @returns {boolean} `true` if the value represents a finite number, `false` otherwise.
+ */
 export function isNumeric(value: any): boolean {
-    if (typeof value === 'number') return !isNaN(value);
-    if (typeof value !== 'string') return false;
-    return value.trim() !== '' && !isNaN(Number(value));
+    if (typeof value === 'number') {
+        return Number.isFinite(value);
+    }
+    
+    if (typeof value !== 'string') {
+        return false;
+    }
+    
+    const trimmed = value.trim();
+
+    if (trimmed === '') {
+        return false;
+    }
+
+    const num = Number(trimmed);
+    return Number.isFinite(num);
 }
 
-export function toNumberArray(values: unknown[]): number[] {
+/**
+ * Converts an array of unknown values into an array of numbers (or NaN for non-finite values).
+ *
+ * @param {unknown[]} values - The array of raw values to convert.
+ * @param {boolean} [toInteger=false] - Whether to truncate numbers to integers.
+ * @returns {number[]} A new array containing finite numbers or `NaN` for invalid/non-finite inputs.
+ */
+export function toNumberArray(
+    values: unknown[], 
+    toInteger: boolean = false
+): number[] {
     return values.map(val => {
-        if (typeof val === 'number') return val;
-        if (typeof val === 'string' && val.trim() !== '') {
-            const parsed = Number(val);
-            return isNaN(parsed) ? NaN : parsed;
+        let num: number;
+
+        if (typeof val === 'number') {
+            num = val;
+        } else if (typeof val === 'string' && val.trim() !== '') {
+            num = Number(val);
+        } else {
+            return NaN;
         }
-        return NaN;
+
+        if (!Number.isFinite(num)) {
+            return NaN;
+        }
+
+        return toInteger ? Math.trunc(num) : num;
+    });
+}
+
+export function toBoolArray(values: unknown[]): (boolean | null)[] {
+    return values.map((val, index) => {
+        if (val === null || val === undefined) {
+            return null;
+        }
+
+        if (typeof val === 'boolean') {
+            return val;
+        }
+
+        if (typeof val === 'number') {
+            if (val === 1) return true;
+            if (val === 0) return false;
+            throw new Error(`Invalid number at index ${index}: ${val}. Only 1 and 0 are allowed.`);
+        }
+
+        if (typeof val === 'string') {
+            const normalized = val.trim().toLowerCase();
+
+            if (normalized === '' || normalized === 'null' || normalized === 'undefined') {
+                return null;
+            }
+
+            if (normalized === 'false' || normalized === '0' || normalized === 'off' || normalized === 'no') {
+                return false;
+            }
+
+            if (normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes') {
+                return true;
+            }
+
+            throw new Error(`Cannot parse boolean from string at index ${index}: "${val}"`);
+        }
+
+        throw new Error(`Unsupported type at index ${index}: ${typeof val}`);
+    });
+}
+
+export function toStringArray(values: unknown[]): (string | null)[] {
+    return values.map((val, index) => {
+        if (val === null || val === undefined) {
+            return null;
+        }
+
+        if (typeof val === 'string') {
+            const normalized = val.trim().toLowerCase();
+            if (normalized === 'null' || normalized === 'undefined') {
+                return null;
+            }
+            return val;
+        }
+
+        if (typeof val === 'number' || typeof val === 'boolean' || typeof val === 'bigint') {
+            return String(val);
+        }
+
+        throw new Error(`Cannot convert value at index ${index} to string. Unsupported type: ${typeof val}`);
     });
 }
 
