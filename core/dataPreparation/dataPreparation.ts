@@ -1,7 +1,12 @@
 import { getColumn } from "../statistics/bivariate";
 import { mean, median, mode, std } from "../statistics/univariate";
 import { Boundaries, ImputeType, ScaleType } from "../types";
-import { defaultValue, getMax, getMin, getNonEmptyValues, isEmpty, isNumeric, isOutlier, normalize, replaceOutlier, standardize, toNumberArray } from "../utils/utils";
+import { 
+    defaultValue, getMax, getMin, 
+    getNonEmptyValues, isEmpty, isNumeric, 
+    isOutlier, normalize, replaceOutlier, 
+    standardize, toNumberArray } 
+from "../utils/utils";
 
 function getSubstitute(
     values: number[],
@@ -147,9 +152,8 @@ export function replaceValues(
                 ? parseFloat(values[row][colIndex!].toString()) : NaN;
 
             newValues[row][colIndex!] = boundaries
-                ? defaultValue(replaceOutlier(
+                ? replaceOutlier(
                     currentVal, substitute, boundaries.min, boundaries.max
-                ), substitute
                 )
                 : defaultValue(currentVal, substitute);
         }
@@ -161,7 +165,7 @@ export function replaceValues(
     const substitute = getSubstitute(getNonEmptyValues(numericValues), type, boundaries);
 
     return numericValues.map((val) => boundaries ?
-        defaultValue(replaceOutlier(val, substitute, boundaries.min, boundaries.max), substitute)
+        replaceOutlier(val, substitute, boundaries.min, boundaries.max)
         : defaultValue<number>(val, substitute));
 }
 
