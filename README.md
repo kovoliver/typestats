@@ -45,12 +45,33 @@ Core distribution functions and their inverses required for determining p-values
 - **Feature Scaling**: Transforming datasets for machine learning models using Min-Max Normalization (`normalizeValues`) and Z-score Standardization (`standardizeValues`).
 - **Categorical Encoding**: Converting string categories into numerical representations through Label Encoding (`labelEncoding`) and One-Hot Encoding (`oneHotEncode`, with full reversibility via `decodeOneHot`).
 
-### 6. Utility Functions (`core/utils/`)
+### 6. Object-Oriented Data Structures (`core/dataStructures/`)
+A high-performance, strongly typed object-oriented layer built on an extensible caching architecture for seamless data manipulation and feature engineering:
+- **Abstract Caching System (`Cache.ts`)**: Base abstract class managing internal evaluation maps (`Map<string, unknown>`). Guarantees $O(1)$ time complexity for repeated statistical calls while enforcing strict encapsulated cache invalidation when data is mutated.
+- **Base Column Representation (`Column.ts`)**: Generic abstract class (`Column<T>`) extending `Cache`. Provides standardized, type-safe data handling, missing/valid row counting (`countMissing`, `countValid`), unique value extraction (`unique`), and tabular console output (`display`).
+- **Numeric Column (`NumberColumn.ts`)**: Specialized column for numeric data processing:
+  - Univariate descriptive metrics (min, max, mean, variance, ssd, range, skewness, kurtosis, percentiles, IQR boundaries).
+  - In-place scaling, normalization, and outlier imputation/removal (`standardize`, `normalize`, `replaceOutliers`, `replaceOutliersIqr`, `removeEmptyRows`).
+  - Bivariate statistical methods (`covariance`, `correlation`).
+  - Regression fitting (`linearRegression`, `exponentialRegression`, `powerRegression`).
+  - Time-series trend analysis with dynamic cache key binding (`linearTrend`, `exponentialTrend`, `logarithmicTrend`, `polynomialTrend`).
+  - In-place sorting (`orderAsc`, `orderDesc`).
+- **String Column (`StringColumn.ts`)**: Specialized column for categorical text data:
+  - String-specific sorting (`orderAsc`, `orderDesc`) with `null` element alignment.
+  - Data cleaning and empty row purging (`removeEmptyRows`).
+  - Feature encoding: integer transformation via `labelEncode()` and lazy-evaluated, cached One-Hot Encoding via the `oneHotEncoded` getter (returning an array of `NumberColumn` instances).
+- **Boolean Column (`BoolColumn.ts`)**: Specialized column for binary logical data:
+  - Proportional metrics and frequency counts (`countTrue`, `countFalse`, `trueRatio`, `falseRatio`).
+  - Type transformation: `toNumberColumn()` converts boolean states to numeric binary columns ($1$ for `true`, $0$ for `false`, preserving `NaN` representation for missing data).
+  - In-place negation (`invert`).
+  - Element-wise bitwise operations (`and`, `or`, `xor`).
+
+### 8. Utility Functions (`core/utils/`)
 - **`numberUtils.ts`**: Helper functions for precision handling, number formatting, and rounding.
 - **`testAndEstimationUtils.ts`**: Internal utility functions that support the execution of hypothesis tests and estimations (e.g., iterative calculations for degrees of freedom).
 - **`utils.ts`**: General data parsing, validation, numeric conversions, and optimized array operations.
 
-### 7. Type Definitions
+### 8. Type Definitions
 - **`types.ts`**: TypeScript interfaces and custom type definitions. These ensure strict type checking, robust error handling, and comprehensive IntelliSense support throughout the library.
 
 ## 🚀 Usage
