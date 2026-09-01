@@ -1,6 +1,7 @@
 # TypeStats
 
 **Note:** This is a personal educational project. It was created to master the foundational statistical concepts, probability theories, and mathematical programming required for data analysis. 
+
 ### Project Authorship
 - Core distribution modules: Written by Claude AI
 - All other code: Written by Olivér Mihály Kovács
@@ -48,10 +49,11 @@ Core distribution functions and their inverses required for determining p-values
 ### 6. Object-Oriented Data Structures (`core/dataStructures/`)
 A high-performance, strongly typed object-oriented layer built on an extensible caching architecture for seamless data manipulation and feature engineering:
 - **Abstract Caching System (`Cache.ts`)**: Base abstract class managing internal evaluation maps (`Map<string, unknown>`). Guarantees $O(1)$ time complexity for repeated statistical calls while enforcing strict encapsulated cache invalidation when data is mutated.
-- **Base Column Representation (`Column.ts`)**: Generic abstract class (`Column<T>`) extending `Cache`. Provides standardized, type-safe data handling, missing/valid row counting (`countMissing`, `countValid`), unique value extraction (`unique`), and tabular console output (`display`).
+- **Base Column Representation (`Column.ts`)**: Generic abstract class (`Column<T>`) extending `Cache`. Features an abstract `isValid` method ensuring single-pass $O(N)$ row predicate evaluations (`filterIndices`, `filterValues`). Provides standardized, type-safe data handling, missing/valid row counting (`countMissing`, `countValid`), unique value extraction (`unique`), and tabular console output (`display`).
 - **Numeric Column (`NumberColumn.ts`)**: Specialized column for numeric data processing:
   - Univariate descriptive metrics (min, max, mean, variance, ssd, range, skewness, kurtosis, percentiles, IQR boundaries).
   - In-place scaling, normalization, and outlier imputation/removal (`standardize`, `normalize`, `replaceOutliers`, `replaceOutliersIqr`, `removeEmptyRows`).
+  - Pass-through index filtering methods (`filterIndicesByBoundaries`, `filterIndicesByIqr`) for decoupled $O(N)$ row-level evaluation.
   - Bivariate statistical methods (`covariance`, `correlation`).
   - Regression fitting (`linearRegression`, `exponentialRegression`, `powerRegression`).
   - Time-series trend analysis with dynamic cache key binding (`linearTrend`, `exponentialTrend`, `logarithmicTrend`, `polynomialTrend`).
@@ -65,6 +67,21 @@ A high-performance, strongly typed object-oriented layer built on an extensible 
   - Type transformation: `toNumberColumn()` converts boolean states to numeric binary columns ($1$ for `true`, $0$ for `false`, preserving `NaN` representation for missing data).
   - In-place negation (`invert`).
   - Element-wise bitwise operations (`and`, `or`, `xor`).
+- **Immutable Table / DataFrame (`Table.ts`)**: Core tabular container holding structured columns:
+  - **Immutability & Method Chaining**: Operations return fresh `Table` instances to support clean pipeline chaining.
+  - **Row Synchronization**: Utilizes single-pass $O(N)$ index-based extraction (`newTableByIndices`) to ensure strict row alignment across all columns during filtering and sorting.
+  - **Logical Filtering**: Expressive multi-column short-circuit filtering (`where`, `whereAll`, `whereAny`).
+  - **Sorting & Selection**: Immutable row sorting (`orderByAsc`, `orderByDesc`) and column projections (`select`, `drop`).
+  - **Column Insertion**: Immutable column prepending, appending, and index insertion (`addColumnFirst`, `addColumnLast`, `addColumnAt`).
+  - **Data Cleaning & Outlier Removal**:
+    - `dropNa(label)`: Universal missing/empty/NaN row removal across numeric, string, or boolean columns.
+    - `dropOutliers(label, boundaries)`: Threshold-based outlier filtering for numeric columns.
+    - `dropOutliersIqr(label, multiplier)`: Tukey's IQR-based outlier filtering.
+  - **Data Imputation**:
+    - `fillNa(label, value)`: Literal constant imputation enforcing strict column-type matching.
+    - `fillNaNumeric(label, type)`: Statistical imputation (`MEAN`, `MEDIAN`, `MODE`) for numeric columns.
+  - **Console Visualizations**: Formatted tabular rendering (`print`, `head`, `tail`).
+- **Grouped Table (`GroupedTable.ts`)**: Group-by abstraction supporting multi-column composite key grouping and aggregation operations (`count`, `sum`, `avg`, `min`, `max`, `std`) with customizable result column aliases.
 
 ### 7. Utility Functions (`core/utils/`)
 - **`numberUtils.ts`**: Helper functions for precision handling, number formatting, and rounding.
