@@ -64,3 +64,21 @@ export const ScaleType = {
 } as const;
 
 export type ScaleType = (typeof ScaleType)[keyof typeof ScaleType];
+
+export const ColType = {
+    number:'number',
+    bool:'bool',
+    string:'string'
+} as const;
+
+export type ColType = (typeof ColType)[keyof typeof ColType];
+
+export type ColInfo = {
+    label:string;
+    type?:ColType;
+}
+
+export interface CleanResult<T> {
+    cleaned: T;
+    indices: number[];
+}

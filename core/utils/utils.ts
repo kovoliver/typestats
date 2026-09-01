@@ -114,11 +114,11 @@ export function isNumeric(value: any): boolean {
     if (typeof value === 'number') {
         return Number.isFinite(value);
     }
-    
+
     if (typeof value !== 'string') {
         return false;
     }
-    
+
     const trimmed = value.trim();
 
     if (trimmed === '') {
@@ -130,6 +130,54 @@ export function isNumeric(value: any): boolean {
 }
 
 /**
+ * Determines whether a value is boolean or a boolean-like (boolish) value.
+ * @param {any} value The provided value.
+ */
+export function isBool(value: any): boolean {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'boolean') return true;
+    if (value === 1 || value === 0) return true;
+
+    if (typeof value === 'string' || typeof value === 'number') {
+        const str = value.toString().trim().toLowerCase();
+
+        const boolishStrings = [
+            'true', 'false',
+            '1', '0',
+            'yes', 'no',
+            'y', 'n',
+            'i', 'n',
+            'on', 'off',
+            'enabled', 'disabled',
+            'active', 'inactive'
+        ];
+
+        return boolishStrings.includes(str);
+    }
+
+    return false;
+}
+
+/**
+ * Determines whether all non-nullish values in an array are strictly 0 or 1 (as numbers or strings).
+ * @param {Array<number | string>} values The array of values to check.
+ */
+export function only01(values: (number | string | null | undefined)[]): boolean {
+    if (!values || values.length === 0) return false;
+
+    const validValues = values.filter(
+        (val): val is number | string => val !== null && val !== undefined && val !== ''
+    );
+
+    if (validValues.length === 0) return false;
+
+    return validValues.every(val => {
+        const str = val.toString().trim();
+        return str === '0' || str === '1';
+    });
+}
+
+/**
  * Converts an array of unknown values into an array of numbers (or NaN for non-finite values).
  *
  * @param {unknown[]} values - The array of raw values to convert.
@@ -137,7 +185,7 @@ export function isNumeric(value: any): boolean {
  * @returns {number[]} A new array containing finite numbers or `NaN` for invalid/non-finite inputs.
  */
 export function toNumberArray(
-    values: unknown[], 
+    values: unknown[],
     toInteger: boolean = false
 ): number[] {
     return values.map(val => {

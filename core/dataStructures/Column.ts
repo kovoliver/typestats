@@ -3,7 +3,7 @@ import { Cache } from "../abstractClasses";
 export default abstract class Column<T extends number | boolean | string> extends Cache {
     protected _values: (T | null)[];
     protected _label: string;
-    
+
     constructor(values: unknown[], label: string) {
         super();
         this._label = label;
@@ -11,21 +11,85 @@ export default abstract class Column<T extends number | boolean | string> extend
     }
 
     protected abstract prepareData(rawValues: unknown[]): (T | null)[];
-    protected abstract getValidValues(): T[];
+
+    protected abstract isValid(value: T | null): boolean;
+
+    /**
+     * Returns an array containing exclusively valid, non-missing values.
+     */
+    protected getValidValues(): T[] {
+        const result: T[] = [];
+
+        for (let i = 0; i < this._values.length; i++) {
+            const val = this._values[i];
+            if (this.isValid(val)) {
+                result.push(val as T);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Returns an array of original zero-based row indices corresponding to valid entries.
+     */
+    public getValidIndices(): number[] {
+        const indices: number[] = [];
+
+        for (let i = 0; i < this._values.length; i++) {
+            if (this.isValid(this._values[i])) {
+                indices.push(i);
+            }
+        }
+
+        return indices;
+    }
 
     public get label(): string {
         return this._label;
+    }
+
+    public set label(label: string) {
+        this._label = label;
     }
 
     public get values(): (T | null)[] {
         return this._values;
     }
 
+    public filterIndices(predicate: (val: T | null, index: number) => boolean): number[] {
+        const indices: number[] = [];
+
+        for (let i = 0; i < this._values.length; i++) {
+            if (predicate(this._values[i], i)) {
+                indices.push(i);
+            }
+        }
+
+        return indices;
+    }
+
+    public filterValues(predicate: (val: T | null, index: number) => boolean): (T | null)[] {
+        const result: (T | null)[] = [];
+
+        for (let i = 0; i < this._values.length; i++) {
+            if (predicate(this._values[i], i)) {
+                result.push(this._values[i]);
+            }
+        }
+
+        return result;
+    }
+
+    public removeEmptyRows(): void {
+        this._values = this.getValidValues();
+        this.clearCache();
+    }
+
     public countMissing(): number {
         return this.getCached('countMissing', () => {
             return this._values.reduce((total, val) => {
-                if (val === null || val === undefined || val === '') return total + 1;
-                if (typeof val === 'number' && Number.isNaN(val)) return total + 1;
+                if (!this.isValid(val)) return total + 1;
                 return total;
             }, 0);
         });

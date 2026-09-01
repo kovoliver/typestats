@@ -14,6 +14,10 @@ export default class StringColumn extends Column<string> {
         super(values, label);
     }
 
+    protected isValid(val: string | null): boolean {
+        return typeof val === 'string' && val.trim() !== '';
+    }
+
     /**
      * Converts raw unknown input data into an array of string or null values.
      *
@@ -23,15 +27,6 @@ export default class StringColumn extends Column<string> {
      */
     protected prepareData(rawValues: unknown[]): (string | null)[] {
         return toStringArray(rawValues);
-    }
-
-    /**
-     * Removes all empty, null, or invalid string entries in-place by keeping only valid string values.
-     * Clears cached calculations.
-     */
-    public removeEmptyRows(): void {
-        this._values = this.getValidValues();
-        this.clearCache();
     }
 
     /**

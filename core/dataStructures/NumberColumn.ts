@@ -1,18 +1,18 @@
 import Column from "./Column";
-import { getMax, getMin, toNumberArray } from '../utils/utils';
+import { getMax, getMin, isOutlier, toNumberArray } from '../utils/utils';
 import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, median, q3, iqr }
     from '../statistics/univariate';
-import { standardizeValues, normalizeValues, replaceOutliers, removeInvalidRows, replaceEmptyValues }
+import { standardizeValues, normalizeValues, replaceOutliers, removeInvalidRows, replaceEmptyValues, isInvalidValue }
     from '../dataPreparation/dataPreparation';
 import { Boundaries, ImputeType, PercentMode } from "../types";
 import { correlation, covariance } from "../statistics/bivariate";
 import Regression from "../inference/Regression";
 import Trend from "../inference/Trend";
-import {orderAsc, orderDesc} from '../utils/numberUtils';
+import { orderAsc, orderDesc } from '../utils/numberUtils';
 
 export default class NumberColumn extends Column<number> {
-    private regression:Regression|null = null;
-    private trend:Trend|null = null;
+    private regression: Regression | null = null;
+    private trend: Trend | null = null;
 
     /**
      * Creates an instance of NumberColumn.
@@ -41,16 +41,8 @@ export default class NumberColumn extends Column<number> {
         this.regression = null;
     }
 
-    /**
-     * Filters the stored values to return only valid, non-NaN numeric elements.
-     *
-     * @protected
-     * @returns {number[]} An array containing exclusively valid numeric entries.
-     */
-    protected getValidValues(): number[] {
-        return this._values.filter(
-            (v): v is number => typeof v === 'number' && !Number.isNaN(v)
-        );
+    protected isValid(val: number | null): boolean {
+        return typeof val === 'number' && Number.isFinite(val);
     }
 
     /**
@@ -263,39 +255,57 @@ export default class NumberColumn extends Column<number> {
     }
 
     /**
-     * Removes rows (values) that fall outside specified threshold boundaries in-place.
-     * Clears cached calculations.
-     *
+     * Removes rows (values) that fall outside specified threshold boundaries in-place and clears cached calculations.
+     * 
      * @param {Boundaries} boundaries - The lower (`min`) and upper (`max`) threshold boundaries.
      */
-    public removeInvalidRows(boundaries: Boundaries): void {
-        this._values = removeInvalidRows(this._values as number[], boundaries);
+    public removeInvalidRows(boundaries: Boundaries) {
+        this._values = this.filterValues((val) => !isInvalidValue(
+            (val as number), boundaries)
+        );
         this.clearCache();
     }
 
     /**
-     * Removes rows (values) that fall outside IQR-based threshold boundaries in-place.
-     * Clears cached calculations.
-     *
+     * Removes rows (values) that fall outside IQR-based threshold boundaries in-place and clears cached calculations.
+     * 
      * @param {number} [multiplier=1.5] - The IQR multiplier factor (typically 1.5 for mild outliers, 3.0 for extreme outliers).
      * @param {PercentMode} [percentMode='interpolated'] - The mode used for percentile calculation.
      */
     public removeRowsIqr(
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
-    ): void {
+    ) {
         const boundaries = this.getIqrBoundaries(multiplier, percentMode);
-        this._values = removeInvalidRows(this._values as number[], boundaries);
+        this._values = this.filterValues(val => !isInvalidValue(val, boundaries));
         this.clearCache();
     }
 
     /**
-     * Removes all empty, null, or NaN values from the column in-place.
-     * Clears cached calculations.
+     * Evaluates column values against threshold boundaries and returns the row indices that are valid.
+     * Does not mutate internal column state.
+     * 
+     * @param {Boundaries} boundaries - The lower (`min`) and upper (`max`) threshold boundaries.
+     * @returns {number[]} An array of original zero-based row indices that pass boundary validation.
      */
-    public removeEmptyRows() {
-        this._values = removeInvalidRows(this._values as number[]);
-        this.clearCache();
+    public filterIndicesByBoundaries(boundaries: Boundaries): number[] {
+        return this.filterIndices(val => !isInvalidValue(val, boundaries));
+    }
+
+    /**
+     * Evaluates column values against Tukey's IQR threshold boundaries and returns valid row indices.
+     * Does not mutate internal column state.
+     * 
+     * @param {number} [multiplier=1.5] - The IQR multiplier factor (typically 1.5 for mild outliers, 3.0 for extreme outliers).
+     * @param {PercentMode} [percentMode='interpolated'] - The mode used for percentile estimation.
+     * @returns {number[]} An array of original zero-based row indices that pass IQR outlier validation.
+     */
+    public filterIndicesByIqr(
+        multiplier: number = 1.5,
+        percentMode: PercentMode = 'interpolated'
+    ): number[] {
+        const boundaries = this.getIqrBoundaries(multiplier, percentMode);
+        return this.filterIndicesByBoundaries(boundaries);
     }
 
     /**
@@ -328,9 +338,9 @@ export default class NumberColumn extends Column<number> {
      * @returns {{ b0: number, b1: number }} An object containing the y-intercept (`b0`) and slope (`b1`).
      * @throws {Error} Throws if array lengths do not match or if missing/non-positive values violate model assumptions.
      */
-    public linearRegression(column:NumberColumn): { b0: number, b1: number } {
+    public linearRegression(column: NumberColumn): { b0: number, b1: number } {
         this.regression = new Regression(
-            this._values as number[], 
+            this._values as number[],
             column.values as number[]
         );
 
@@ -344,9 +354,9 @@ export default class NumberColumn extends Column<number> {
      * @returns {{ b0: number, b1: number }} An object containing the base parameter (`b0`) and growth rate (`b1`).
      * @throws {Error} Throws if dependent values contain non-positive numbers.
      */
-    public exponentialRegression(column:NumberColumn): { b0: number, b1: number } {
+    public exponentialRegression(column: NumberColumn): { b0: number, b1: number } {
         this.regression = new Regression(
-            this._values as number[], 
+            this._values as number[],
             column.values as number[]
         );
 
@@ -360,9 +370,9 @@ export default class NumberColumn extends Column<number> {
      * @returns {{ b0: number, b1: number }} An object containing the proportionality constant (`b0`) and exponent (`b1`).
      * @throws {Error} Throws if independent or dependent values contain non-positive numbers.
      */
-    public powerRegression(column:NumberColumn): { b0: number, b1: number } {
+    public powerRegression(column: NumberColumn): { b0: number, b1: number } {
         this.regression = new Regression(
-            this._values as number[], 
+            this._values as number[],
             column.values as number[]
         );
 
@@ -375,10 +385,10 @@ export default class NumberColumn extends Column<number> {
      * @returns {any} The fitted linear trend parameters or series.
      */
     public linearTrend() {
-        if(this.trend === null) {
+        if (this.trend === null) {
             this.trend = new Trend(this.getValidValues());
         }
-        
+
         return this.getCached('linear_trend', () => this.trend?.linear());
     }
 
@@ -388,10 +398,10 @@ export default class NumberColumn extends Column<number> {
      * @returns {any} The fitted exponential trend parameters or series.
      */
     public exponentialTrend() {
-        if(this.trend === null) {
+        if (this.trend === null) {
             this.trend = new Trend(this.getValidValues());
         }
-        
+
         return this.getCached('exponential_trend', () => this.trend?.exponential());
     }
 
@@ -401,10 +411,10 @@ export default class NumberColumn extends Column<number> {
      * @returns {any} The fitted logarithmic trend parameters or series.
      */
     public logarithmicTrend() {
-        if(this.trend === null) {
+        if (this.trend === null) {
             this.trend = new Trend(this.getValidValues());
         }
-        
+
         return this.getCached('logarithmic_trend', () => this.trend?.logarithmic());
     }
 
@@ -414,11 +424,11 @@ export default class NumberColumn extends Column<number> {
      * @param {number} degree - The polynomial degree (e.g., 2 for quadratic, 3 for cubic).
      * @returns {any} The fitted polynomial trend parameters or series.
      */
-    public polynomialTrend(degree:number) {
-        if(this.trend === null) {
+    public polynomialTrend(degree: number) {
+        if (this.trend === null) {
             this.trend = new Trend(this.getValidValues());
         }
-        
+
         return this.getCached(`polynomial_trend_${degree}`, () => this.trend?.polynomial(degree));
     }
 

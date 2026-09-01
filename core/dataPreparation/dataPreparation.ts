@@ -1,6 +1,6 @@
 import { getColumn } from "../statistics/bivariate";
 import { mean, median, mode, std } from "../statistics/univariate";
-import { Boundaries, ImputeType, ScaleType } from "../types";
+import { Boundaries, CleanResult, ImputeType, ScaleType } from "../types";
 import { 
     defaultValue, getMax, getMin, 
     getNonEmptyValues, isEmpty, isNumeric, 
@@ -43,7 +43,7 @@ function getSubstitute(
     }
 }
 
-function isInvalidValue(val: any, boundaries?: Boundaries): boolean {
+export function isInvalidValue(val: any, boundaries?: Boundaries): boolean {
     const numVal = isNumeric(val) ? parseFloat(String(val)) : NaN;
 
     if (isEmpty(numVal)) return true;
@@ -245,7 +245,7 @@ export function replaceOutliers(
 export function removeInvalidRows(
     values: any[],
     boundaries?: Boundaries
-): number[];
+): CleanResult<any[] | any[][]>
 
 /**
  * Removes entire rows from a 2D matrix if the value in the specified column is empty, 
@@ -257,35 +257,53 @@ export function removeInvalidRows(
  * @returns {any[][]} A new 2D matrix with bad rows removed.
  */
 export function removeInvalidRows(
-    values: any[][],
-    boundaries?: Boundaries,
-    colIndex?: number
-): any[][];
-
-export function removeInvalidRows(
     values: any[] | any[][],
     boundaries?: Boundaries,
     colIndex?: number
-): any[] | any[][] {
-    if (values.length === 0) {
+): CleanResult<any[] | any[][]> {
+    if (!values || values.length === 0) {
         throw new Error('You must add at least one value!');
     }
 
-    if (Array.isArray(values[0]) && colIndex === undefined) {
-        throw new Error('You must provide column index when the given values are in a 2d array!');
-    }
+    const indices: number[] = [];
 
+    // 2D-s mátrix esetén
     if (Array.isArray(values[0])) {
+        if (colIndex === undefined) {
+            throw new Error('You must provide column index when the given values are in a 2d array!');
+        }
+
         if (!values.every(arr => Array.isArray(arr))) {
             throw new Error('You must provide a strictly two-dimensional array!');
         }
 
         const matrix = values as any[][];
-        return matrix.filter(row => !isInvalidValue(row[colIndex!], boundaries));
+        const cleanedMatrix: any[][] = [];
+
+        for (let i = 0; i < matrix.length; i++) {
+            const row = matrix[i];
+            if (!isInvalidValue(row[colIndex], boundaries)) {
+                cleanedMatrix.push(row);
+                indices.push(i);
+            }
+        }
+
+        return { cleaned: cleanedMatrix, indices };
     }
 
+    // 1D-s tömb (pl. NumberColumn._values) esetén
     const numericArray = toNumberArray(values);
-    return numericArray.filter(val => !isInvalidValue(val, boundaries));
+    const cleanedValues: (number | null)[] = [];
+
+    for (let i = 0; i < numericArray.length; i++) {
+        const val = numericArray[i];
+        if (!isInvalidValue(val, boundaries)) {
+            cleanedValues.push(val);
+            indices.push(i);
+        }
+    }
+
+    return { cleaned: cleanedValues, indices };
 }
 
 /**

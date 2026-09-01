@@ -13,6 +13,10 @@ export default class BoolColumn extends Column<boolean> {
         super(values, label);
     }
 
+    protected isValid(val: boolean | null): boolean {
+        return typeof val === 'boolean';
+    }
+
     /**
      * Converts raw unknown input data into an array of boolean or null values.
      *
@@ -22,16 +26,6 @@ export default class BoolColumn extends Column<boolean> {
      */
     protected prepareData(rawValues: unknown[]): (boolean | null)[] {
         return toBoolArray(rawValues);
-    }
-
-    /**
-     * Filters the stored values to return only valid boolean elements (excluding null).
-     *
-     * @protected
-     * @returns {boolean[]} An array containing exclusively valid boolean entries.
-     */
-    protected getValidValues(): boolean[] {
-        return this._values.filter((v): v is boolean => typeof v === 'boolean');
     }
 
     /**
@@ -102,15 +96,6 @@ export default class BoolColumn extends Column<boolean> {
      */
     public invert(): void {
         this._values = this._values.map(val => (val === null ? null : !val));
-        this.clearCache();
-    }
-
-    /**
-     * Removes all empty or null values from the column in-place.
-     * Clears cached calculations.
-     */
-    public removeEmptyRows(): void {
-        this._values = this.getValidValues();
         this.clearCache();
     }
 
