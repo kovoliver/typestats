@@ -254,6 +254,10 @@ export default class NumberColumn extends Column<number> {
         this.clearCache();
     }
 
+    public getImputedValues(type: ImputeType) {
+        return replaceEmptyValues(this._values as number[], type) as number[];
+    }
+
     /**
      * Removes rows (values) that fall outside specified threshold boundaries in-place and clears cached calculations.
      * 

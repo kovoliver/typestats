@@ -1,4 +1,4 @@
-import { Boundaries, ColInfo, ColType, PercentMode } from '../types';
+import { Boundaries, ColInfo, ColType, ImputeType, PercentMode } from '../types';
 import { isBool, isEmpty, isNumeric, only01 } from '../utils/utils';
 import NumberColumn from './NumberColumn';
 import BoolColumn from './BoolColumn';
@@ -318,8 +318,8 @@ export default class Table {
             for (let col = 0; col < cols.length; col++) {
                 passed = fns[col](cols[col].values[row]);
 
-                if(andOr === 'or' && passed) break;
-                if(andOr === 'and' && !passed) break;
+                if (andOr === 'or' && passed) break;
+                if (andOr === 'and' && !passed) break;
             }
 
             if (passed) {
@@ -484,5 +484,88 @@ export default class Table {
 
         const validIndices = col.filterIndicesByIqr(multiplier, percentMode);
         return this.newTableByIndices(validIndices);
+    }
+
+    /**
+     * Imputes missing or NaN values in a specified numeric column using a statistical imputation strategy (MEAN, MEDIAN, MODE).
+     * Returns a new Table instance, preserving immutability.
+     * 
+     * @param {string | number} label - The label name or zero-based index of the target numeric column.
+     * @param {ImputeType} type - The statistical imputation strategy to apply ('MEAN', 'MEDIAN', or 'MODE').
+     * @returns {Table} A new Table instance containing the statistically imputed values.
+     * @throws {Error} Throws if the target column is not an instance of NumberColumn.
+     */
+    public fillNaNumeric(label: string | number, type: ImputeType): Table {
+        const targetCol = this.getCol(label);
+
+        if (!(targetCol instanceof NumberColumn)) {
+            throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
+        }
+
+        const targetIndex = this.getIndex(label);
+        const imputedValues = targetCol.getImputedValues(type);
+
+        const newCols = this._table.map((col, idx) => {
+            if (idx === targetIndex) {
+                return new NumberColumn(imputedValues, col.label);
+            }
+            return this.cloneColumn(col);
+        });
+
+        return this.createTableFromCols(newCols);
+    }
+
+    /**
+     * Fills missing, null, or NaN values in a specified column with a literal constant value.
+     * Enforces strict type compatibility between the target column and the provided replacement value.
+     * Returns a new Table instance, preserving immutability.
+     * 
+     * @param {string | number} label - The label name or zero-based index of the target column.
+     * @param {number | string | boolean} value - The replacement constant value (must match the target column type).
+     * @returns {Table} A new Table instance containing the imputed values.
+     * @throws {Error} Throws if the replacement value type does not match the target column type.
+     */
+    public fillNa(label: string | number, value: number | string | boolean): Table {
+        const targetCol = this.getCol(label);
+
+        if (targetCol instanceof NumberColumn && typeof value !== 'number') {
+            throw new Error('You must provide a numeric replacement value for numeric columns!');
+        }
+        if (targetCol instanceof BoolColumn && typeof value !== 'boolean') {
+            throw new Error('You must provide a boolean replacement value (true/false) for boolean columns!');
+        }
+        if (targetCol instanceof StringColumn && typeof value !== 'string') {
+            throw new Error('You must provide a string replacement value for string columns!');
+        }
+
+        const targetIndex = this.getIndex(label);
+
+        const newCols = this._table.map((col, idx) => {
+            if (idx === targetIndex) {
+                const filledValues = col.getFilledValues(value as any);
+                return this.createColumnInstance(filledValues, col);
+            }
+            return this.cloneColumn(col);
+        });
+
+        return this.createTableFromCols(newCols);
+    }
+
+    private cloneColumn(col: Column<any>): Column<any> {
+        if (col instanceof NumberColumn) return new NumberColumn([...col.values], col.label);
+        if (col instanceof BoolColumn) return new BoolColumn([...col.values], col.label);
+        return new StringColumn([...col.values], col.label);
+    }
+
+    private createColumnInstance(values: any[], col: Column<any>): Column<any> {
+        if (col instanceof NumberColumn) return new NumberColumn(values, col.label);
+        if (col instanceof BoolColumn) return new BoolColumn(values, col.label);
+        return new StringColumn(values, col.label);
+    }
+
+    private createTableFromCols(cols: Column<any>[]): Table {
+        const matrix = cols.map(c => [...c.values]);
+        const infos = this._colInfos.map(info => ({ ...info }));
+        return new Table(matrix, infos);
     }
 }

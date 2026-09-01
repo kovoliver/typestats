@@ -95,6 +95,10 @@ export default abstract class Column<T extends number | boolean | string> extend
         });
     }
 
+    public getFilledValues(replacement:T):T[] {
+        return this._values.map(val=>this.isValid(val) ? val : replacement) as T[];
+    }
+
     public countValid(): number {
         return this.getCached('countValid', () => this._values.length - this.countMissing());
     }
