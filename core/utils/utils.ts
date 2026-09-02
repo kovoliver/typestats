@@ -13,6 +13,26 @@ export function isEmpty<T>(value: T): boolean {
     return value === null || value === "" || value === undefined;
 }
 
+export function isNanNullUndefined(value:any):boolean {
+    if (typeof value === 'number') {
+        return !Number.isFinite(value);
+    }
+
+    return value === null || value === undefined;
+}
+
+export function getFirstNonEmtpy(values:any[]):any {
+    if(values.length === 0) {
+        throw new Error('You must provide at least one value!');
+    }
+
+    if(values.every(val=>isNanNullUndefined(val))) {
+        throw new Error('All the provided values are empty!');
+    }
+
+    return values.find(val => !isEmpty(val));
+}
+
 /**
  * Checks whether an array contains any empty or invalid values (`null`, `undefined`, `NaN`, or empty strings).
  *

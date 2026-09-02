@@ -1,5 +1,5 @@
 import { Boundaries, ColInfo, ColType, ImputeType, PercentMode } from '../types';
-import { isBool, isEmpty, isNumeric, only01 } from '../utils/utils';
+import { hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils';
 import NumberColumn from './NumberColumn';
 import BoolColumn from './BoolColumn';
 import StringColumn from './StringColumn';
@@ -17,17 +17,55 @@ export default class Table {
         this._table = this.createColInstances(table, colInfos);
     }
 
+    private cloneColumn(col: Column<any>): Column<any> {
+        if (col instanceof NumberColumn) return new NumberColumn([...col.values], col.label);
+        if (col instanceof BoolColumn) return new BoolColumn([...col.values], col.label);
+        return new StringColumn([...col.values], col.label);
+    }
+
+    private createColumnInstance(values: any[], col: Column<any>): Column<any> {
+        if (col instanceof NumberColumn) return new NumberColumn(values, col.label);
+        if (col instanceof BoolColumn) return new BoolColumn(values, col.label);
+        return new StringColumn(values, col.label);
+    }
+
+    private createTableFromCols(cols: Column<any>[]): Table {
+        const matrix = cols.map(c => [...c.values]);
+
+        const infos: ColInfo[] = cols.map(c => {
+            let type: ColType = 'string';
+            if (c instanceof NumberColumn) type = 'number';
+            else if (c instanceof BoolColumn) type = 'bool';
+
+            return {
+                label: c.label,
+                type: type
+            };
+        });
+
+        return new Table(matrix, infos);
+    }
+
+    private labelExists(label: string) {
+        return this._colInfos.findIndex(info => info.label === label) !== -1;
+    }
+
+    /**
+     * Renames an existing column identified by its label or index to a new label.
+     * Throws an error if the new label is empty or if a column with the new label already exists.
+     * 
+     * @param {number | string} identifier - The index or current label of the column to rename.
+     * @param {string} newLabel - The new label to assign to the target column.
+     * @throws {Error} Throws if `newLabel` is invalid or if a column with `newLabel` already exists.
+     */
     public setLabel(identifier: number | string, newLabel: string) {
         if (isEmpty(newLabel) || typeof newLabel !== 'string') {
             throw new Error('The new label must be a non-empty string!');
         }
 
         const index = this.getIndex(identifier);
-        const labelExists = this._colInfos.some(
-            (info, i) => i !== index && info.label === newLabel
-        );
 
-        if (labelExists) {
+        if (this.labelExists(newLabel)) {
             throw new Error(`A column with the label "${newLabel}" already exists!`);
         }
 
@@ -39,6 +77,26 @@ export default class Table {
         };
 
         this._table[index].label = newLabel;
+    }
+
+    /**
+     * Renames multiple columns sequentially using arrays of identifiers and corresponding new labels.
+     * Enforces length equality between input arrays and validates label values.
+     * 
+     * @param {(number | string)[]} identifiers - Array of column indices or current labels.
+     * @param {string[]} newLabels - Array of new labels to assign in matching order.
+     * @throws {Error} Throws if identifier and label array lengths differ or if any new label is empty.
+     */
+    public setLabels(identifiers: (number | string)[], newLabels: string[]): void {
+        if (identifiers.length !== newLabels.length) {
+            throw new Error("The number of identifiers and new labels don't match!");
+        }
+
+        if (hasEmptyValues(newLabels)) {
+            throw new Error('The provided new labels array has at least one empty value!');
+        }
+
+        identifiers.forEach((id, i) => this.setLabel(id, newLabels[i]));
     }
 
     public getCol(identifier: number | string): Column<number | string | boolean> {
@@ -545,27 +603,271 @@ export default class Table {
                 const filledValues = col.getFilledValues(value as any);
                 return this.createColumnInstance(filledValues, col);
             }
+
             return this.cloneColumn(col);
         });
 
         return this.createTableFromCols(newCols);
     }
 
-    private cloneColumn(col: Column<any>): Column<any> {
-        if (col instanceof NumberColumn) return new NumberColumn([...col.values], col.label);
-        if (col instanceof BoolColumn) return new BoolColumn([...col.values], col.label);
-        return new StringColumn([...col.values], col.label);
+    /**
+         * Creates a new calculated column by applying a transformation function to each valid element of an existing column.
+         * Places the newly generated column immediately next to the source column.
+         * Preserves missing/null/NaN values during transformation.
+         * Returns a new Table instance preserving immutability.
+         * 
+         * @param {string | number} label - The label or index identifier of the source column.
+         * @param {string} newLabel - The label for the newly created column.
+         * @param {function(val: any): any} fn - The transformation function applied to each valid entry.
+         * @returns {Table} A new Table instance containing both the original and the new calculated column.
+         */
+    public mapColumn(
+        label: string | number,
+        newLabel: string,
+        fn: (val: number | boolean | string) => number | boolean | string
+    ): Table {
+        if (this.labelExists(newLabel)) {
+            throw new Error(`A column with the label "${newLabel}" already exists!`);
+        }
+
+        const colIndex = this.getIndex(label);
+        const newCols: Column<number | boolean | string>[] = [];
+
+        for (let i = 0; i < this._table.length; i++) {
+            const col = this._table[i];
+
+            if (i !== colIndex) {
+                newCols.push(this.cloneColumn(col));
+            } else {
+                newCols.push(this.cloneColumn(col));
+
+                let newValues: any[] = [];
+
+                try {
+                    newValues = col.values.map(val => {
+                        if (isNanNullUndefined(val)) return val;
+                        return fn(val as any);
+                    });
+                } catch {
+                    throw new Error(`The transformation function failed on column "${col.label}"!`);
+                }
+
+                const type = this.getColType(newValues);
+
+                switch (type) {
+                    case 'number':
+                        newCols.push(new NumberColumn(newValues, newLabel));
+                        break;
+                    case 'string':
+                        newCols.push(new StringColumn(newValues, newLabel));
+                        break;
+                    case 'bool':
+                        newCols.push(new BoolColumn(newValues, newLabel));
+                        break;
+                    default:
+                        throw new Error(`Unsupported column type result: ${type}`);
+                }
+            }
+        }
+
+        return this.createTableFromCols(newCols);
     }
 
-    private createColumnInstance(values: any[], col: Column<any>): Column<any> {
-        if (col instanceof NumberColumn) return new NumberColumn(values, col.label);
-        if (col instanceof BoolColumn) return new BoolColumn(values, col.label);
-        return new StringColumn(values, col.label);
+    /**
+     * Performs element-wise arithmetic operations across multiple numeric columns 
+     * and appends the result as a new NumberColumn.
+     * 
+     * @param {string[]} labels - The labels of the target numeric columns to evaluate in order.
+     * @param {'+' | '-' | '*' | '/'} operation - The arithmetic operator to apply sequentially across columns.
+     * @param {string} newLabel - The label for the newly created calculated column.
+     * @returns {Table} A new Table instance containing the new calculated column.
+     */
+    public combineColumns(
+        labels: string[],
+        operation: '+' | '-' | '*' | '/',
+        newLabel: string
+    ): Table {
+        if (labels.length < 2) {
+            throw new Error('At least two column labels are required to combine columns!');
+        }
+
+        if (this.labelExists(newLabel)) {
+            throw new Error(`A column with the label "${newLabel}" already exists!`);
+        }
+
+        const numCols = labels.map(label => {
+            const col = this.getCol(label);
+
+            if (!(col instanceof NumberColumn)) {
+                throw new Error(`Column "${label}" is not a numeric column!`);
+            }
+
+            return col;
+        });
+
+        const rowCount = this.rowCount;
+        const newValues: (number | null)[] = [];
+
+        for (let row = 0; row < rowCount; row++) {
+            let result = numCols[0].values[row];
+
+            if (isNanNullUndefined(result)) {
+                newValues.push(null);
+                continue;
+            }
+
+            let hasError = false;
+
+            for (let c = 1; c < numCols.length; c++) {
+                const nextVal = numCols[c].values[row];
+
+                if (isNanNullUndefined(nextVal)) {
+                    hasError = true;
+                    break;
+                }
+
+                switch (operation) {
+                    case '+':
+                        (result as number) += (nextVal as number);
+                        break;
+                    case '-':
+                        (result as number) -= (nextVal as number);
+                        break;
+                    case '*':
+                        (result as number) *= (nextVal as number);
+                        break;
+                    case '/':
+                        if ((nextVal as number) === 0) {
+                            hasError = true;
+                        } else {
+                            (result as number) /= (nextVal as number);
+                        }
+                        break;
+                }
+
+                if (hasError) break;
+            }
+
+            newValues.push(hasError ? NaN : result);
+        }
+
+        const newColInfo: ColInfo = { label: newLabel, type: 'number' };
+        return this.addColumnLast(newValues, newColInfo);
     }
 
-    private createTableFromCols(cols: Column<any>[]): Table {
-        const matrix = cols.map(c => [...c.values]);
-        const infos = this._colInfos.map(info => ({ ...info }));
-        return new Table(matrix, infos);
+    /**
+     * Merges multiple string columns element-wise into a single new string column using a specified separator string.
+     * Places the newly created column immediately after the last column in the labels list.
+     * Treats missing/NaN/null values as empty strings during concatenation.
+     * 
+     * @param {string[]} labels - Array of column labels to merge in order.
+     * @param {string} separator - The delimiter inserted between merged column values.
+     * @param {string} newLabel - The label for the newly created merged string column.
+     * @returns {Table} A new Table instance containing the newly created merged column.
+     * @throws {Error} Throws if fewer than two column labels are provided.
+     */
+    public mergeColumns(
+        labels: string[],
+        separator: string,
+        newLabel: string
+    ): Table {
+        if (!labels || labels.length < 2) {
+            throw new Error('At least two column labels are required to merge!');
+        }
+
+        const cols = labels.map(label => this.getCol(label));
+        const lastIndex = this.getIndex(labels[labels.length - 1]);
+        const rowCount = this.rowCount;
+        const newValues: string[] = [];
+
+        for (let row = 0; row < rowCount; row++) {
+            const rowValues = cols.map(col => {
+                const val = col.values[row];
+
+                if (isNanNullUndefined(val)) {
+                    return '';
+                }
+
+                return String(val);
+            });
+
+            newValues.push(rowValues.join(separator));
+        }
+
+        const newColInfo: ColInfo = { label: newLabel, type: 'string' };
+        return this.addColumnAt(newValues, newColInfo, lastIndex + 1);
+    }
+
+    /**
+     * Converts the table data into an array of plain JavaScript objects,
+     * where each object represents a single row mapped by column labels.
+     * 
+     * @returns {Record<string, any>[]} An array of row objects mapping column labels to cell values.
+     */
+    public toObject(): Record<string, any>[] {
+        const finalObj: Record<string, any>[] = [];
+
+        for (let row = 0; row < this.rowCount; row++) {
+            const obj: Record<string, any> = {};
+
+            for (let col = 0; col < this._table.length; col++) {
+                obj[this._table[col].label] = this._table[col].values[row];
+            }
+
+            finalObj.push(obj);
+        }
+
+        return finalObj;
+    }
+
+    /**
+     * Exports the table data into a CSV string format using a custom delimiter.
+     * Handles missing, null, or NaN values by outputting empty entries.
+     * 
+     * @param {string} [separator=';'] - The column separator character to use in the output.
+     * @returns {string} Delimited text output containing headers and formatted row values.
+     */
+    public toCSV(separator: string = ';'): string {
+        const labels = this._table.map(col => col.label);
+        let finalStr = labels.join(separator) + "\n";
+
+        for (let row = 0; row < this.rowCount; row++) {
+            const rowValues = this._table.map(col => {
+                const val = col.values[row];
+
+                if (isNanNullUndefined(val)) {
+                    return '';
+                }
+
+                return String(val);
+            });
+
+            finalStr += rowValues.join(separator) + "\n";
+        }
+
+        return finalStr;
+    }
+
+    /**
+     * Converts the table structure into a 2D matrix (array of row arrays),
+     * omitting column headers and keeping raw cell values.
+     * 
+     * @returns {any[][]} A 2D array representing table rows and cell values.
+     */
+    public toMatrix(): any[][] {
+        const matrix: any[][] = [];
+        const colCount = this._table.length;
+
+        for (let row = 0; row < this.rowCount; row++) {
+            const rowData: any[] = [];
+
+            for (let col = 0; col < colCount; col++) {
+                rowData.push(this._table[col].values[row]);
+            }
+
+            matrix.push(rowData);
+        }
+
+        return matrix;
     }
 }
