@@ -31,7 +31,7 @@ describe('oneHotEncode and decodeOneHot', () => {
             [0, 0, 1]
         ];
         const categories = ['cat', 'dog', 'bird'];
-        
+
         const decoded = decodeOneHot(matrix, categories);
         expect(decoded).toEqual(['cat', 'dog', 'cat', 'bird']);
     });
@@ -42,7 +42,7 @@ describe('oneHotEncode and decodeOneHot', () => {
 
     it('throws an error if input contains non-string values', () => {
         expect(() => oneHotEncode(['cat', 1 as any, 'dog']))
-        .toThrow('One-hot encoding only works with string values!');
+            .toThrow('One-hot encoding only works with string values!');
     });
 });
 
@@ -76,7 +76,7 @@ describe('replaceEmptyValues', () => {
     it('throws an error if column index is missing for 2D array', () => {
         const input = [[1, 2], [3, 4]];
         expect(() => replaceEmptyValues(input, 'MEAN'))
-        .toThrow('You must provide column index when the given values are in a 2d array!');
+            .toThrow('You must provide column index when the given values are in a 2d array!');
     });
 });
 
@@ -125,6 +125,7 @@ describe('removeInvalidRows', () => {
         ];
         const boundaries = { max: 10 };
         const result = removeInvalidRows(input, boundaries, 1);
+        console.log(result);
         expect(result).toEqual([
             ['x', 5],
             ['w', 8]
@@ -156,10 +157,10 @@ describe('normalizeValues and standardizeValues', () => {
     it('standardizes a 1D array correctly', () => {
         const input = [1, 2, 3];
         const result = standardizeValues(input) as number[];
-        
-        expect(result[0]).toBeCloseTo(-1.22474487, 5);
+
+        expect(result[0]).toBeCloseTo(-1, 5);
         expect(result[1]).toBeCloseTo(0, 5);
-        expect(result[2]).toBeCloseTo(1.22474487, 5);
+        expect(result[2]).toBeCloseTo(1, 5);
     });
 
     it('throws an error if data contains invalid values during scaling', () => {
@@ -192,7 +193,7 @@ describe('labelEncoding', () => {
     it('throws an error if input contains non-string values', () => {
         const input = ['apple', 10 as any];
         expect(() => labelEncoding(input))
-        .toThrow('Label encoding is only possible             with strictly string values!');
+            .toThrow('Label encoding is only possible             with strictly string values!');
     });
 
     it('throws an error if column index is missing for 2D array', () => {

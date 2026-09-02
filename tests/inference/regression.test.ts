@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import Regression from '../../calculations/inference/Regression';
+import Regression from '../../core/inference/Regression';
 
 describe('Regression Class', () => {
     describe('Constructor and Validation', () => {

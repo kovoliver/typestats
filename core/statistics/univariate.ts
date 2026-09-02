@@ -10,7 +10,7 @@ import { hasEmptyValues } from "../utils/utils";
  * @throws {Error} If the array is empty/null, or if sample validation fails (fewer than 2 values).
  * @throws {Error} If the array contains empty (null|undefined|NaN) values.
  */
-function validateValues(values: number[], isSample: boolean = false): void {
+function validateValues(values: number[], isSample: boolean = true): void {
     if (!values || values.length === 0) {
         throw new Error('You should give at least one number!');
     }
@@ -34,7 +34,7 @@ function validateValues(values: number[], isSample: boolean = false): void {
  * @param [isSample=false] - Whether the dataset represents a sample (N - 1) or a population (N).
  * @returns The degrees of freedom.
  */
-export function getDegreesOfFreedom(values: number[], isSample: boolean = false): number {
+export function getDegreesOfFreedom(values: number[], isSample: boolean = true): number {
     return !isSample ? values.length : values.length - 1;
 }
 
@@ -47,7 +47,17 @@ export function getDegreesOfFreedom(values: number[], isSample: boolean = false)
  * @throws {Error} If `values` is empty.
  */
 export function mean(values: number[], digits: number = -1): number {
-    validateValues(values);
+    if (!values || values.length === 0) {
+        throw new Error('You should give at least one number!');
+    }
+
+    if (hasEmptyValues(values)) {
+        throw new Error(
+            'The given dataset contains empty or invalid values (null, undefined, NaN, or empty strings). ' +
+            'Please impute or filter missing values before performing statistical calculations.'
+        );
+    }
+    
     const sum = values.reduce((total, value) => total + value, 0);
     return round(sum / values.length, digits);
 }
@@ -152,7 +162,7 @@ export function ssd(values: number[], digits: number = -1): number {
  * @returns The dataset's variance.
  * @throws {Error} If `values` is empty or invalid for sample statistics.
  */
-export function variance(values: number[], isSample: boolean = false, digits: number = -1): number {
+export function variance(values: number[], isSample: boolean = true, digits: number = -1): number {
     validateValues(values, isSample);
     const sumSq = ssd(values);
     const length = getDegreesOfFreedom(values, isSample);
@@ -168,7 +178,7 @@ export function variance(values: number[], isSample: boolean = false, digits: nu
  * @returns The standard deviation.
  * @throws {Error} If `values` is empty or invalid for sample statistics.
  */
-export function std(values: number[], isSample: boolean = false, digits: number = -1): number {
+export function std(values: number[], isSample: boolean = true, digits: number = -1): number {
     validateValues(values, isSample);
     const v = variance(values, isSample); // nyers variancia
     return round(Math.sqrt(v), digits);
@@ -377,7 +387,7 @@ function quantileSkewness(
  */
 export function pearsonMeSkewness(
     values: number[],
-    isSample: boolean = false,
+    isSample: boolean = true,
     mode: PercentMode = 'interpolated',
     digits: number = -1
 ): number {
@@ -432,7 +442,7 @@ export function kellySkewness(values: number[], mode: PercentMode = 'interpolate
 export function centralMoment(
     values: number[],
     k: number,
-    isSample: boolean = false,
+    isSample: boolean = true,
     digits: number = -1
 ): number {
     validateValues(values, isSample);
@@ -453,7 +463,7 @@ export function centralMoment(
  */
 export function excessKurtosis(
     values: number[],
-    isSample: boolean = false,
+    isSample: boolean = true,
     digits: number = -1
 ): number {
     validateValues(values, isSample);
@@ -476,7 +486,7 @@ export function excessKurtosis(
  * @returns The skewness coefficient.
  * @throws {Error} If standard deviation is zero.
  */
-export function skewness(values: number[], isSample: boolean = false, digits: number = -1): number {
+export function skewness(values: number[], isSample: boolean = true, digits: number = -1): number {
     validateValues(values, isSample);
     const s = std(values, isSample);
 
@@ -526,7 +536,7 @@ export function iqr(values: number[], mode: PercentMode = 'interpolated', digits
  * @returns The relative standard deviation (standard deviation divided by mean).
  * @throws {Error} If the mean of `values` is zero.
  */
-export function rsd(values: number[], isSample: boolean = false, digits: number = -1): number {
+export function rsd(values: number[], isSample: boolean = true, digits: number = -1): number {
     validateValues(values, isSample);
     const m = mean(values);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Stratum } from '../../core/types'; // Adjust path if needed
+import type { Stratum } from '../../core/types';
 import {
     meanEstimationIIDwithSTD,
     meanEstimationIIDwithoutSTD,

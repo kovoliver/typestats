@@ -129,7 +129,7 @@ describe('Statisztikai Függvények Tesztelése', () => {
         const skewedData = [1, 2, 2, 3, 10];
 
         it('should calculate Pearson, Bowley, and Kelly skewness accurately', () => {
-            expect(pearsonMeSkewness(skewedData)).toBeCloseTo(1.4715, 4);
+            expect(pearsonMeSkewness(skewedData, false)).toBeCloseTo(1.4715, 4);
             expect(bowleySkewness(skewedData)).toBe(1);
             expect(kellySkewness(skewedData)).toBeCloseTo(0.7931, 4);
         });

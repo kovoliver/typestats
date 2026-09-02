@@ -4,7 +4,7 @@ import {
     chiSquaredIndependenceTest, zTestTwoSamples, tTestTwoSamples,
     twoSampleAsymptoticZMeanTest, zTestProportionTwoSamples, fTestTwoSamples,
     tTestIndependent, oneWayAnova, bartlett
-} from '../../calculations/inference/hypothesis';
+} from '../../core/inference/hypothesis';
 
 describe('Hypothesis Testing Functions', () => {
     describe('getPassed', () => {

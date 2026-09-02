@@ -2,7 +2,7 @@ import Column from "./Column";
 import { getMax, getMin, isOutlier, toNumberArray } from '../utils/utils';
 import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, median, q3, iqr }
     from '../statistics/univariate';
-import { standardizeValues, normalizeValues, replaceOutliers, removeInvalidRows, replaceEmptyValues, isInvalidValue }
+import { standardizeValues, normalizeValues, replaceOutliers, replaceEmptyValues, isInvalidValue }
     from '../dataPreparation/dataPreparation';
 import { Boundaries, ImputeType, PercentMode } from "../types";
 import { correlation, covariance } from "../statistics/bivariate";

@@ -260,7 +260,7 @@ export function etaSquared(table: number[][], digits: number = -1) {
  * @throws {Error} If arrays are invalid, empty, unequal in length, or sample size is less than 2.
  */
 export function covariance(values1: number[], values2: number[],
-    isSample: boolean = false, digits: number = -1): number {
+    isSample: boolean = true, digits: number = -1): number {
     if (!values1 || values1.length === 0 || !values2 || values2.length === 0) {
         throw new Error('Invalid values!');
     }
@@ -297,7 +297,7 @@ export function covariance(values1: number[], values2: number[],
 export function correlation(
     values1: number[],
     values2: number[],
-    isSample: boolean = false,
+    isSample: boolean = true,
     digits: number = -1
 ): number {
     const std1 = std(values1, isSample);
@@ -308,7 +308,7 @@ export function correlation(
     }
 
     const covar = covariance(values1, values2, isSample);
-    const rawCorr = covar / (std1 * std2);
+    const rawCorr = round(covar / (std1 * std2), digits);
     return clampSymmetric(rawCorr, 12);
 }
 
@@ -360,7 +360,7 @@ export function getRanks(values: number[]): Map<number, number> {
 export function rankCorrelation(
     values1: number[],
     values2: number[],
-    isSample: boolean = false,
+    isSample: boolean = true,
     digits: number = -1
 ) {
     const ranks1 = getRanks(values1);

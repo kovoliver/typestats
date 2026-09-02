@@ -1,12 +1,13 @@
 import { getColumn } from "../statistics/bivariate";
 import { mean, median, mode, std } from "../statistics/univariate";
 import { Boundaries, CleanResult, ImputeType, ScaleType } from "../types";
-import { 
-    defaultValue, getMax, getMin, 
-    getNonEmptyValues, isEmpty, isNumeric, 
-    isOutlier, normalize, replaceOutlier, 
-    standardize, toNumberArray } 
-from "../utils/utils";
+import {
+    defaultValue, getMax, getMin,
+    getNonEmptyValues, isEmpty, isNumeric,
+    isOutlier, normalize, replaceOutlier,
+    standardize, toNumberArray
+}
+    from "../utils/utils";
 
 function getSubstitute(
     values: number[],
@@ -244,8 +245,9 @@ export function replaceOutliers(
  */
 export function removeInvalidRows(
     values: any[],
-    boundaries?: Boundaries
-): CleanResult<any[] | any[][]>
+    boundaries?: Boundaries,
+    colIndex?: number
+): any[] | any[][]
 
 /**
  * Removes entire rows from a 2D matrix if the value in the specified column is empty, 
@@ -260,14 +262,11 @@ export function removeInvalidRows(
     values: any[] | any[][],
     boundaries?: Boundaries,
     colIndex?: number
-): CleanResult<any[] | any[][]> {
+): any[] | any[][] {
     if (!values || values.length === 0) {
         throw new Error('You must add at least one value!');
     }
 
-    const indices: number[] = [];
-
-    // 2D-s mátrix esetén
     if (Array.isArray(values[0])) {
         if (colIndex === undefined) {
             throw new Error('You must provide column index when the given values are in a 2d array!');
@@ -284,14 +283,12 @@ export function removeInvalidRows(
             const row = matrix[i];
             if (!isInvalidValue(row[colIndex], boundaries)) {
                 cleanedMatrix.push(row);
-                indices.push(i);
             }
         }
 
-        return { cleaned: cleanedMatrix, indices };
+        return cleanedMatrix;
     }
 
-    // 1D-s tömb (pl. NumberColumn._values) esetén
     const numericArray = toNumberArray(values);
     const cleanedValues: (number | null)[] = [];
 
@@ -299,11 +296,10 @@ export function removeInvalidRows(
         const val = numericArray[i];
         if (!isInvalidValue(val, boundaries)) {
             cleanedValues.push(val);
-            indices.push(i);
         }
     }
 
-    return { cleaned: cleanedValues, indices };
+    return cleanedValues;
 }
 
 /**
@@ -312,6 +308,7 @@ export function removeInvalidRows(
  * @param values - A 1D array or a 2D matrix to scale.
  * @param type - The scaling method to apply: `'NORMALIZE'` or `'STANDARDIZE'`.
  * @param colIndex - The 0-based column index to scale. Required when `values` is a 2D array.
+ * @param isSample - Whether the provided data is a sample or not.
  * @returns A new 1D array or 2D matrix with the updated scaled values.
  * @throws {Error} If `values` is empty.
  * @throws {Error} If `values` is a 2D array but `colIndex` is omitted.
@@ -321,6 +318,7 @@ export function scaleValues(
     values: number[] | any[][],
     type: ScaleType,
     colIndex?: number,
+    isSample:boolean = true
 ): number[] | any[][] {
     if (values.length === 0) {
         throw new Error('You must add at least one value!');
@@ -352,7 +350,7 @@ export function scaleValues(
     }
 
     const param1 = type === 'NORMALIZE' ? getMin(column) : mean(column);
-    const param2 = type === 'NORMALIZE' ? getMax(column) : std(column);
+    const param2 = type === 'NORMALIZE' ? getMax(column) : std(column, isSample);
 
     const scaleFn = type === 'NORMALIZE' ? normalize : standardize;
     const scaledColumn = column.map(val => scaleFn(val, param1, param2));
@@ -374,9 +372,13 @@ export function scaleValues(
  *
  * @param values - A 1D array of numbers or a 2D matrix of numbers.
  * @param colIndex - The target column index to normalize (required for 2D arrays).
+ * @param isSample - Whether the provided data is a sample or not.
  * @returns A new 1D array or 2D matrix containing the normalized values.
  */
-export function normalizeValues(values: number[] | any[][], colIndex?: number) {
+export function normalizeValues(
+    values: number[] | any[][], 
+    colIndex?: number
+) {
     return scaleValues(values, 'NORMALIZE', colIndex);
 }
 
@@ -385,10 +387,15 @@ export function normalizeValues(values: number[] | any[][], colIndex?: number) {
  *
  * @param values - A 1D array or a 2D matrix.
  * @param colIndex - The target column index to standardize (required for 2D arrays).
+ * @param isSample - Whether the provided data is a sample or not.
  * @returns A new 1D array or 2D matrix containing the standardized values.
  */
-export function standardizeValues(values: number[] | any[][], colIndex?: number) {
-    return scaleValues(values, 'STANDARDIZE', colIndex);
+export function standardizeValues(
+    values: number[] | any[][], 
+    colIndex?: number,
+    isSample:boolean = true
+) {
+    return scaleValues(values, 'STANDARDIZE', colIndex, isSample);
 }
 
 /**
