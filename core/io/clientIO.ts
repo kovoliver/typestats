@@ -1,5 +1,6 @@
 import Table from "../dataStructures/Table";
 import { ColInfo } from "../types";
+import { processCSVData, processJSONData } from "./ioutils";
 
 /**
  * Asynchronously fetches and parses a CSV dataset from a web URL or HTTP endpoint
@@ -25,51 +26,11 @@ export async function getCSVFromClient(
             throw new Error(`Failed to fetch CSV: ${response.statusText}`);
         }
 
-        const text = (await response.text()).trim();
+        const text = await response.text();
 
-        if (text.length === 0) {
-            throw new Error('The provided CSV file is empty!');
-        }
-
-        const lines = text.split(/\r?\n/);
-
-        if (lines.length === 1) {
-            throw new Error('The provided CSV file only has a header row!');
-        }
-
-        const head = lines.shift();
-        const labels = head!.trim().split(separator).map(l => l.trim());
-        const colInfos: ColInfo[] = labels.map(label => ({ label }));
-
-        const cols: any[][] = Array.from({ length: labels.length }, () => []);
-
-        for (const [i, line] of lines.entries()) {
-            if (!line.trim()) continue;
-
-            const row: any[] = line.trim().split(separator);
-            const lineDiff = labels.length - row.length;
-
-            if (lineDiff < 0) {
-                throw new Error('The header line contains too few columns!');
-            }
-
-            if (lineDiff > 0) {
-                switch (invalidLine) {
-                    case 'impute':
-                        row.push(...new Array(lineDiff).fill(null));
-                        break;
-                    case 'drop':
-                        continue;
-                    case 'throw':
-                        throw new Error(`Line ${i + 1} is invalid!`);
-                }
-            }
-
-            for (let j = 0; j < labels.length; j++) {
-                const val = row[j] ? row[j].trim() : '';
-                cols[j].push(val === '' ? null : val);
-            }
-        }
+        const { cols, colInfos } = processCSVData(
+            text, separator, invalidLine
+        );
 
         return new Table(cols, colInfos);
     } catch (err) {
@@ -88,7 +49,10 @@ export async function getCSVFromClient(
  *
  * @throws {@link Error} If the HTTP response is not OK, or if the parsed JSON is not a non-empty array of objects.
  */
-export async function getJSONFromClient(url: string): Promise<Table> {
+export async function getJSONFromClient(
+    url: string,
+    invalidLine: 'drop' | 'throw' | 'impute' = 'impute'
+): Promise<Table> {
     try {
         const response = await fetch(url);
 
@@ -97,17 +61,7 @@ export async function getJSONFromClient(url: string): Promise<Table> {
         }
 
         const data = await response.json();
-
-        if (!Array.isArray(data) || data.length === 0) {
-            throw new Error('The fetched JSON must be a non-empty array of objects!');
-        }
-
-        const labels = Object.keys(data[0]);
-        const colInfos: ColInfo[] = labels.map(label => ({ label }));
-
-        const cols: any[][] = labels.map(label =>
-            data.map(row => row[label] ?? null)
-        );
+        const { cols, colInfos } = processJSONData(data, invalidLine);
 
         return new Table(cols, colInfos);
     } catch (err) {
