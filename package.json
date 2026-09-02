@@ -1,15 +1,34 @@
 {
   "name": "typestats",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:log": "vitest run --reporter=html"
+    "test:log": "vitest run --reporter=html",
+    "example:data-prep": "tsx examples/dataPreparation/dataPreparation.example.ts",
+    "example:bool-col": "tsx examples/dataStructures/boolColumn.example.ts",
+    "example:num-col": "tsx examples/dataStructures/numberColumn.example.ts",
+    "example:str-col": "tsx examples/dataStructures/stringColumn.example.ts",
+    "example:table-col": "tsx examples/dataStructures/table-column-manipulation.example.ts",
+    "example:table-clean": "tsx examples/dataStructures/table-data-cleaning.example.ts",
+    "example:table-export": "tsx examples/dataStructures/table-export-and-print.example.ts",
+    "example:table-filter": "tsx examples/dataStructures/table-filtering-and-sorting.example.ts",
+    "example:table-meta": "tsx examples/dataStructures/table-metadata-and-conversion.example.ts",
+    "example:table-transform": "tsx examples/dataStructures/table-transformations.example.ts",
+    "example:estimations": "tsx examples/inference/estimations.example.ts",
+    "example:hypothesis": "tsx examples/inference/hypothesis.example.ts",
+    "example:regression": "tsx examples/inference/regression.example.ts",
+    "example:trend": "tsx examples/inference/trend.example.ts",
+    "example:matrix": "tsx examples/math/matrix.example.ts",
+    "example:bivariate": "tsx examples/statistics/bivariate.example.ts",
+    "example:freq-table": "tsx examples/statistics/frequencyTable.example.ts",
+    "example:univariate": "tsx examples/statistics/univariate.example.ts"
   },
   "devDependencies": {
     "@vitest/ui": "^4.1.11",
+    "tsx": "^4.19.2",
     "vitest": "^4.1.11"
   }
 }
