@@ -211,8 +211,11 @@ export default class Table {
      * @param {number} [from=0] The zero-based starting row index (inclusive).
      * @param {number} [to] The zero-based ending row index (exclusive). Defaults to the total row count.
      */
-    public print(from?: number, to?: number): void {
+    public print(from?: number, to?: number, maxCols: number = 7): void {
         const totalRows = this.rowCount;
+        const totalCols = this._table.length;
+        const hasMoreCols = totalCols > maxCols;
+        const colsLimit = hasMoreCols ? maxCols : totalCols;
 
         let startIndex = from ?? 0;
         let endIndex = to ?? totalRows;
@@ -229,7 +232,7 @@ export default class Table {
         for (let rowIndex = startIndex; rowIndex < endIndex; rowIndex++) {
             const rowObj: Record<string, any> = {};
 
-            for (let colIndex = 0; colIndex < this._table.length; colIndex++) {
+            for (let colIndex = 0; colIndex < colsLimit; colIndex++) {
                 const col = this._table[colIndex];
                 const rawVal = col.values[rowIndex];
 
@@ -241,10 +244,25 @@ export default class Table {
                 rowObj[col.label] = displayVal;
             }
 
+            if (hasMoreCols) {
+                rowObj['...'] = '...';
+            }
+
             tableData[rowIndex] = rowObj;
         }
 
         console.table(tableData);
+
+        const displayedRowsCount = endIndex - startIndex;
+
+        if (hasMoreCols || displayedRowsCount < totalRows) {
+            const rowInfo = `Showing rows ${startIndex}..${endIndex - 1} of ${totalRows}`;
+            const colInfo = hasMoreCols
+                ? `Showing ${maxCols} of ${totalCols} columns (truncated ${totalCols - maxCols} columns)`
+                : `Showing all ${totalCols} columns`;
+
+            console.log(`ℹ️ [${rowInfo}] | [${colInfo}]`);
+        }
     }
 
     /**

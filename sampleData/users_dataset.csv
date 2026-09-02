@@ -1,0 +1,101 @@
+id;first_name;last_name;age;gender;annual_income;is_subscribed;purchase_score;city
+1;John;Doe;28;Male;45000;true;68;New York
+2;Jane;Smith;34;Female;62000;true;82;Los Angeles
+3;Robert;Johnson;45;Male;85000;false;41;Chicago
+4;Emily;Davis;22;Female;28000;true;95;Houston
+5;Michael;Brown;58;Male;110000;false;12;Phoenix
+6;Sarah;Wilson;29;Female;;true;73;Philadelphia
+7;David;Taylor;39;Male;71000;false;;San Antonio
+8;Jessica;Anderson;52;Female;93000;true;55;San Diego
+9;James;Thomas;19;Male;18000;true;88;Dallas
+10;Amanda;Jackson;41;Female;67000;false;34;San Jose
+11;Daniel;White;33;Male;59000;true;61;Austin
+12;Laura;Harris;27;Female;42000;true;79;Jacksonville
+13;Matthew;Martin;61;Male;125000;false;22;Fort Worth
+14;Olivia;Thompson;25;Female;35000;true;91;Columbus
+15;Andrew;Garcia;48;Male;88000;false;47;Charlotte
+16;Sophia;Martinez;31;Female;54000;true;69;San Francisco
+17;Joshua;Robinson;23;Male;29000;false;53;Indianapolis
+18;Megan;Clark;37;Female;76000;true;84;Seattle
+19;Ryan;Rodriguez;42;Male;81000;false;38;Denver
+20;Hannah;Lewis;26;Female;39000;true;77;Washington
+21;Kevin;Lee;35;Male;65000;true;64;Boston
+22;Rachel;Walker;50;Female;98000;false;29;El Paso
+23;Brian;Hall;21;Male;22000;true;86;Nashville
+24;Lauren;Allen;44;Female;82000;true;71;Detroit
+25;Edward;Young;67;Male;145000;false;15;Oklahoma City
+26;Victoria;Hernandez;30;Female;51000;true;75;Portland
+27;Jason;King;38;Male;73000;false;43;Las Vegas
+28;Stephanie;Wright;28;Female;44000;true;80;Memphis
+29;Timothy;Lopez;55;Male;105000;false;26;Louisville
+30;Rebecca;Hill;32;Female;58000;true;67;Baltimore
+31;Jeffrey;Scott;46;Male;89000;false;49;Milwaukee
+32;Michelle;Green;24;Female;32000;true;92;Albuquerque
+33;Gary;Adams;59;Male;115000;false;18;Tucson
+34;Samantha;Baker;36;Female;74000;true;78;Fresno
+35;Larry;Gonzalez;43;Male;83000;false;36;Mesa
+36;Christine;Nelson;29;Female;47000;true;81;Sacramento
+37;Frank;Carter;63;Male;132000;false;10;Atlanta
+38;Debra;Mitchell;51;Female;96000;true;58;Kansas City
+39;Scott;Perez;27;Male;41000;false;57;Colorado Springs
+40;Carol;Roberts;38;Female;70000;true;72;Omaha
+41;Brandon;Turner;20;Male;21000;true;89;Raleigh
+42;Janet;Phillips;47;Female;87000;false;44;Miami
+43;Benjamin;Campbell;33;Male;61000;true;66;Long Beach
+44;Catherine;Parker;56;Female;108000;false;21;Virginia Beach
+45;Gregory;Evans;40;Male;78000;true;62;Oakland
+46;Maria;Edwards;25;Female;37000;true;87;Minneapolis
+47;Samuel;Collins;62;Male;128000;false;14;Tulsa
+48;Heather;Stewart;31;Female;53000;true;74;Arlington
+49;Raymond;Sanchez;49;Male;91000;false;33;New Orleans
+50;Diane;Morris;35;Female;66000;true;70;Wichita
+51;Patrick;Rogers;22;Male;26000;true;93;Cleveland
+52;Julie;Reed;43;Female;80000;false;40;Tampa
+53;Jack;Cook;57;Male;118000;false;19;Bakersfield
+54;Joyce;Morgan;30;Female;49000;true;76;Aurora
+55;Dennis;Bell;38;Male;72000;false;50;Honolulu
+56;Evelyn;Murphy;65;Female;138000;false;8;Anaheim
+57;Jerry;Bailey;26;Male;38000;true;85;Santa Ana
+58;Joan;Rivera;41;Female;75000;true;65;Corpus Christi
+59;Tyler;Cooper;24;Male;31000;false;60;Riverside
+60;Christina;Richardson;36;Female;72000;true;73;Lexington
+61;Aaron;Cox;53;Male;101000;false;27;St. Louis
+62;Frances;Howard;45;Female;86000;true;51;Stockton
+63;Henry;Ward;18;Male;15000;true;98;Pittsburgh
+64;Ann;Torres;60;Female;122000;false;16;Cincinnati
+65;Douglas;Peterson;32;Male;57000;true;68;Anchorage
+66;Alice;Gray;28;Female;46000;true;83;Greensboro
+67;Peter;Ramirez;49;Male;94000;false;31;Plano
+68;Jean;James;37;Female;77000;true;69;Newark
+69;Walter;Watson;64;Male;135000;false;11;Lincoln
+70;Doris;Brooks;23;Female;30000;true;90;Orlando
+71;Kyle;Kelly;42;Male;82000;false;42;Irvine
+72;Kathryn;Sanders;51;Female;97000;true;54;Toledo
+73;Ethan;Price;29;Male;48000;true;78;Jersey City
+74;Gloria;Bennett;58;Female;112000;false;20;Chula Vista
+75;Jeremy;Wood;34;Male;63000;true;63;Durham
+76;Teresa;Barnes;40;Female;79000;false;48;Fort Wayne
+77;Christian;Ross;21;Male;24000;true;94;St. Petersburg
+78;Sara;Henderson;47;Female;88000;true;59;Laredo
+79;Sean;Coleman;36;Male;69000;false;52;Buffalo
+80;Janice;Jenkins;62;Female;129000;false;13;Madison
+81;Austin;Perry;25;Male;36000;true;86;Lubbock
+82;Julia;Powell;33;Female;60000;true;72;Chandler
+83;Joe;Long;54;Male;103000;false;25;Scottsdale
+84;Grace;Patterson;27;Female;43000;true;81;Glendale
+85;Albert;Hughes;66;Male;142000;false;9;Reno
+86;Judy;Flores;44;Female;84000;true;60;Norfolk
+87;Wayne;Washington;30;Male;52000;false;56;Winston-Salem
+88;Theresa;Butler;50;Female;95000;true;46;Las Cruces
+89;Billy;Simmons;22;Male;27000;true;91;Chesapeake
+90;Beverly;Foster;39;Female;71000;false;39;Garland
+91;Bruce;Gonzales;56;Male;116000;false;23;Irving
+92;Denise;Bryant;28;Female;45000;true;79;Hialeah
+93;Eugene;Alexander;41;Male;77000;false;45;Fremont
+94;Marilyn;Russell;63;Female;131000;false;12;Boise
+95;Louis;Griffin;19;Male;17000;true;97;Richmond
+96;Amber;Diaz;35;Female;64000;true;67;Baton Rouge
+97;Gabriel;Hayes;48;Male;92000;false;35;Spokane
+98;Danielle;Myers;32;Female;56000;true;75;Des Moines
+99;Alan;Ford;85;Male;999000;false;1;Tacoma
+100;Jane;Doe;;Female;50000;true;50;Seattle

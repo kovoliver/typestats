@@ -24,9 +24,11 @@
     "example:matrix": "tsx examples/math/matrix.example.ts",
     "example:bivariate": "tsx examples/statistics/bivariate.example.ts",
     "example:freq-table": "tsx examples/statistics/frequencyTable.example.ts",
-    "example:univariate": "tsx examples/statistics/univariate.example.ts"
+    "example:univariate": "tsx examples/statistics/univariate.example.ts",
+    "example:io": "tsx examples/io-csv.example.ts"
   },
   "devDependencies": {
+    "@types/node": "^26.4.1",
     "@vitest/ui": "^4.1.11",
     "tsx": "^4.19.2",
     "vitest": "^4.1.11"

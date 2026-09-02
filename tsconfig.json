@@ -3,11 +3,21 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["vitest/globals"],
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["calculations/**/*", "tests/**/*", "types.ts"]
+  "include": [
+    "core/**/*",
+    "calculations/**/*",
+    "tests/**/*",
+    "examples/**/*",
+    "sampleData/**/*",
+    "*.ts"
+  ]
 }
