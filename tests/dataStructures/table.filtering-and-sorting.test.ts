@@ -1,5 +1,5 @@
 import Table from '../../core/dataStructures/Table';
-import { ColInfo } from '../../core/types';
+import { ColInfo } from '../../core/types/types';
 import GroupedTable from '../../core/dataStructures/GroupedTable';
 
 describe('Table - Filtering, Sorting & Grouping', () => {

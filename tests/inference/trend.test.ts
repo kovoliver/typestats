@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import Trend from '../../core/inference/Trend';
-import type { TrendType } from '../../core/types';
+import type { TrendType } from '../../core/types/types';
 
 describe('Trend', () => {
     describe('Constructor and basic properties', () => {

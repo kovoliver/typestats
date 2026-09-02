@@ -1,5 +1,5 @@
 import Table from '../../core/dataStructures/Table';
-import { ColInfo } from '../../core/types';
+import { ColInfo } from '../../core/types/types';
 
 const dataset = [
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],

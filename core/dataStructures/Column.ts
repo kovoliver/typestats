@@ -1,4 +1,4 @@
-import { Cache } from "../abstractClasses";
+import { Cache } from "../abstractions/abstractClasses";
 
 export default abstract class Column<T extends number | boolean | string> extends Cache {
     protected _values: (T | null)[];

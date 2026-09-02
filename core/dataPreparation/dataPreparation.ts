@@ -1,6 +1,6 @@
 import { getColumn } from "../statistics/bivariate";
 import { mean, median, mode, std } from "../statistics/univariate";
-import { Boundaries, CleanResult, ImputeType, ScaleType } from "../types";
+import { Boundaries, ImputeType, ScaleType } from "../types/types";
 import {
     defaultValue, getMax, getMin,
     getNonEmptyValues, isEmpty, isNumeric,

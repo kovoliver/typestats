@@ -1,6 +1,5 @@
 import { readFile } from 'fs/promises';
 import Table from "../dataStructures/Table";
-import { ColInfo } from "../types";
 import { processCSVData, processJSONData } from './ioutils';
 
 /**

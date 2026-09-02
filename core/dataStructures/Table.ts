@@ -1,4 +1,4 @@
-import { Boundaries, ColInfo, ColType, ImputeType, PercentMode } from '../types';
+import { Boundaries, ColInfo, ColType, ImputeType, PercentMode } from '../types/types';
 import { hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils';
 import NumberColumn from './NumberColumn';
 import BoolColumn from './BoolColumn';

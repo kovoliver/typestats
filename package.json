@@ -1,8 +1,41 @@
 {
   "name": "typestats",
-  "version": "0.9.0",
+  "version": "0.9.0-beta.1",
   "type": "module",
+  "description": "A comprehensive TypeScript statistics and data preparation library for browser and Node.js.",
+  "author": "Olivér Kovács",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kovoliver/typestats"
+  },
+  "keywords": [
+    "typescript",
+    "statistics",
+    "data-analysis",
+    "dataframe",
+    "math",
+    "bivariate",
+    "univariate",
+    "data-preparation"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build && npm run test",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
@@ -31,6 +64,7 @@
     "@types/node": "^26.4.1",
     "@vitest/ui": "^4.1.11",
     "tsx": "^4.19.2",
+    "typescript": "^5.0.0",
     "vitest": "^4.1.11"
   }
 }

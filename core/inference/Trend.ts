@@ -1,4 +1,4 @@
-import type { TrendType } from "../types";
+import type { TrendType } from "../types/types";
 import Matrix from "../math/Matrix";
 
 export default class Trend {

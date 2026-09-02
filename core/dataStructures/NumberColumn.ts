@@ -4,7 +4,7 @@ import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, m
     from '../statistics/univariate';
 import { standardizeValues, normalizeValues, replaceOutliers, replaceEmptyValues, isInvalidValue }
     from '../dataPreparation/dataPreparation';
-import { Boundaries, ImputeType, PercentMode } from "../types";
+import { Boundaries, ImputeType, PercentMode } from "../types/types";
 import { correlation, covariance } from "../statistics/bivariate";
 import Regression from "../inference/Regression";
 import Trend from "../inference/Trend";

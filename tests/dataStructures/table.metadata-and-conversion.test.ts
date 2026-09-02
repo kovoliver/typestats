@@ -1,5 +1,5 @@
 import Table from '../../core/dataStructures/Table';
-import { ColInfo } from '../../core/types';
+import { ColInfo } from '../../core/types/types';
 import NumberColumn from '../../core/dataStructures/NumberColumn';
 import StringColumn from '../../core/dataStructures/StringColumn';
 import BoolColumn from '../../core/dataStructures/BoolColumn';

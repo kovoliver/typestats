@@ -1,5 +1,5 @@
 import Table from '../../core/dataStructures/Table';
-import { ColInfo } from '../../core/types';
+import { ColInfo } from '../../core/types/types';
 
 // Initial data matrix and column information
 const rawData = [

@@ -1,5 +1,5 @@
 import Table from '../../core/dataStructures/Table';
-import { ColInfo } from '../../core/types';
+import { ColInfo } from '../../core/types/types';
 
 describe('Table - Data Cleaning & Imputation', () => {
     it('should drop rows with NA/null/NaN values via dropNa', () => {

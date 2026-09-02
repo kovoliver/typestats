@@ -1,4 +1,4 @@
-import type {PercentMode} from "../types";
+import type {PercentMode} from "../types/types";
 import { orderAsc, round } from "../utils/numberUtils";
 import { hasEmptyValues } from "../utils/utils";
 

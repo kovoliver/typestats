@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import Table from '../../core/dataStructures/Table';
-import { ColInfo } from '../../core/types';
+import { ColInfo } from '../../core/types/types';
 
 describe('GroupedTable & Aggregations Integration Tests', () => {
     const mockData: any[][] = [

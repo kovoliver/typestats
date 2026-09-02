@@ -1,5 +1,5 @@
 import Table from '../../core/dataStructures/Table';
-import { ColInfo } from '../../core/types';
+import { ColInfo } from '../../core/types/types';
 
 const messyData = [
     [10, 12, NaN, 14, 500],             // Numeric column containing outlier and NaN

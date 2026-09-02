@@ -1,5 +1,4 @@
 import Table from "../dataStructures/Table";
-import { ColInfo } from "../types";
 import { processCSVData, processJSONData } from "./ioutils";
 
 /**

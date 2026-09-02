@@ -8,7 +8,7 @@ import {
   getProportionDiff,
   getPairedMeanDiff
 } from '../../core/inference/estimations';
-import type { Stratum } from '../../core/types';
+import type { Stratum } from '../../core/types/types';
 
 console.log('=== 1. Single-Sample Estimation ===');
 

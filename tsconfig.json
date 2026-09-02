@@ -14,7 +14,6 @@
   },
   "include": [
     "core/**/*",
-    "calculations/**/*",
     "tests/**/*",
     "examples/**/*",
     "sampleData/**/*",
