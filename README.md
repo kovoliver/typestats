@@ -69,10 +69,15 @@ A high-performance, strongly typed object-oriented layer built on an extensible 
   - Element-wise bitwise operations (`and`, `or`, `xor`).
 - **Immutable Table / DataFrame (`Table.ts`)**: Core tabular container holding structured columns:
   - **Immutability & Method Chaining**: Operations return fresh `Table` instances to support clean pipeline chaining.
+  - **Metadata & Labelling**: Renaming single or multiple column labels (`setLabel`, `setLabels`).
   - **Row Synchronization**: Utilizes single-pass $O(N)$ index-based extraction (`newTableByIndices`) to ensure strict row alignment across all columns during filtering and sorting.
   - **Logical Filtering**: Expressive multi-column short-circuit filtering (`where`, `whereAll`, `whereAny`).
   - **Sorting & Selection**: Immutable row sorting (`orderByAsc`, `orderByDesc`) and column projections (`select`, `drop`).
-  - **Column Insertion**: Immutable column prepending, appending, and index insertion (`addColumnFirst`, `addColumnLast`, `addColumnAt`).
+  - **Column Insertion & Feature Engineering**:
+    - Immutable column prepending, appending, and index insertion (`addColumnFirst`, `addColumnLast`, `addColumnAt`).
+    - Element-wise functional transformation (`mapColumn`).
+    - Element-wise multi-column arithmetic operations (`combineColumns` for `+`, `-`, `*`, `/`).
+    - Multi-column string concatenation (`mergeColumns` with custom delimiters).
   - **Data Cleaning & Outlier Removal**:
     - `dropNa(label)`: Universal missing/empty/NaN row removal across numeric, string, or boolean columns.
     - `dropOutliers(label, boundaries)`: Threshold-based outlier filtering for numeric columns.
@@ -80,6 +85,10 @@ A high-performance, strongly typed object-oriented layer built on an extensible 
   - **Data Imputation**:
     - `fillNa(label, value)`: Literal constant imputation enforcing strict column-type matching.
     - `fillNaNumeric(label, type)`: Statistical imputation (`MEAN`, `MEDIAN`, `MODE`) for numeric columns.
+  - **Data Export**:
+    - Exporting to an array of objects (`toObject`).
+    - Delimited CSV text generation (`toCSV`).
+    - Converting data back to raw 2D array matrices (`toMatrix`).
   - **Console Visualizations**: Formatted tabular rendering (`print`, `head`, `tail`).
 - **Grouped Table (`GroupedTable.ts`)**: Group-by abstraction supporting multi-column composite key grouping and aggregation operations (`count`, `sum`, `avg`, `min`, `max`, `std`) with customizable result column aliases.
 
