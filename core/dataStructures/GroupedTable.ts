@@ -107,10 +107,18 @@ export default class GroupedTable {
     }
 
     public variance(column: string, alias?: string): Table {
-        return this.createResultTable(column, 'variance', (arr) => variance(arr), alias);
+        return this.createResultTable(
+            column, 'variance', 
+            (arr) => arr.length >= 2? variance(arr) 
+            : NaN, alias
+        );
     }
 
     public std(column: string, alias?: string): Table {
-        return this.createResultTable(column, 'std', (arr) => std(arr), alias);
+        return this.createResultTable(
+            column, 'std', 
+            (arr) => arr.length >= 2? std(arr) 
+            : NaN, alias
+        );
     }
 }

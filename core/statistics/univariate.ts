@@ -147,7 +147,6 @@ export function harmonicMean(values: number[], weights: number[], digits: number
  * @throws {Error} If `values` is empty.
  */
 export function ssd(values: number[], digits: number = -1): number {
-    validateValues(values);
     const m = mean(values);
     const sumOfSquares = values.reduce((total, value) => total + Math.pow(value - m, 2), 0);
     return round(sumOfSquares, digits);

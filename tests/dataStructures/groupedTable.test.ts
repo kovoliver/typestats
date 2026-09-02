@@ -82,6 +82,38 @@ describe('GroupedTable & Aggregations Integration Tests', () => {
         expect(stdTable.getCol('salary_std').values.length).toBe(2);
     });
 
+    it('should return NaN for variance and std on single-element groups without throwing error', () => {
+        const customData: any[][] = [
+            ['IT', 'IT', 'Finance'],
+            [1000, 1200, 5000]
+        ];
+        const customColInfos: ColInfo[] = [
+            { label: 'Department', type: 'string' },
+            { label: 'Salary', type: 'number' }
+        ];
+
+        const table = new Table(customData, customColInfos);
+        const grouped = table.groupBy('Department');
+
+        const varianceTable = grouped.variance('Salary', 'salary_var');
+        const stdTable = grouped.std('Salary', 'salary_std');
+
+        console.log('\n--- VARIANCE (SINGLE ELEMENT GROUP TEST) ---');
+        varianceTable.print();
+
+        console.log('\n--- STD (SINGLE ELEMENT GROUP TEST) ---');
+        stdTable.print();
+
+        const varValues = varianceTable.getCol('salary_var').values;
+        const stdValues = stdTable.getCol('salary_std').values;
+
+        expect(varValues[0]).not.toBeNaN();
+        expect(varValues[1]).toBeNaN();
+
+        expect(stdValues[0]).not.toBeNaN();
+        expect(stdValues[1]).toBeNaN();
+    });
+
     it('should throw error when calling aggregation on a non-existing column', () => {
         const table = new Table(mockData, mockColInfos);
         const grouped = table.groupBy('Department');
