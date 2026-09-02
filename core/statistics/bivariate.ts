@@ -48,7 +48,7 @@ export function getColumn(table: number[][], colNumber: number): number[] {
         throw new Error('The given column does not exist!');
     }
 
-    const column = [];
+    const column:number[] = [];
 
     for (let row = 0; row < table.length; row++) {
         column.push(table[row][colNumber]);
@@ -68,7 +68,7 @@ export default function getColumns(table: number[][]): number[][] {
     validateContingencyTable(table);
 
     const colsLength = table[0].length;
-    const columns = [];
+    const columns:number[][] = [];
 
     for (let col = 0; col < colsLength; col++) {
         columns.push(getColumn(table, col));

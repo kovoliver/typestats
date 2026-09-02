@@ -318,7 +318,7 @@ export function scaleValues(
     values: number[] | any[][],
     type: ScaleType,
     colIndex?: number,
-    isSample:boolean = true
+    isSample: boolean = true
 ): number[] | any[][] {
     if (values.length === 0) {
         throw new Error('You must add at least one value!');
@@ -333,7 +333,7 @@ export function scaleValues(
     let rawColumn: unknown[];
 
     if (is2D) {
-        if (!values.every(arr => Array.isArray(arr))) {
+        if (!(values as unknown[]).every(arr => Array.isArray(arr))) {
             throw new Error('You must provide a strictly two-dimensional array!');
         }
         rawColumn = getColumn(values as number[][], colIndex!);
@@ -376,7 +376,7 @@ export function scaleValues(
  * @returns A new 1D array or 2D matrix containing the normalized values.
  */
 export function normalizeValues(
-    values: number[] | any[][], 
+    values: number[] | any[][],
     colIndex?: number
 ) {
     return scaleValues(values, 'NORMALIZE', colIndex);
@@ -391,9 +391,9 @@ export function normalizeValues(
  * @returns A new 1D array or 2D matrix containing the standardized values.
  */
 export function standardizeValues(
-    values: number[] | any[][], 
+    values: number[] | any[][],
     colIndex?: number,
-    isSample:boolean = true
+    isSample: boolean = true
 ) {
     return scaleValues(values, 'STANDARDIZE', colIndex, isSample);
 }
@@ -426,7 +426,7 @@ export function labelEncoding(
         );
     }
 
-    if (is2D && !values.every(arr => Array.isArray(arr))) {
+    if (is2D && !(values as unknown[]).every(arr => Array.isArray(arr))) {
         throw new Error('You must provide a strictly two-dimensional array!');
     }
 

@@ -150,11 +150,11 @@ export default class Trend {
             return this._polyCache.get(degree)!;
         }
 
-        const eqComps = [];
-        const resultComps = [];
+        const eqComps:number[] = [];
+        const resultComps:number[] = [];
         const ySums = this._y.reduce((total, val) => total + val, 0);
         resultComps.push(ySums);
-        const equation = [];
+        const equation:number[][] = [];
 
         for (let deg = 0; deg <= degree * 2; deg++) {
             const compX = deg !== 0 ?
@@ -173,7 +173,7 @@ export default class Trend {
         }
 
         for (let i = 0; i <= degree; i++) {
-            const eqLine = [];
+            const eqLine:number[] = [];
 
             for (let j = i; j < degree + i + 1; j++) {
                 eqLine.push(eqComps[j]);
