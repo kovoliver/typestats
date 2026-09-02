@@ -1,6 +1,6 @@
-import type {PercentMode} from "../types/types";
-import { orderAsc, round } from "../utils/numberUtils";
-import { hasEmptyValues } from "../utils/utils";
+import type {PercentMode} from "../types/types.js";
+import { orderAsc, round } from "../utils/numberUtils.js";
+import { hasEmptyValues } from "../utils/utils.js";
 
 /**
  * Validates an array of numerical values to ensure it is non-empty and meets minimum length requirements.

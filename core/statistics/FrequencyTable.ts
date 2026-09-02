@@ -1,4 +1,4 @@
-import { isInteger } from "../utils/numberUtils";
+import { isInteger } from "../utils/numberUtils.js";
 
 export default class FrequencyTable {
     private _frequencies: number[];

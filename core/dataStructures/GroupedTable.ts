@@ -1,6 +1,6 @@
-import { mean, variance, ssd, std } from '../statistics/univariate';
-import { getMax, getMin } from '../utils/utils';
-import Table from './Table';
+import { mean, variance, ssd, std } from '../statistics/univariate.js';
+import { getMax, getMin } from '../utils/utils.js';
+import Table from './Table.js';
 
 export default class GroupedTable {
     private _groupKeys: string[];

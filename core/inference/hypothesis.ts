@@ -1,7 +1,7 @@
-import { getChi2CriticalBounds, getPooledTContext, getZCritical } from "../utils/testAndEstimationUtils";
-import { getTCritical, getFCriticalBounds } from "../utils/testAndEstimationUtils";
-import { mean, std, variance } from "../statistics/univariate";
-import { betweenSSD, totalSSD } from "../statistics/bivariate";
+import { getChi2CriticalBounds, getPooledTContext, getZCritical } from "../utils/testAndEstimationUtils.js";
+import { getTCritical, getFCriticalBounds } from "../utils/testAndEstimationUtils.js";
+import { mean, std, variance } from "../statistics/univariate.js";
+import { betweenSSD, totalSSD } from "../statistics/bivariate.js";
 
 /**
  * Determines whether the calculated test statistic falls within the acceptance region.

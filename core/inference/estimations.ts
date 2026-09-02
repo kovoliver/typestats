@@ -1,7 +1,7 @@
-import { mean, std, variance } from '../statistics/univariate';
-import type { ConfidenceInterval, Stratum } from '../types/types';
+import { mean, std, variance } from '../statistics/univariate.js';
+import type { ConfidenceInterval, Stratum } from '../types/types.js';
 import { FPC, getChi2CriticalBounds, getPooledTContext, getTCritical, getZCritical } 
-from '../utils/testAndEstimationUtils';
+from '../utils/testAndEstimationUtils.js';
 
 
 /**

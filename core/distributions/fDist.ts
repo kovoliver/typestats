@@ -1,4 +1,4 @@
-import chiSquareQuantile from './chiSquareDist';
+import chiSquareQuantile from './chiSquareDist.js';
 
 // ============================================================
 // Special-function building blocks (log-gamma, incomplete beta)

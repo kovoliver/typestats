@@ -1,10 +1,10 @@
-import { Boundaries, ColInfo, ColType, ImputeType, PercentMode } from '../types/types';
-import { hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils';
-import NumberColumn from './NumberColumn';
-import BoolColumn from './BoolColumn';
-import StringColumn from './StringColumn';
-import GroupedTable from './GroupedTable';
-import Column from './Column';
+import { Boundaries, ColInfo, ColType, ImputeType, PercentMode } from '../types/types.js';
+import { hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils.js';
+import NumberColumn from './NumberColumn.js';
+import BoolColumn from './BoolColumn.js';
+import StringColumn from './StringColumn.js';
+import GroupedTable from './GroupedTable.js';
+import Column from './Column.js';
 
 export default class Table {
     private _originalTable: any[][];

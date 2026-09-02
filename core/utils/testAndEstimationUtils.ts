@@ -1,8 +1,8 @@
-import chisquareQuantile  from "../distributions/chiSquareDist";
-import fQuantile from "../distributions/fDist";
-import normalQuantile from "../distributions/normalDist";
-import tQuantile from "../distributions/studentDist";
-import { mean, variance } from "../statistics/univariate";
+import chisquareQuantile  from "../distributions/chiSquareDist.js";
+import fQuantile from "../distributions/fDist.js";
+import normalQuantile from "../distributions/normalDist.js";
+import tQuantile from "../distributions/studentDist.js";
+import { mean, variance } from "../statistics/univariate.js";
 
 export function getCriticalTailParameters(
     alpha: number,

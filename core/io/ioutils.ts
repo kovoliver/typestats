@@ -1,4 +1,4 @@
-import { ColInfo } from "../types/types";
+import { ColInfo } from "../types/types.js";
 
 export function processCSVData(
     text: string,

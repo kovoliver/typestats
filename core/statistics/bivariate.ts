@@ -1,6 +1,6 @@
-import { clampSymmetric, orderAsc, range, round } from "../utils/numberUtils";
-import { mean, ssd, std } from "../statistics/univariate";
-import { getDegreesOfFreedom } from "../statistics/univariate";
+import { clampSymmetric, orderAsc, range, round } from "../utils/numberUtils.js";
+import { mean, ssd, std } from "../statistics/univariate.js";
+import { getDegreesOfFreedom } from "../statistics/univariate.js";
 
 /**
  * Validates a 2D contingency table matrix to ensure it contains at least one row and one column.

@@ -1,4 +1,4 @@
-import normalQuantile from './normalDist';
+import normalQuantile from './normalDist.js';
 
 // ============================================================
 // Special-function building blocks (log-gamma, incomplete gamma)

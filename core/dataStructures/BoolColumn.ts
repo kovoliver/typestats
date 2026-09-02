@@ -1,6 +1,6 @@
-import Column from "./Column";
-import NumberColumn from "./NumberColumn";
-import { toBoolArray } from "../utils/utils";
+import Column from "./Column.js";
+import NumberColumn from "./NumberColumn.js";
+import { toBoolArray } from "../utils/utils.js";
 
 export default class BoolColumn extends Column<boolean> {
     /**

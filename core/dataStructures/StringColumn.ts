@@ -1,7 +1,7 @@
-import Column from "./Column";
-import NumberColumn from "./NumberColumn";
-import { labelEncoding, oneHotEncode } from "../dataPreparation/dataPreparation";
-import { toStringArray } from "../utils/utils";
+import Column from "./Column.js";
+import NumberColumn from "./NumberColumn.js";
+import { labelEncoding, oneHotEncode } from "../dataPreparation/dataPreparation.js";
+import { toStringArray } from "../utils/utils.js";
 
 export default class StringColumn extends Column<string> {
     /**

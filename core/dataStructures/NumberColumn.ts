@@ -1,14 +1,14 @@
-import Column from "./Column";
-import { getMax, getMin, isOutlier, toNumberArray } from '../utils/utils';
+import Column from "./Column.js";
+import { getMax, getMin, isOutlier, toNumberArray } from '../utils/utils.js';
 import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, median, q3, iqr }
-    from '../statistics/univariate';
+    from '../statistics/univariate.js';
 import { standardizeValues, normalizeValues, replaceOutliers, replaceEmptyValues, isInvalidValue }
-    from '../dataPreparation/dataPreparation';
-import { Boundaries, ImputeType, PercentMode } from "../types/types";
-import { correlation, covariance } from "../statistics/bivariate";
-import Regression from "../inference/Regression";
-import Trend from "../inference/Trend";
-import { orderAsc, orderDesc } from '../utils/numberUtils';
+    from '../dataPreparation/dataPreparation.js';
+import { Boundaries, ImputeType, PercentMode } from "../types/types.js";
+import { correlation, covariance } from "../statistics/bivariate.js";
+import Regression from "../inference/Regression.js";
+import Trend from "../inference/Trend.js";
+import { orderAsc, orderDesc } from '../utils/numberUtils.js';
 
 export default class NumberColumn extends Column<number> {
     private regression: Regression | null = null;

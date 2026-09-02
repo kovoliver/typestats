@@ -1,5 +1,5 @@
-import type { TrendType } from "../types/types";
-import Matrix from "../math/Matrix";
+import type { TrendType } from "../types/types.js";
+import Matrix from "../math/Matrix.js";
 
 export default class Trend {
     private _y: number[];

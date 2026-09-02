@@ -1,6 +1,6 @@
-import { RegressionType } from "../types/types";
-import { covariance } from "../statistics/bivariate";
-import { mean, variance } from "../statistics/univariate";
+import { RegressionType } from "../types/types.js";
+import { covariance } from "../statistics/bivariate.js";
+import { mean, variance } from "../statistics/univariate.js";
 
 /**
  * Represents a statistical tool for calculating linear, exponential, and power regression models.

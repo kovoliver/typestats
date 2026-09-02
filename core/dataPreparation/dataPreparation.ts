@@ -1,13 +1,13 @@
-import { getColumn } from "../statistics/bivariate";
-import { mean, median, mode, std } from "../statistics/univariate";
-import { Boundaries, ImputeType, ScaleType } from "../types/types";
+import { getColumn } from "../statistics/bivariate.js";
+import { mean, median, mode, std } from "../statistics/univariate.js";
+import { Boundaries, ImputeType, ScaleType } from "../types/types.js";
 import {
     defaultValue, getMax, getMin,
     getNonEmptyValues, isEmpty, isNumeric,
     isOutlier, normalize, replaceOutlier,
     standardize, toNumberArray
 }
-    from "../utils/utils";
+    from "../utils/utils.js";
 
 function getSubstitute(
     values: number[],

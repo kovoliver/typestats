@@ -1,5 +1,5 @@
-import Table from "../dataStructures/Table";
-import { processCSVData, processJSONData } from "./ioutils";
+import Table from "../dataStructures/Table.js";
+import { processCSVData, processJSONData } from "./ioutils.js";
 
 /**
  * Asynchronously fetches and parses a CSV dataset from a web URL or HTTP endpoint

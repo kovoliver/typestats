@@ -1,6 +1,6 @@
 import { readFile } from 'fs/promises';
-import Table from "../dataStructures/Table";
-import { processCSVData, processJSONData } from './ioutils';
+import Table from "../dataStructures/Table.js";
+import { processCSVData, processJSONData } from './ioutils.js';
 
 /**
  * Asynchronously reads and parses a local CSV file directly from the filesystem
