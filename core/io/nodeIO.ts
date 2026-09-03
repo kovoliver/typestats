@@ -74,7 +74,7 @@ export async function getJSONFromNode(
  * @throws {Error} Throws an error if the specified file path already exists or if writing fails.
  */
 export async function tableToJSON(path: string, table: Table): Promise<void> {
-    await writeTableFile(path, JSON.stringify(table.toObject()));
+    await writeTableFile(path, JSON.stringify(table.toObject(), null, 2));
 }
 
 /**
