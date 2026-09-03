@@ -760,7 +760,7 @@ export default class Table {
     public applyColumn(
         identifier: string | number,
         fn: (val: number | boolean | string) => number | boolean | string
-    ): void {
+    ): Table {
         const index = this.getIndex(identifier);
         const col = this._table[index];
 
@@ -793,6 +793,7 @@ export default class Table {
         }
 
         this._colInfos[index].type = newType;
+        return new Table(this._table);
     }
 
     /**
