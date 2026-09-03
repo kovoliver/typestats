@@ -76,15 +76,18 @@ A high-performance, strongly typed object-oriented layer built on an extensible 
   - Type transformation: `toNumberColumn()` converts boolean states to numeric binary columns ($1$ for `true`, $0$ for `false`, preserving `NaN` representation for missing data).
   - In-place negation (`invert`).
   - Element-wise bitwise operations (`and`, `or`, `xor`).
-- **Immutable Table / DataFrame (`Table.ts`)**: Core tabular container holding structured columns:
-  - **Immutability & Method Chaining**: Operations return fresh `Table` instances to support clean pipeline chaining.
-  - **Metadata & Labelling**: Renaming single or multiple column labels (`setLabel`, `setLabels`).
+- **Pragmatic Table / DataFrame (`Table.ts`)**: Core tabular container holding structured columns:
+  - **Pragmatic Immutability & Performance**: Heavy row-matrix operations return fresh `Table` instances to support pipeline chaining, while metadata operations (such as column renames and type casting) perform controlled in-place updates to avoid unnecessary memory overhead.
+  - **Metadata & Labelling**: Renaming single or multiple column labels in-place (`renameColumn`, `setLabels`).
+  - **In-Place Column Transformations & Type Conversion**:
+    - `applyColumn(identifier, fn)`: Applies a transformation function in-place to each valid entry of an existing column, preserving missing values (`NaN`/`null`). Automatically updates column type representations if output types change.
+    - Explicit type conversion methods: `toNumberCol`, `toStringCol`, `toBoolCol`.
   - **Row Synchronization**: Utilizes single-pass $O(N)$ index-based extraction (`newTableByIndices`) to ensure strict row alignment across all columns during filtering and sorting.
   - **Logical Filtering**: Expressive multi-column short-circuit filtering (`where`, `whereAll`, `whereAny`).
   - **Sorting & Selection**: Immutable row sorting (`orderByAsc`, `orderByDesc`) and column projections (`select`, `drop`).
   - **Column Insertion & Feature Engineering**:
-    - Immutable column prepending, appending, and index insertion (`addColumnFirst`, `addColumnLast`, `addColumnAt`).
-    - Element-wise functional transformation (`mapColumn`).
+    - Immutable column prepending, appending, and index insertion (`addColumnFirst`, `addColumnLast`, `addColumnAt`) using type-preserved `Column` instances.
+    - Element-wise functional transformation into a new column (`mapColumn`).
     - Element-wise multi-column arithmetic operations (`combineColumns` for `+`, `-`, `*`, `/`).
     - Multi-column string concatenation (`mergeColumns` with custom delimiters).
   - **Data Cleaning & Outlier Removal**:
@@ -98,14 +101,14 @@ A high-performance, strongly typed object-oriented layer built on an extensible 
     - Exporting to an array of objects (`toObject`).
     - Delimited CSV text generation (`toCSV`).
     - Converting data back to raw 2D array matrices (`toMatrix`).
-  - **Console Visualizations**: Formatted tabular rendering (`print`, `head`, `tail`) equipped with dynamic column truncation (`maxCols`) and feedback logging to prevent console line wrapping.
+  - **Console Visualizations**: Formatted tabular rendering (`print`, `head`, `tail`) equipped with zero-based row slicing, dynamic column truncation (`maxCols`), and feedback logging to prevent console line wrapping.
 - **Grouped Table (`GroupedTable.ts`)**: Group-by abstraction supporting multi-column composite key grouping and aggregation operations (`count`, `sum`, `avg`, `min`, `max`, `std`) with customizable result column aliases.
 
 ### 8. Integration & Offline Datasets (`sampleData/`)
 Directory containing offline, reproducible JSON and CSV datasets (`users_dataset.csv`, `products_dataset.json`) dedicated to integration testing and CI/CD pipelines.
 
 ### 9. Utility Functions (`core/utils/`)
-- **`numberUtils.ts`**: Helper functions for precision handling, number formatting, and rounding.
+- **`numberUtils.ts`**: Helper functions for precision handling, number formatting, array sequence generation (`rangeSequence`), non-mutating sorting (`orderAsc`, `orderDesc`), and bounding (`clamp`, `clamp01`, `clampSymmetric`).
 - **`testAndEstimationUtils.ts`**: Internal utility functions that support the execution of hypothesis tests and estimations (e.g., iterative calculations for degrees of freedom).
 - **`utils.ts`**: General data parsing, validation, numeric conversions, and optimized array operations.
 
@@ -118,5 +121,5 @@ Runnable examples covering all core statistical methods and data ingestion utili
 ## 🛡️ Tests
 The **`tests`** folder contains the complete Vitest test suite for the library. All directly used and exported functions, I/O functions, methods, and classes are fully covered by unit and integration tests.
 
-## 📜 License
-Please refer to the `LICENSE` file for usage and distribution terms.
+📜 License
+Please refer to the **`LICENSE`** file for usage and distribution terms.
