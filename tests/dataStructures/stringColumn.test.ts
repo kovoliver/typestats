@@ -39,21 +39,21 @@ describe('StringColumn', () => {
 
     describe('Data Cleaning & Sorting', () => {
         it('should remove empty/null rows in-place', () => {
-            column.removeEmptyRows();
-            expect(column.values).toEqual(['apple', 'banana', 'apple', 'cherry', '123', 'true']);
-            expect(column.countMissing()).toBe(0);
+            const newColumn = column.removeEmptyRows();
+            expect(newColumn.values).toEqual(['apple', 'banana', 'apple', 'cherry', '123', 'true']);
+            expect(newColumn.countMissing()).toBe(0);
         });
 
         it('should sort values in ascending order placing nulls at the end', () => {
             const cleanCol = new StringColumn(['cherry', 'apple', null, 'banana'], 'SortAsc');
-            cleanCol.orderAsc();
-            expect(cleanCol.values).toEqual(['apple', 'banana', 'cherry', null]);
+            const newColumn = cleanCol.orderAsc();
+            expect(newColumn.values).toEqual(['apple', 'banana', 'cherry', null]);
         });
 
         it('should sort values in descending order placing nulls at the end', () => {
             const cleanCol = new StringColumn(['cherry', 'apple', null, 'banana'], 'SortDesc');
-            cleanCol.orderDesc();
-            expect(cleanCol.values).toEqual(['cherry', 'banana', 'apple', null]);
+            const newColumn = cleanCol.orderDesc();
+            expect(newColumn.values).toEqual(['cherry', 'banana', 'apple', null]);
         });
     });
 

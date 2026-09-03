@@ -1,6 +1,6 @@
 export * from './types/types.js';
-export * from './statistics/bivariate.js';
 export * from './statistics/univariate.js';
+export * from './statistics/bivariate.js';
 export * from './statistics/FrequencyTable.js';
 export * from './dataPreparation/dataPreparation.js';
 export { default as BoolColumn } from './dataStructures/BoolColumn.js';
@@ -19,3 +19,6 @@ export * from './io/clientIO.js';
 export * from './io/nodeIO.js';
 export { default as Matrix } from './math/Matrix.js';
 export * from './utils/utils.js';
+export * from './utils/numberUtils.js';
+export * from './io/clientIO.js';
+export * from './io/nodeIO.js';

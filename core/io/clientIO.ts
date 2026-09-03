@@ -43,7 +43,7 @@ export async function getCSVFromClient(
  * into a {@link Table} instance in client-side / browser environments.
  *
  * @param url - The HTTP/HTTPS URL or endpoint returning a JSON array of objects.
- *
+ * @param invalidLine - Strategy for handling rows with missing columns relative to the header. Defaults to `'impute'`.
  * @returns A Promise that resolves to a newly instantiated {@link Table} object.
  *
  * @throws {@link Error} If the HTTP response is not OK, or if the parsed JSON is not a non-empty array of objects.

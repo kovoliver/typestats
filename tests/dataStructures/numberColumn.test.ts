@@ -60,35 +60,35 @@ describe('NumberColumn', () => {
 
     describe('Data Preparation & Transformations', () => {
         it('should remove empty rows in-place', () => {
-            column.removeEmptyRows();
-            expect(column.values).toEqual([10, 20, 30, 40, 50, 60]);
-            expect(column.countMissing()).toBe(0);
+            const newColumn = column.removeEmptyRows();
+            expect(newColumn.values).toEqual([10, 20, 30, 40, 50, 60]);
+            expect(newColumn.countMissing()).toBe(0);
         });
 
         it('should replace empty values with mean imputation', () => {
-            column.replaceEmptyValues('MEAN');
-            expect(column.countMissing()).toBe(0);
-            expect(column.values).toContain(35);
+            const newColumn = column.replaceEmptyValues('MEAN');
+            expect(newColumn.countMissing()).toBe(0);
+            expect(newColumn.values).toContain(35);
         });
 
         it('should replace outliers based on IQR boundaries while preserving NaNs', () => {
             const outlierCol = new NumberColumn([10, 12, 11, 13, 1000, NaN], 'Outliers');
-            outlierCol.replaceOutliersIqr('MEDIAN');
-            expect(outlierCol.values[4]).not.toBe(1000);
-            expect(outlierCol.values[5]).toBeNaN();
+            const newColumn = outlierCol.replaceOutliersIqr('MEDIAN');
+            expect(newColumn.values[4]).not.toBe(1000);
+            expect(newColumn.values[5]).toBeNaN();
         });
 
         it('should standardize values properly on clean datasets', () => {
             const cleanCol = new NumberColumn([10, 20, 30, 40, 50], 'Clean');
-            cleanCol.standardize();
-            expect(cleanCol.mean()).toBeCloseTo(0, 5);
+            const newColumn = cleanCol.standardize();
+            expect(newColumn.mean()).toBeCloseTo(0, 5);
         });
 
         it('should normalize values to [0, 1] range on clean datasets', () => {
             const cleanCol = new NumberColumn([10, 20, 30, 40, 50], 'Clean');
-            cleanCol.normalize();
-            expect(cleanCol.min()).toBe(0);
-            expect(cleanCol.max()).toBe(1);
+            const newColumn = cleanCol.normalize();
+            expect(newColumn.min()).toBe(0);
+            expect(newColumn.max()).toBe(1);
         });
     });
 
@@ -97,15 +97,15 @@ describe('NumberColumn', () => {
             const unsorted = new NumberColumn([50, 10, 40, 20, 30], 'Unsorted');
             const meanBefore = unsorted.mean(); // Cache-eli a mean-t
             
-            unsorted.orderAsc();
-            expect(unsorted.values).toEqual([10, 20, 30, 40, 50]);
+            const newColumn = unsorted.orderAsc();
+            expect(newColumn.values).toEqual([10, 20, 30, 40, 50]);
             expect(unsorted.mean()).toBe(meanBefore); // Újrahasználható a mean, de a cache törlődött
         });
 
         it('should sort values in descending order', () => {
             const unsorted = new NumberColumn([10, 50, 20, 40, 30], 'Unsorted');
-            unsorted.orderDesc();
-            expect(unsorted.values).toEqual([50, 40, 30, 20, 10]);
+            const newColumn = unsorted.orderDesc();
+            expect(newColumn.values).toEqual([50, 40, 30, 20, 10]);
         });
     });
 

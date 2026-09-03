@@ -43,7 +43,7 @@ export async function getCSVFromNode(
  * containing an array of key-value objects into a {@link Table} instance in Node.js backend environments.
  *
  * @param filePath - The absolute or relative path to the local JSON file on the filesystem.
- *
+ * @param invalidLine - Strategy for handling rows with missing columns relative to the header. Defaults to `'impute'`.
  * @returns A Promise that resolves to a newly instantiated {@link Table} object.
  *
  * @throws {@link Error} If the file reading fails, JSON parsing fails, or the dataset is not a non-empty array of objects.

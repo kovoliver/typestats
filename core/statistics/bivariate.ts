@@ -1,4 +1,4 @@
-import { clampSymmetric, orderAsc, range, round } from "../utils/numberUtils.js";
+import { clampSymmetric, orderAsc, rangeSequence, round } from "../utils/numberUtils.js";
 import { mean, ssd, std } from "../statistics/univariate.js";
 import { getDegreesOfFreedom } from "../statistics/univariate.js";
 
@@ -339,7 +339,7 @@ export function getRanks(values: number[]): Map<number, number> {
     let serial = 1;
 
     for (const [key, value] of stats) {
-        const rank = range(serial, (serial + value) - 1)
+        const rank = rangeSequence(serial, (serial + value) - 1)
             .reduce((total, val) => total + val, 0) / value;
         ranks.set(key, rank);
         serial += value;

@@ -60,9 +60,9 @@ describe('BoolColumn', () => {
 
     describe('Data Cleaning & Conversion', () => {
         it('should remove empty/null rows in-place', () => {
-            column.removeEmptyRows();
-            expect(column.values).toEqual([true, false, true, false, true, false, true, false]);
-            expect(column.countMissing()).toBe(0);
+            const newColumn = column.removeEmptyRows();
+            expect(newColumn.values).toEqual([true, false, true, false, true, false, true, false]);
+            expect(newColumn.countMissing()).toBe(0);
         });
 
         it('should convert to NumberColumn (1 for true, 0 for false, preserving nulls as NaNs)', () => {
@@ -76,8 +76,8 @@ describe('BoolColumn', () => {
 
         it('should invert boolean values in-place while preserving nulls', () => {
             const cleanCol = new BoolColumn([true, false, null], 'InvertTest');
-            cleanCol.invert();
-            expect(cleanCol.values).toEqual([false, true, null]);
+            const newColumn = cleanCol.invert();
+            expect(newColumn.values).toEqual([false, true, null]);
         });
     });
 

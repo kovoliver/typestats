@@ -49,4 +49,57 @@ describe('Table - Column Transformations & Operations', () => {
         const merged = table.mergeColumns(['firstName', 'lastName'], ' ', 'fullName');
         expect(merged.getCol('fullName').values).toEqual(['John Doe', 'Jane Smith', 'Bob Builder']);
     });
+
+    describe('applyColumn', () => {
+        it('should transform column values in-place', () => {
+            table.applyColumn('a', val => (val as number) * 10);
+            expect(table.getCol('a').values).toEqual([100, 200, 300]);
+        });
+
+        it('should work using column index identifier', () => {
+            table.applyColumn(2, val => String(val).toUpperCase());
+            expect(table.getCol('firstName').values).toEqual(['JOHN', 'JANE', 'BOB']);
+        });
+
+        it('should automatically change column type if function changes target data type', () => {
+            table.applyColumn('firstName', val => String(val).length);
+            
+            expect(table.getCol('firstName').values).toEqual([4, 4, 3]);
+            expect(table.colInfos.find(info => info.label === 'firstName')?.type).toBe('number');
+        });
+
+        it('should preserve NaN values in numeric columns during transformation', () => {
+            const nullData = [[10, null, NaN]];
+            const nullInfos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const nullTable = new Table(nullData, nullInfos);
+
+            nullTable.applyColumn('val', val => (val as number) + 5);
+
+            const values = nullTable.getCol('val').values;
+            expect(values[0]).toBe(15);
+            expect(Number.isNaN(values[1])).toBe(true);
+            expect(Number.isNaN(values[2])).toBe(true);
+        });
+
+        it('should preserve null values in string columns during transformation', () => {
+            const stringData = [['hello', null, undefined]];
+            const stringInfos: ColInfo[] = [{ label: 'text', type: 'string' }];
+            const stringTable = new Table(stringData, stringInfos);
+
+            stringTable.applyColumn('text', val => String(val).toUpperCase());
+
+            const values = stringTable.getCol('text').values;
+            expect(values[0]).toBe('HELLO');
+            expect(values[1]).toBeNull();
+            expect(values[2]).toBeNull();
+        });
+
+        it('should throw an error if the transformation function fails', () => {
+            expect(() => {
+                table.applyColumn('a', () => {
+                    throw new Error('Unexpected Error');
+                });
+            }).toThrow('The transformation function failed on column "a"!');
+        });
+    });
 });

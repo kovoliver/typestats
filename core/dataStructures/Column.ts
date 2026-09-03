@@ -1,13 +1,13 @@
 import { Cache } from "../abstractions/abstractClasses.js";
 
 export default abstract class Column<T extends number | boolean | string> extends Cache {
-    protected _values: (T | null)[];
+    protected readonly _values: ReadonlyArray<T | null>;
     protected _label: string;
 
     constructor(values: unknown[], label: string) {
         super();
         this._label = label;
-        this._values = this.prepareData(values);
+        this._values = Object.freeze(this.prepareData(values));
     }
 
     protected abstract prepareData(rawValues: unknown[]): (T | null)[];
@@ -49,11 +49,15 @@ export default abstract class Column<T extends number | boolean | string> extend
         return this._label;
     }
 
-    public set label(label: string) {
-        this._label = label;
+    public set label(newLabel: string) {
+        this._label = newLabel;
     }
 
-    public get values(): (T | null)[] {
+    public withLabel(newLabel: string): Column<T> {
+        return this.createInstance([...this._values], newLabel);
+    }
+
+    public get values(): ReadonlyArray<T | null> {
         return this._values;
     }
 
@@ -81,22 +85,38 @@ export default abstract class Column<T extends number | boolean | string> extend
         return result;
     }
 
-    public removeEmptyRows(): void {
-        this._values = this.getValidValues();
-        this.clearCache();
+    public filter(predicate: (val: T | null, index: number) => boolean): Column<T> {
+        const filteredValues = this._values.filter(predicate);
+        return this.createInstance(filteredValues, this._label);
+    }
+
+    protected createInstance(
+        values: unknown[],
+        label: string
+    ): Column<T> {
+        return new (this.constructor as new (values: unknown[], label: string) => Column<T>)(
+            values,
+            label
+        );
+    }
+
+    public removeEmptyRows(): Column<T> {
+        const values = this.getValidValues();
+        return this.createInstance(values, this._label);
+    }
+
+    public fillMissing(replacement: T): Column<T> {
+        const filled = this._values.map(val => this.isValid(val) ? val : replacement);
+        return this.createInstance(filled, this._label);
     }
 
     public countMissing(): number {
         return this.getCached('countMissing', () => {
-            return this._values.reduce((total, val) => {
+            return this._values.reduce((total: number, val) => {
                 if (!this.isValid(val)) return total + 1;
                 return total;
             }, 0);
         });
-    }
-
-    public getFilledValues(replacement:T):T[] {
-        return this._values.map(val=>this.isValid(val) ? val : replacement) as T[];
     }
 
     public countValid(): number {
@@ -105,6 +125,10 @@ export default abstract class Column<T extends number | boolean | string> extend
 
     public unique(): T[] {
         return this.getCached('unique', () => Array.from(new Set(this.getValidValues())));
+    }
+
+    public getFilledValues(replacement: T): T[] {
+        return this._values.map(val => this.isValid(val) ? val : replacement) as T[];
     }
 
     public display(): void {

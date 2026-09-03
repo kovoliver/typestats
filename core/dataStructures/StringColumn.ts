@@ -43,28 +43,32 @@ export default class StringColumn extends Column<string> {
      * Sorts valid string values in ascending order in-place (nulls placed at the end).
      * Clears cached calculations.
      */
-    public orderAsc(): void {
-        this._values.sort((a, b) => {
+    public orderAsc(): StringColumn {
+        const values = [...this._values];
+
+        values.sort((a, b) => {
             if (a === null) return 1;
             if (b === null) return -1;
             return a.localeCompare(b);
         });
 
-        this.clearCache();
+        return new StringColumn(values, this.label);
     }
 
     /**
      * Sorts valid string values in descending order in-place (nulls placed at the end).
      * Clears cached calculations.
      */
-    public orderDesc(): void {
-        this._values.sort((a, b) => {
+    public orderDesc(): StringColumn {
+        const values = [...this._values];
+
+        values.sort((a, b) => {
             if (a === null) return 1;
             if (b === null) return -1;
             return b.localeCompare(a);
         });
 
-        this.clearCache();
+        return new StringColumn(values, this.label);
     }
 
     /**
@@ -75,7 +79,7 @@ export default class StringColumn extends Column<string> {
      */
     public labelEncode(): NumberColumn {
         const validValues = this.getValidValues();
-        
+
         if (validValues.length !== this._values.length) {
             throw new Error(
                 `Cannot perform label encoding on column "${this._label}" containing missing or null values. ` +

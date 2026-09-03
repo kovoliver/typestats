@@ -94,9 +94,9 @@ export default class BoolColumn extends Column<boolean> {
      * Performs an element-wise logical NOT operation on the column, inverting boolean values.
      * Preserves null values. Clears cached calculations.
      */
-    public invert(): void {
-        this._values = this._values.map(val => (val === null ? null : !val));
-        this.clearCache();
+    public invert(): BoolColumn {
+        const values = this._values.map(val => (val === null ? null : !val));
+        return new BoolColumn(values, this._label);
     }
 
     /**

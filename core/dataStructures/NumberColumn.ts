@@ -1,6 +1,6 @@
 import Column from "./Column.js";
 import { getMax, getMin, isOutlier, toNumberArray } from '../utils/utils.js';
-import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, median, q3, iqr }
+import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, median, q3, iqr, std }
     from '../statistics/univariate.js';
 import { standardizeValues, normalizeValues, replaceOutliers, replaceEmptyValues, isInvalidValue }
     from '../dataPreparation/dataPreparation.js';
@@ -29,9 +29,9 @@ export default class NumberColumn extends Column<number> {
      *
      * @protected
      * @param {unknown[]} rawValues - The raw input values.
-     * @returns {(number | null)[]} An array of processed numeric values or nulls for missing/invalid entries.
+     * @returns {(number | NaN)[]} An array of processed numeric values or nulls for missing/invalid entries.
      */
-    protected prepareData(rawValues: unknown[]): (number | null)[] {
+    protected prepareData(rawValues: unknown[]): number[] {
         return toNumberArray(rawValues);
     }
 
@@ -79,6 +79,15 @@ export default class NumberColumn extends Column<number> {
      */
     public variance(): number {
         return this.getCached('variance', () => variance(this.getValidValues()));
+    }
+
+    /**
+     * Calculates and caches the sample variance of valid values in the column.
+     *
+     * @returns {number} The variance of the column values.
+     */
+    public std(): number {
+        return this.getCached('variance', () => std(this.getValidValues()));
     }
 
     /**
@@ -197,9 +206,9 @@ export default class NumberColumn extends Column<number> {
      *
      * @throws {Error} Throws an error if the column contains invalid or missing values (`NaN`/`null`).
      */
-    public standardize(): void {
-        this._values = standardizeValues(this._values as number[]) as number[];
-        this.clearCache();
+    public standardize(): NumberColumn {
+        const values:number[] = standardizeValues(this._values as number[]) as number[];
+        return new NumberColumn(values, this._label);
     }
 
     /**
@@ -208,9 +217,9 @@ export default class NumberColumn extends Column<number> {
      *
      * @throws {Error} Throws an error if the column contains invalid or missing values (`NaN`/`null`).
      */
-    public normalize(): void {
-        this._values = normalizeValues(this._values as number[]) as number[];
-        this.clearCache();
+    public normalize(): NumberColumn {
+        const values:number[] = normalizeValues(this._values as number[]) as number[];
+        return new NumberColumn(values, this._label);
     }
 
     /**
@@ -220,9 +229,9 @@ export default class NumberColumn extends Column<number> {
      * @param {ImputeType} type - The imputation method ('MEAN', 'MEDIAN', 'MODE').
      * @param {Boundaries} boundaries - The threshold boundaries (`min` and/or `max`) for identifying outliers.
      */
-    public replaceOutliers(type: ImputeType, boundaries: Boundaries): void {
-        this._values = replaceOutliers(this._values as number[], type, boundaries);
-        this.clearCache();
+    public replaceOutliers(type: ImputeType, boundaries: Boundaries): NumberColumn {
+        const values:number[] = replaceOutliers(this._values as number[], type, boundaries);
+        return new NumberColumn(values, this._label);
     }
 
     /**
@@ -237,10 +246,9 @@ export default class NumberColumn extends Column<number> {
         type: ImputeType,
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
-    ): void {
-        const boundaries = this.getIqrBoundaries(multiplier, percentMode);
-        this.replaceOutliers(type, boundaries);
-        this.clearCache();
+    ): NumberColumn {
+        const boundaries:Boundaries = this.getIqrBoundaries(multiplier, percentMode);
+        return this.replaceOutliers(type, boundaries);
     }
 
     /**
@@ -249,9 +257,9 @@ export default class NumberColumn extends Column<number> {
      *
      * @param {ImputeType} type - The imputation method ('MEAN', 'MEDIAN', 'MODE').
      */
-    public replaceEmptyValues(type: ImputeType): void {
-        this._values = replaceEmptyValues(this._values as number[], type) as number[];
-        this.clearCache();
+    public replaceEmptyValues(type: ImputeType): NumberColumn {
+        const values:number[] = replaceEmptyValues(this._values as number[], type) as number[];
+        return new NumberColumn(values, this._label);
     }
 
     public getImputedValues(type: ImputeType) {
@@ -263,11 +271,12 @@ export default class NumberColumn extends Column<number> {
      * 
      * @param {Boundaries} boundaries - The lower (`min`) and upper (`max`) threshold boundaries.
      */
-    public removeInvalidRows(boundaries: Boundaries) {
-        this._values = this.filterValues((val) => !isInvalidValue(
+    public removeInvalidRows(boundaries: Boundaries):NumberColumn {
+        const values:number[] = this.filterValues((val) => !isInvalidValue(
             (val as number), boundaries)
-        );
-        this.clearCache();
+        ) as number[];
+
+        return new NumberColumn(values, this._label);
     }
 
     /**
@@ -281,8 +290,8 @@ export default class NumberColumn extends Column<number> {
         percentMode: PercentMode = 'interpolated'
     ) {
         const boundaries = this.getIqrBoundaries(multiplier, percentMode);
-        this._values = this.filterValues(val => !isInvalidValue(val, boundaries));
-        this.clearCache();
+        const values:number[] = this.filterValues(val => !isInvalidValue(val, boundaries)) as number[];
+        return new NumberColumn(values, this._label);
     }
 
     /**
@@ -440,17 +449,19 @@ export default class NumberColumn extends Column<number> {
      * Sorts the values of the column in ascending order in-place.
      * Clears cached calculations.
      */
-    public orderAsc() {
-        this._values = orderAsc(this._values as number[]);
-        this.clearCache();
+    public orderAsc():NumberColumn {
+        const copyValues = [...this._values];
+        const values:number[] = orderAsc(copyValues as number[]);
+        return new NumberColumn(values, this._label);
     }
 
     /**
      * Sorts the values of the column in descending order in-place.
      * Clears cached calculations.
      */
-    public orderDesc() {
-        this._values = orderDesc(this._values as number[]);
-        this.clearCache();
+    public orderDesc():NumberColumn {
+        const copyValues = [...this._values];
+        const values:number[] = orderDesc(copyValues as number[]);
+        return new NumberColumn(values, this._label);
     }
 }

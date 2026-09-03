@@ -7,14 +7,48 @@ import GroupedTable from './GroupedTable.js';
 import Column from './Column.js';
 
 export default class Table {
-    private _originalTable: any[][];
-    private _table: Column<number | boolean | string>[];
-    private _colInfos: ColInfo[];
+    private readonly _originalTable: any[][];
+    private readonly _table: Column<number | boolean | string>[];
+    private readonly _colInfos: ColInfo[];
 
-    constructor(table: any[][], colInfos: ColInfo[]) {
-        this._originalTable = table;
-        this._colInfos = colInfos;
-        this._table = this.createColInstances(table, colInfos);
+    constructor(table: any[][] | Column<number | boolean | string>[], colInfos?: ColInfo[]) {
+        const validatedCells = Array.isArray(table) && table.length !== 0 && table[0] instanceof Column;
+
+        if (!validatedCells && !colInfos) {
+            throw new Error('You must provide the "colInfos" parameter alongside primitive values!');
+        }
+
+        if (validatedCells) {
+            const newTable = this.createTableFromCols(table as Column<number | boolean | string>[]);
+            this._table = newTable.table;
+            this._colInfos = newTable.colInfos;
+            this._originalTable = newTable.originalTable;
+        } else if (Array.isArray(table) && table.length !== 0) {
+            this._originalTable = table as any[][];
+            this._colInfos = colInfos!;
+            this._table = this.createColInstances(table as any[][], colInfos!);
+        } else {
+            throw new Error('Invalid constructor arguments!');
+        }
+    }
+
+    public get originalTable() {
+        return this._originalTable.map((col) => [...col]);
+    }
+
+    public get table() {
+        return this._table.map(col => this.cloneColumn(col));
+    }
+
+    public get colInfos() {
+        return this._colInfos.map(info => this.cloneColInfo(info))
+    }
+
+    private cloneColInfo(colInfo: ColInfo) {
+        return {
+            label: colInfo.label,
+            type: colInfo.type
+        }
     }
 
     private cloneColumn(col: Column<any>): Column<any> {
@@ -69,14 +103,8 @@ export default class Table {
             throw new Error(`A column with the label "${newLabel}" already exists!`);
         }
 
-        const colInfo = this._colInfos[index];
-
-        this._colInfos[index] = {
-            type: colInfo.type,
-            label: newLabel
-        };
-
         this._table[index].label = newLabel;
+        this._colInfos[index].label = newLabel;
     }
 
     /**
@@ -101,26 +129,26 @@ export default class Table {
 
     public getCol(identifier: number | string): Column<number | string | boolean> {
         const index = this.getIndex(identifier);
-        return this._table[index];
+        return this.cloneColumn(this._table[index]);
     }
 
     public toNumberCol(identifier: number | string): void {
         const { values, index } = this.getOriginalWithIndex(identifier);
-        const label = this._colInfos[index].label;
+        const label = this._table[index].label;
         this._table[index] = new NumberColumn(values, label);
         this._colInfos[index].type = 'number';
     }
 
     public toStringCol(identifier: number | string): void {
         const { values, index } = this.getOriginalWithIndex(identifier);
-        const label = this._colInfos[index].label;
+        const label = this._table[index].label;
         this._table[index] = new StringColumn(values, label);
         this._colInfos[index].type = 'string';
     }
 
-    public toBoolCol(identifier: number | string) {
+    public toBoolCol(identifier: number | string): void {
         const { values, index } = this.getOriginalWithIndex(identifier);
-        const label = this._colInfos[index].label;
+        const label = this._table[index].label;
         this._table[index] = new BoolColumn(values, label);
         this._colInfos[index].type = 'bool';
     }
@@ -464,17 +492,38 @@ export default class Table {
         return this.getColsByIndices(indices);
     }
 
+    /**
+     * Appends a new column to the beginning (index 0) of the table as a first column.
+     * Preserves existing column types and returns a new Table instance to enforce immutability.
+     * 
+     * @param {any[]} values - The row values for the new column. Length must match current row count.
+     * @param {ColInfo} colInfo - Metadata descriptor containing the label and optional column type.
+     * @returns {Table} A new Table instance with the newly prepended column.
+     * @throws {Error} Throws if `values` length does not match the current table row count.
+     */
     public addColumnFirst(values: any[], colInfo: ColInfo): Table {
         if (values.length !== this.rowCount && this.rowCount !== 0) {
-            throw new Error(`The provided values length (${values.length}) does not match table row count (${this.rowCount})!`);
+            throw new Error(
+                `The provided values length (${values.length}) does not match table row count (${this.rowCount})!`
+            );
         }
 
-        const newMatrix = [values, ...this._table.map(col => [...col.values])];
-        const newColInfos = [{ ...colInfo }, ...this._colInfos.map(info => ({ ...info }))];
+        const newCol = this.createColInstance(values, colInfo);
 
-        return new Table(newMatrix, newColInfos);
+        const newCols = [newCol, ...this._table.map(col => this.cloneColumn(col))];
+
+        return new Table(newCols);
     }
 
+    /**
+     * Appends a new column to the end of the table as the last column.
+     * Preserves existing column types and returns a new Table instance to enforce immutability.
+     * 
+     * @param {any[]} values - The row values for the new column. Length must match current row count.
+     * @param {ColInfo} colInfo - Metadata descriptor containing the label and optional column type.
+     * @returns {Table} A new Table instance with the newly appended column.
+     * @throws {Error} Throws if `values` length does not match the current table row count.
+     */
     public addColumnLast(values: any[], colInfo: ColInfo): Table {
         if (values.length !== this.rowCount && this.rowCount !== 0) {
             throw new Error(
@@ -482,12 +531,22 @@ export default class Table {
             );
         }
 
-        const newMatrix = [...this._table.map(col => [...col.values]), values];
-        const newColInfos = [...this._colInfos.map(info => ({ ...info })), { ...colInfo }];
+        const newCol = this.createColInstance(values, colInfo);
+        const newCols = [...this._table.map(col => this.cloneColumn(col)), newCol];
 
-        return new Table(newMatrix, newColInfos);
+        return new Table(newCols);
     }
 
+    /**
+     * Inserts a new column into the table at a specified zero-based index position.
+     * Preserves existing column types and returns a new Table instance to enforce immutability.
+     * 
+     * @param {any[]} values - The row values for the new column. Length must match current row count.
+     * @param {ColInfo} colInfo - Metadata descriptor containing the label and optional column type.
+     * @param {number} index - The zero-based index position where the new column should be inserted.
+     * @returns {Table} A new Table instance with the inserted column at the targeted position.
+     * @throws {Error} Throws if `index` is out of bounds or `values` length does not match row count.
+     */
     public addColumnAt(values: any[], colInfo: ColInfo, index: number): Table {
         if (index < 0 || index > this._table.length) {
             throw new Error('The given index is invalid!');
@@ -499,13 +558,11 @@ export default class Table {
             );
         }
 
-        const currentMatrix = this._table.map(col => [...col.values]);
-        const currentInfos = this._colInfos.map(info => ({ ...info }));
+        const newCol = this.createColInstance(values, colInfo);
+        const newCols = this._table.map(col => this.cloneColumn(col));
+        newCols.splice(index, 0, newCol);
 
-        currentMatrix.splice(index, 0, values);
-        currentInfos.splice(index, 0, { ...colInfo });
-
-        return new Table(currentMatrix, currentInfos);
+        return new Table(newCols);
     }
 
     /**
@@ -692,6 +749,53 @@ export default class Table {
     }
 
     /**
+     * Applies a transformation function in-place to each valid cell of an existing column.
+     * Preserves missing/null/undefined/NaN values during transformation.
+     * Automatically updates the column class instance and metadata type if the output data type changes.
+     * 
+     * @param {string | number} identifier - The label or zero-based index of the target column.
+     * @param {function(val: any): any} fn - The mapping function applied to each non-missing cell value.
+     * @throws {Error} Throws if the transformation fails or if the updated type is unsupported.
+     */
+    public applyColumn(
+        identifier: string | number,
+        fn: (val: number | boolean | string) => number | boolean | string
+    ): void {
+        const index = this.getIndex(identifier);
+        const col = this._table[index];
+
+        let newValues: any[] = [];
+
+        try {
+            newValues = col.values.map(val => {
+                if (isNanNullUndefined(val)) return val;
+                return fn(val as any);
+            });
+        } catch {
+            throw new Error(`The transformation function failed on column "${col.label}"!`);
+        }
+
+        const newType = this.getColType(newValues);
+        const currentLabel = col.label;
+
+        switch (newType) {
+            case 'number':
+                this._table[index] = new NumberColumn(newValues, currentLabel);
+                break;
+            case 'string':
+                this._table[index] = new StringColumn(newValues, currentLabel);
+                break;
+            case 'bool':
+                this._table[index] = new BoolColumn(newValues, currentLabel);
+                break;
+            default:
+                throw new Error(`Unsupported column type result: ${newType}`);
+        }
+
+        this._colInfos[index].type = newType;
+    }
+
+    /**
      * Performs element-wise arithmetic operations across multiple numeric columns 
      * and appends the result as a new NumberColumn.
      * 
@@ -707,6 +811,10 @@ export default class Table {
     ): Table {
         if (labels.length < 2) {
             throw new Error('At least two column labels are required to combine columns!');
+        }
+
+        if(isEmpty(newLabel) || typeof newLabel !== 'string') {
+            throw new Error('You must provide a non-empty string as a label!');
         }
 
         if (this.labelExists(newLabel)) {

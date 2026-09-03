@@ -17,7 +17,7 @@ export function isInteger(value: number): boolean {
     return round(value, 0) === value;
 }
 
-export function range(from: number, to: number) {
+export function rangeSequence(from: number, to: number) {
     return Array.from(
         { length: to - from + 1 },
         (_, i) => from + i
