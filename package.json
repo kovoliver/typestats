@@ -26,6 +26,42 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./distributions": {
+      "types": "./dist/distributions/index.d.ts",
+      "import": "./dist/distributions/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.js"
+    },
+    "./math": {
+      "types": "./dist/math/index.d.ts",
+      "import": "./dist/math/index.js"
+    },
+    "./stats": {
+      "types": "./dist/statistics/index.d.ts",
+      "import": "./dist/statistics/index.js"
+    },
+    "./inference": {
+      "types": "./dist/inference/index.d.ts",
+      "import": "./dist/inference/index.js"
+    },
+    "./prep": {
+      "types": "./dist/dataPreparation/index.d.ts",
+      "import": "./dist/dataPreparation/index.js"
+    },
+    "./data": {
+      "types": "./dist/dataStructures/index.d.ts",
+      "import": "./dist/dataStructures/index.js"
+    },
+    "./io": {
+      "types": "./dist/io/index.d.ts",
+      "import": "./dist/io/index.js"
     }
   },
   "files": [
