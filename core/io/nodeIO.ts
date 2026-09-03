@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises';
 import Table from "../dataStructures/Table.js";
 import { processCSVData, processJSONData } from './ioutils.js';
+import { writeTableFile } from './ioutils.js';
 
 /**
  * Asynchronously reads and parses a local CSV file directly from the filesystem
@@ -62,4 +63,28 @@ export async function getJSONFromNode(
         console.error('Error reading JSON in Node:', err);
         throw err;
     }
+}
+
+/**
+ * Serializes the table data to a JSON string and writes it to the specified file path.
+ *
+ * @param path - The target file path where the JSON data will be written.
+ * @param table - The table instance containing the data to be exported.
+ * @returns A promise that resolves when the file has been successfully written.
+ * @throws {Error} Throws an error if the specified file path already exists or if writing fails.
+ */
+export async function tableToJSON(path: string, table: Table): Promise<void> {
+    await writeTableFile(path, JSON.stringify(table.toObject()));
+}
+
+/**
+ * Converts the table data to a CSV formatted string and writes it to the specified file path.
+ *
+ * @param path - The target file path where the CSV data will be written.
+ * @param table - The table instance containing the data to be exported.
+ * @returns A promise that resolves when the file has been successfully written.
+ * @throws {Error} Throws an error if the specified file path already exists or if writing fails.
+ */
+export async function tableToCSV(path: string, table: Table): Promise<void> {
+    await writeTableFile(path, table.toCSV());
 }

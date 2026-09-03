@@ -1,4 +1,5 @@
 import { ColInfo } from "../types/types.js";
+import { writeFile } from 'fs/promises';
 
 export function processCSVData(
     text: string,
@@ -117,4 +118,22 @@ export function processJSONData(
         cols,
         colInfos
     };
+}
+
+export async function writeTableFile(
+    path: string,
+    content: string
+): Promise<void> {
+    try {
+        await writeFile(path, content, {
+            encoding: 'utf-8',
+            flag: 'wx'
+        });
+    } catch (err: any) {
+        if (err.code === 'EEXIST') {
+            throw new Error(`The given path (${path}) already exists!`);
+        }
+
+        throw err;
+    }
 }
