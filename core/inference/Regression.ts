@@ -91,8 +91,8 @@ export default class Regression {
 
         const b1 = covariance(x, y) / xVar;
 
-        const xMean = type === 'POWER' ? this._lnxMean : this._xMean;
-        const yMean = type === 'LINEAR' ? this._yMean : this._lnyMean;
+        const xMean = type === 'power' ? this._lnxMean : this._xMean;
+        const yMean = type === 'linear' ? this._yMean : this._lnyMean;
 
         const b0 = yMean! - b1 * xMean!;
 
@@ -116,7 +116,7 @@ export default class Regression {
         }
 
         const funcObj = this.calculate(
-            this._x, this._y, 'LINEAR'
+            this._x, this._y, 'linear'
         );
 
         this._b0 = funcObj.b0;
@@ -151,7 +151,7 @@ export default class Regression {
         }
 
         const funcObj = this.calculate(
-            this._x, this._lnY, 'EXPONENTIAL'
+            this._x, this._lnY, 'exponential'
         );
 
         this._b0Exp = Math.exp(funcObj.b0);
@@ -186,7 +186,7 @@ export default class Regression {
         }
 
         const funcObj = this.calculate(
-            this._lnX, this._lnY, 'POWER'
+            this._lnX, this._lnY, 'power'
         );
 
         this._b0Pow = Math.exp(funcObj.b0);

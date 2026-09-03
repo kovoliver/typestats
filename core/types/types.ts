@@ -10,18 +10,18 @@ export const PercentMode = {
 export type PercentMode = typeof PercentMode[keyof typeof PercentMode];
 
 export const TrendType = {
-    Linear: 'LINEAR',
-    Exponential: 'EXPONENTIAL',
-    Polynomial: 'POLYNOMIAL',
-    Logarithmic: 'LOGARITHMIC',
+    linear: 'linear',
+    exponential: 'exponential',
+    polynomial: 'polynomial',
+    logarithmic: 'logarithmic',
 } as const;
 
 export type TrendType = (typeof TrendType)[keyof typeof TrendType];
 
 export const RegressionType = {
-    Linear: 'LINEAR',
-    Exponential: 'EXPONENTIAL',
-    Polynomial: 'POWER',
+    linear: 'linear',
+    exponential: 'exponential',
+    power: 'power',
 } as const;
 
 export type RegressionType = (typeof RegressionType)[keyof typeof RegressionType];
@@ -38,17 +38,17 @@ export type ConfidenceInterval = {
 }
 
 export const ImputeType = {
-    mode:'MODE',
-    mediam:'MEDIAN',
-    mean:'MEAN',
-    none:'NONE'
+    mode:'mode',
+    mediam:'median',
+    mean:'mean',
+    none:'none'
 } as const;
 
 export type ImputeType = (typeof ImputeType)[keyof typeof ImputeType];
 
 export const OutlierStrategy = {
-    delete:'DELETE',
-    impute:'IMPUTE'
+    delete:'delete',
+    impute:'impute'
 } as const;
 
 export type OutlierStrategy = (typeof OutlierStrategy)[keyof typeof OutlierStrategy];
@@ -59,8 +59,8 @@ export type Boundaries = {
 };
 
 export const ScaleType = {
-    normalize:'NORMALIZE',
-    standardize:'STANDARDIZE'
+    normalize:'normalize',
+    standardize:'standardize'
 } as const;
 
 export type ScaleType = (typeof ScaleType)[keyof typeof ScaleType];

@@ -319,18 +319,18 @@ export default class Trend {
      * @throws {Error} If trendType is 'POLYNOMIAL' but degree is not provided, or if trendType is unknown.
      */
     public MSE(trendType:TrendType, degree?:number) {
-        if(trendType === 'POLYNOMIAL' && !degree) {
+        if(trendType === 'polynomial' && !degree) {
             throw new Error('Degree is required for polynomial trend calculation.');
         }
 
         switch(trendType) {
-            case 'LINEAR':
+            case 'linear':
                 return this.MSELinear();
-            case 'EXPONENTIAL':
+            case 'exponential':
                 return this.MSEExponential();
-            case 'POLYNOMIAL':
+            case 'polynomial':
                 return this.MSEPolynomial(degree!);
-            case 'LOGARITHMIC':
+            case 'logarithmic':
                 return this.MSELogarithmic();
         }
 

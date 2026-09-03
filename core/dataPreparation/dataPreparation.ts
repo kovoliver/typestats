@@ -27,11 +27,11 @@ function getSubstitute(
     }
 
     switch (type) {
-        case 'MEAN':
+        case 'mean':
             return mean(values);
-        case 'MEDIAN':
+        case 'median':
             return median(values);
-        case 'MODE':
+        case 'mode':
             const modes = mode(values);
 
             if (modes.length === 0) {
@@ -349,10 +349,10 @@ export function scaleValues(
         );
     }
 
-    const param1 = type === 'NORMALIZE' ? getMin(column) : mean(column);
-    const param2 = type === 'NORMALIZE' ? getMax(column) : std(column, isSample);
+    const param1 = type === 'normalize' ? getMin(column) : mean(column);
+    const param2 = type === 'normalize' ? getMax(column) : std(column, isSample);
 
-    const scaleFn = type === 'NORMALIZE' ? normalize : standardize;
+    const scaleFn = type === 'normalize' ? normalize : standardize;
     const scaledColumn = column.map(val => scaleFn(val, param1, param2));
 
     if (is2D) {
@@ -379,7 +379,7 @@ export function normalizeValues(
     values: number[] | any[][],
     colIndex?: number
 ) {
-    return scaleValues(values, 'NORMALIZE', colIndex);
+    return scaleValues(values, 'normalize', colIndex);
 }
 
 /**
@@ -395,7 +395,7 @@ export function standardizeValues(
     colIndex?: number,
     isSample: boolean = true
 ) {
-    return scaleValues(values, 'STANDARDIZE', colIndex, isSample);
+    return scaleValues(values, 'standardize', colIndex, isSample);
 }
 
 /**
