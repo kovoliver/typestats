@@ -66,14 +66,14 @@ describe('NumberColumn', () => {
         });
 
         it('should replace empty values with mean imputation', () => {
-            const newColumn = column.replaceEmptyValues('MEAN');
+            const newColumn = column.replaceEmptyValues('mean');
             expect(newColumn.countMissing()).toBe(0);
             expect(newColumn.values).toContain(35);
         });
 
         it('should replace outliers based on IQR boundaries while preserving NaNs', () => {
             const outlierCol = new NumberColumn([10, 12, 11, 13, 1000, NaN], 'Outliers');
-            const newColumn = outlierCol.replaceOutliersIqr('MEDIAN');
+            const newColumn = outlierCol.replaceOutliersIqr('median');
             expect(newColumn.values[4]).not.toBe(1000);
             expect(newColumn.values[5]).toBeNaN();
         });

@@ -42,7 +42,7 @@ describe('Table - Data Cleaning & Imputation', () => {
         const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
         const table = new Table(data, infos);
 
-        const filledMean = table.fillNaNumeric('val', 'MEAN');
+        const filledMean = table.fillNaNumeric('val', 'mean');
         expect(filledMean.getCol('val').values).toEqual([2, 4, 4, 6]);
     });
 

@@ -49,13 +49,13 @@ describe('oneHotEncode and decodeOneHot', () => {
 describe('replaceEmptyValues', () => {
     it('replaces empty values in a 1D array using MEAN', () => {
         const input = [1, null, 3];
-        const result = replaceEmptyValues(input, 'MEAN');
+        const result = replaceEmptyValues(input, 'mean');
         expect(result).toEqual([1, 2, 3]);
     });
 
     it('replaces empty values in a 1D array using MEDIAN', () => {
         const input = [1, undefined, 5, 9];
-        const result = replaceEmptyValues(input, 'MEDIAN');
+        const result = replaceEmptyValues(input, 'median');
         expect(result).toEqual([1, 5, 5, 9]);
     });
 
@@ -65,7 +65,7 @@ describe('replaceEmptyValues', () => {
             [2, null],
             [3, 30]
         ];
-        const result = replaceEmptyValues(input, 'MEAN', 1);
+        const result = replaceEmptyValues(input, 'mean', 1);
         expect(result).toEqual([
             [1, 10],
             [2, 20],
@@ -75,7 +75,7 @@ describe('replaceEmptyValues', () => {
 
     it('throws an error if column index is missing for 2D array', () => {
         const input = [[1, 2], [3, 4]];
-        expect(() => replaceEmptyValues(input, 'MEAN'))
+        expect(() => replaceEmptyValues(input, 'mean'))
             .toThrow('You must provide column index when the given values are in a 2d array!');
     });
 });
@@ -84,7 +84,7 @@ describe('replaceOutliers', () => {
     it('replaces outliers in a 1D array based on boundaries', () => {
         const input = [2, 4, 100, 6];
         const boundaries = { min: 0, max: 10 };
-        const result = replaceOutliers(input, 'MEAN', boundaries);
+        const result = replaceOutliers(input, 'mean', boundaries);
         expect(result).toEqual([2, 4, 4, 6]);
     });
 
@@ -95,7 +95,7 @@ describe('replaceOutliers', () => {
             ['c', 15]
         ];
         const boundaries = { min: 0, max: 20 };
-        const result = replaceOutliers(input, 'MEAN', boundaries, 1);
+        const result = replaceOutliers(input, 'mean', boundaries, 1);
         expect(result).toEqual([
             ['a', 5],
             ['b', 10],
@@ -104,7 +104,7 @@ describe('replaceOutliers', () => {
     });
 
     it('throws an error if no valid boundaries are provided', () => {
-        expect(() => replaceOutliers([1, 2, 3], 'MEAN', {} as any)).toThrow('You must provide at least a minimum or a maximum boundary to replace outliers!');
+        expect(() => replaceOutliers([1, 2, 3], 'mean', {} as any)).toThrow('You must provide at least a minimum or a maximum boundary to replace outliers!');
     });
 });
 

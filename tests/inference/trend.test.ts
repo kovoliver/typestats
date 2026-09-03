@@ -115,23 +115,23 @@ describe('Trend', () => {
         const trend = new Trend(data);
 
         it('routes to MSELinear correctly', () => {
-            expect(trend.MSE('LINEAR')).toBeCloseTo(0, 5);
+            expect(trend.MSE('linear')).toBeCloseTo(0, 5);
         });
 
         it('routes to MSEExponential correctly', () => {
-            expect(trend.MSE('EXPONENTIAL')).toBeGreaterThan(0);
+            expect(trend.MSE('exponential')).toBeGreaterThan(0);
         });
 
         it('routes to MSELogarithmic correctly', () => {
-            expect(trend.MSE('LOGARITHMIC')).toBeGreaterThan(0);
+            expect(trend.MSE('logarithmic')).toBeGreaterThan(0);
         });
 
         it('throws an error if POLYNOMIAL is called without a degree', () => {
-            expect(() => trend.MSE('POLYNOMIAL')).toThrowError();
+            expect(() => trend.MSE('polynomial')).toThrowError();
         });
 
         it('routes to MSEPolynomial correctly when degree is provided', () => {
-            expect(trend.MSE('POLYNOMIAL', 2)).toBeGreaterThanOrEqual(0);
+            expect(trend.MSE('polynomial', 2)).toBeGreaterThanOrEqual(0);
         });
 
         it('throws an error for unknown trend types', () => {
