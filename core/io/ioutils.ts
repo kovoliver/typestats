@@ -122,12 +122,13 @@ export function processJSONData(
 
 export async function writeTableFile(
     path: string,
-    content: string
+    content: string,
+    overWrite:boolean = true
 ): Promise<void> {
     try {
         await writeFile(path, content, {
             encoding: 'utf-8',
-            flag: 'wx'
+            flag: overWrite ? 'w' : 'wx'
         });
     } catch (err: any) {
         if (err.code === 'EEXIST') {

@@ -73,8 +73,12 @@ export async function getJSONFromNode(
  * @returns A promise that resolves when the file has been successfully written.
  * @throws {Error} Throws an error if the specified file path already exists or if writing fails.
  */
-export async function tableToJSON(path: string, table: Table): Promise<void> {
-    await writeTableFile(path, JSON.stringify(table.toObject(), null, 2));
+export async function tableToJSON(
+    path: string, 
+    table: Table, 
+    overWrite:boolean = true
+): Promise<void> {
+    await writeTableFile(path, JSON.stringify(table.toObject(), null, 2), overWrite);
 }
 
 /**
@@ -85,6 +89,10 @@ export async function tableToJSON(path: string, table: Table): Promise<void> {
  * @returns A promise that resolves when the file has been successfully written.
  * @throws {Error} Throws an error if the specified file path already exists or if writing fails.
  */
-export async function tableToCSV(path: string, table: Table): Promise<void> {
-    await writeTableFile(path, table.toCSV());
+export async function tableToCSV(
+    path: string, 
+    table: Table,
+    overWrite:boolean = true
+): Promise<void> {
+    await writeTableFile(path, table.toCSV(), overWrite);
 }
