@@ -111,11 +111,11 @@ export function calcCombinationTable(table: number[][]): number[][] {
  * Calculates the Chi-Square (χ²) statistic of independence for a contingency table.
  *
  * @param table - 2D matrix representing the contingency table.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The Chi-Square statistic value.
  * @throws {Error} If the table structure is invalid.
  */
-export function chiSquare(table: number[][], digits: number = -1): number {
+export function chiSquare(table: number[][], digits?: number): number {
     validateContingencyTable(table);
     const combTable = calcCombinationTable(table);
     const total = totalCount(table);
@@ -148,11 +148,11 @@ export function chiSquare(table: number[][], digits: number = -1): number {
  * Calculates Cramér's V measure of association between two nominal variables in a contingency table.
  *
  * @param table - 2D matrix representing the contingency table.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns Cramér's V association coefficient (between 0 and 1).
  * @throws {Error} If the table structure is invalid.
  */
-export function cramerV(table: number[][], digits: number = -1): number {
+export function cramerV(table: number[][], digits?: number): number {
     validateContingencyTable(table);
     const rows = table.length;
     const cols = table[0].length;
@@ -173,13 +173,13 @@ export function cramerV(table: number[][], digits: number = -1): number {
  * Calculates the within-group Sum of Squared Deviations (SSD) across the columns of a table.
  *
  * @param table - 2D matrix representing groups in columns.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The total within-group sum of squared deviations.
  * @throws {Error} If the table structure is invalid.
  */
 export function withinSSD(
     table: number[][],
-    digits: number = -1
+    digits?: number
 ): number {
     validateContingencyTable(table);
 
@@ -196,11 +196,11 @@ export function withinSSD(
  * Calculates the total Sum of Squared Deviations (SSD) for all elements in the table treated as a single dataset.
  *
  * @param table - 2D matrix of numerical values.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The grand total sum of squared deviations.
  * @throws {Error} If the table structure is invalid.
  */
-export function totalSSD(table: number[][], digits: number = -1): number {
+export function totalSSD(table: number[][], digits?: number): number {
     validateContingencyTable(table);
 
     const totalSsd = ssd(table.flat());
@@ -212,13 +212,13 @@ export function totalSSD(table: number[][], digits: number = -1): number {
  * Calculates the between-group Sum of Squared Deviations (SSD) across the columns of a table.
  *
  * @param table - 2D matrix representing groups in columns.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The between-group sum of squared deviations.
  * @throws {Error} If the table structure is invalid.
  */
 export function betweenSSD(
     table: number[][],
-    digits: number = -1
+    digits?: number
 ): number {
     validateContingencyTable(table);
 
@@ -239,10 +239,10 @@ export function betweenSSD(
  * Calculates the Eta Squared (η²) effect size coefficient, representing the proportion of variance explained by group membership.
  *
  * @param table - 2D matrix representing groups in columns.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The Eta Squared value (between 0 and 1).
  */
-export function etaSquared(table: number[][], digits: number = -1) {
+export function etaSquared(table: number[][], digits?: number) {
     const between = betweenSSD(table);
     const total = totalSSD(table);
 
@@ -255,12 +255,12 @@ export function etaSquared(table: number[][], digits: number = -1) {
  * @param values1 - First array of numerical values.
  * @param values2 - Second array of numerical values.
  * @param [isSample=false] - Whether to calculate sample covariance (N - 1) or population covariance (N).
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The calculated covariance.
  * @throws {Error} If arrays are invalid, empty, unequal in length, or sample size is less than 2.
  */
 export function covariance(values1: number[], values2: number[],
-    isSample: boolean = true, digits: number = -1): number {
+    isSample: boolean = true, digits?: number): number {
     if (!values1 || values1.length === 0 || !values2 || values2.length === 0) {
         throw new Error('Invalid values!');
     }
@@ -291,14 +291,14 @@ export function covariance(values1: number[], values2: number[],
  * @param values1 - First array of numerical values.
  * @param values2 - Second array of numerical values.
  * @param [isSample=false] - Whether to use sample standard deviation and covariance.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The Pearson correlation coefficient, clamped to [-1, 1]. Returns 0 if standard deviation of either array is zero.
  */
 export function correlation(
     values1: number[],
     values2: number[],
     isSample: boolean = true,
-    digits: number = -1
+    digits?: number
 ): number {
     const std1 = std(values1, isSample);
     const std2 = std(values2, isSample);
@@ -354,14 +354,14 @@ export function getRanks(values: number[]): Map<number, number> {
  * @param values1 - First array of numerical values.
  * @param values2 - Second array of numerical values.
  * @param [isSample=false] - Whether to use sample calculations for ranking correlation.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The Spearman rank correlation coefficient.
  */
 export function rankCorrelation(
     values1: number[],
     values2: number[],
     isSample: boolean = true,
-    digits: number = -1
+    digits?: number
 ) {
     const ranks1 = getRanks(values1);
     const ranks2 = getRanks(values2);

@@ -52,7 +52,7 @@ describe('Statisztikai Függvények Tesztelése', () => {
 
     describe('geometricMean', () => {
         it('should calculate geometric mean correctly', () => {
-            expect(geometricMean([2, 8], -1)).toBe(4);
+            expect(geometricMean([2, 8])).toBe(4);
         });
 
         it('should throw error on non-positive values', () => {

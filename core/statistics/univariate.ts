@@ -42,11 +42,11 @@ export function getDegreesOfFreedom(values: number[], isSample: boolean = true):
  * Calculates the arithmetic mean (average) of an array of numbers.
  *
  * @param values - Array of numerical values.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The arithmetic mean.
  * @throws {Error} If `values` is empty.
  */
-export function mean(values: number[], digits: number = -1): number {
+export function mean(values: number[], digits?: number): number {
     if (!values || values.length === 0) {
         throw new Error('You should give at least one number!');
     }
@@ -66,11 +66,11 @@ export function mean(values: number[], digits: number = -1): number {
  * Calculates the geometric mean of an array of strictly positive numbers.
  *
  * @param values - Array of strictly positive numerical values.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The geometric mean.
  * @throws {Error} If `values` is empty or contains non-positive numbers (<= 0).
  */
-export function geometricMean(values: number[], digits: number = -1): number {
+export function geometricMean(values: number[], digits?: number): number {
     validateValues(values);
     if (values.some(v => v <= 0)) {
         throw new Error('Geometric mean requires strictly positive numbers!');
@@ -86,11 +86,11 @@ export function geometricMean(values: number[], digits: number = -1): number {
  *
  * @param values - Array of numerical values.
  * @param weights - Array of weights corresponding to each value.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The weighted arithmetic mean.
  * @throws {Error} If array lengths do not match, `values` is empty, or the sum of weights is zero.
  */
-export function weightedMean(values: number[], weights: number[], digits: number = -1): number {
+export function weightedMean(values: number[], weights: number[], digits?: number): number {
     validateValues(values);
     if (weights.length !== values.length) {
         throw new Error('The number of weights should be the same as the number of values!');
@@ -111,11 +111,11 @@ export function weightedMean(values: number[], weights: number[], digits: number
  *
  * @param values - Array of strictly positive numerical values.
  * @param weights - Array of strictly positive weights corresponding to each value.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The weighted harmonic mean.
  * @throws {Error} If array lengths do not match, `values` is empty, or any value/weight is non-positive.
  */
-export function harmonicMean(values: number[], weights: number[], digits: number = -1): number {
+export function harmonicMean(values: number[], weights: number[], digits?: number): number {
     validateValues(values);
     if (weights.length !== values.length) {
         throw new Error('The number of weights should be the same as the number of values!');
@@ -142,11 +142,11 @@ export function harmonicMean(values: number[], weights: number[], digits: number
  * Calculates the sum of squared deviations (SSD) from the mean.
  *
  * @param values - Array of numerical values.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The sum of squared deviations.
  * @throws {Error} If `values` is empty.
  */
-export function ssd(values: number[], digits: number = -1): number {
+export function ssd(values: number[], digits?: number): number {
     const m = mean(values);
     const sumOfSquares = values.reduce((total, value) => total + Math.pow(value - m, 2), 0);
     return round(sumOfSquares, digits);
@@ -157,11 +157,11 @@ export function ssd(values: number[], digits: number = -1): number {
  *
  * @param values - Array of numerical values.
  * @param [isSample=false] - Whether to calculate sample variance (N - 1) or population variance (N).
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The dataset's variance.
  * @throws {Error} If `values` is empty or invalid for sample statistics.
  */
-export function variance(values: number[], isSample: boolean = true, digits: number = -1): number {
+export function variance(values: number[], isSample: boolean = true, digits?: number): number {
     validateValues(values, isSample);
     const sumSq = ssd(values);
     const length = getDegreesOfFreedom(values, isSample);
@@ -173,11 +173,11 @@ export function variance(values: number[], isSample: boolean = true, digits: num
  *
  * @param values - Array of numerical values.
  * @param [isSample=false] - Whether to calculate sample standard deviation (N - 1) or population standard deviation (N).
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The standard deviation.
  * @throws {Error} If `values` is empty or invalid for sample statistics.
  */
-export function std(values: number[], isSample: boolean = true, digits: number = -1): number {
+export function std(values: number[], isSample: boolean = true, digits?: number): number {
     validateValues(values, isSample);
     const v = variance(values, isSample); // nyers variancia
     return round(Math.sqrt(v), digits);
@@ -189,7 +189,7 @@ export function std(values: number[], isSample: boolean = true, digits: number =
  * @param values - Array of numerical values.
  * @param percent - Percentile value to calculate as a decimal between 0 and 1 (e.g., 0.5 for 50th percentile).
  * @param [mode='interpolated'] - The strategy used for percentile calculation ('midpoint', 'lower', 'higher', 'nearest', 'interpolated').
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The calculated percentile value.
  * @throws {Error} If `values` is empty or `percent` is out of bounds [0, 1].
  */
@@ -197,7 +197,7 @@ export function percentile(
     values: number[],
     percent: number,
     mode: PercentMode = 'interpolated',
-    digits: number = -1
+    digits?: number
 ): number {
     validateValues(values);
 
@@ -251,10 +251,10 @@ export function percentile(
  *
  * @param values - Array of numerical values.
  * @param [mode='interpolated'] - The percentile calculation strategy to use.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The median value.
  */
-export function median(values: number[], mode: PercentMode = 'interpolated', digits: number = -1): number {
+export function median(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
     return percentile(values, 0.5, mode, digits);
 }
 
@@ -263,10 +263,10 @@ export function median(values: number[], mode: PercentMode = 'interpolated', dig
  *
  * @param values - Array of numerical values.
  * @param [mode='interpolated'] - The percentile calculation strategy to use.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The first quartile value.
  */
-export function q1(values: number[], mode: PercentMode = 'interpolated', digits: number = -1): number {
+export function q1(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
     return percentile(values, 0.25, mode, digits);
 }
 
@@ -275,10 +275,10 @@ export function q1(values: number[], mode: PercentMode = 'interpolated', digits:
  *
  * @param values - Array of numerical values.
  * @param [mode='interpolated'] - The percentile calculation strategy to use.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The second quartile (median) value.
  */
-export function q2(values: number[], mode: PercentMode = 'interpolated', digits: number = -1): number {
+export function q2(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
     return median(values, mode, digits);
 }
 
@@ -287,10 +287,10 @@ export function q2(values: number[], mode: PercentMode = 'interpolated', digits:
  *
  * @param values - Array of numerical values.
  * @param [mode='interpolated'] - The percentile calculation strategy to use.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The third quartile value.
  */
-export function q3(values: number[], mode: PercentMode = 'interpolated', digits: number = -1): number {
+export function q3(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
     return percentile(values, 0.75, mode, digits);
 }
 
@@ -299,10 +299,10 @@ export function q3(values: number[], mode: PercentMode = 'interpolated', digits:
  *
  * @param values - Array of numerical values.
  * @param [mode='interpolated'] - The percentile calculation strategy to use.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The maximum percentile value.
  */
-export function q4(values: number[], mode: PercentMode = 'interpolated', digits: number = -1): number {
+export function q4(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
     return percentile(values, 1, mode, digits);
 }
 
@@ -314,7 +314,7 @@ export function q4(values: number[], mode: PercentMode = 'interpolated', digits:
  * @returns An array containing the mode value(s). Returns an empty array if all elements appear with equal frequency.
  * @throws {Error} If `values` is empty.
  */
-export function mode(values: number[], digits: number = -1): number[] {
+export function mode(values: number[], digits?: number): number[] {
     validateValues(values);
     const counts = new Map<number, number>();
     let maxCount = 0;
@@ -349,7 +349,7 @@ export function mode(values: number[], digits: number = -1): number[] {
  * @param pLower - Lower percentile decimal value (e.g., 0.25).
  * @param pUpper - Upper percentile decimal value (e.g., 0.75).
  * @param [mode='interpolated'] - The percentile calculation strategy to use.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The quantile skewness coefficient.
  * @throws {Error} If the denominator evaluates to zero.
  */
@@ -358,7 +358,7 @@ function quantileSkewness(
     pLower: number,
     pUpper: number,
     mode: PercentMode = 'interpolated',
-    digits: number = -1
+    digits?: number
 ): number {
     const medianVal = percentile(values, 0.5, mode);
     const firstPart = percentile(values, pUpper, mode) - medianVal;
@@ -380,7 +380,7 @@ function quantileSkewness(
  * @param values - Array of numerical values.
  * @param [isSample=false] - Whether to use sample standard deviation.
  * @param [mode='interpolated'] - The percentile calculation strategy used for the median.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The Pearson median skewness coefficient.
  * @throws {Error} If standard deviation is zero.
  */
@@ -388,7 +388,7 @@ export function pearsonMeSkewness(
     values: number[],
     isSample: boolean = true,
     mode: PercentMode = 'interpolated',
-    digits: number = -1
+    digits?: number
 ): number {
     validateValues(values, isSample);
     const s = std(values, isSample);
@@ -405,11 +405,11 @@ export function pearsonMeSkewness(
  *
  * @param values - Array of numerical values.
  * @param [mode='interpolated'] - The percentile calculation strategy to use.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The Bowley skewness coefficient.
  * @throws {Error} If `values` is empty or calculation results in a zero denominator.
  */
-export function bowleySkewness(values: number[], mode: PercentMode = 'interpolated', digits: number = -1): number {
+export function bowleySkewness(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
     validateValues(values);
     return quantileSkewness(values, 0.25, 0.75, mode, digits);
 }
@@ -419,11 +419,11 @@ export function bowleySkewness(values: number[], mode: PercentMode = 'interpolat
  *
  * @param values - Array of numerical values.
  * @param [mode='interpolated'] - The percentile calculation strategy to use.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The Kelly skewness coefficient.
  * @throws {Error} If `values` is empty or calculation results in a zero denominator.
  */
-export function kellySkewness(values: number[], mode: PercentMode = 'interpolated', digits: number = -1): number {
+export function kellySkewness(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
     validateValues(values);
     return quantileSkewness(values, 0.1, 0.9, mode, digits);
 }
@@ -434,7 +434,7 @@ export function kellySkewness(values: number[], mode: PercentMode = 'interpolate
  * @param values - Array of numerical values.
  * @param k - The order of the central moment to compute (e.g., 2 for variance numerator, 3 for skewness numerator).
  * @param [isSample=false] - Whether to calculate sample central moment (N - 1) or population central moment (N).
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The k-th central moment value.
  * @throws {Error} If `values` is empty or invalid for sample statistics.
  */
@@ -442,7 +442,7 @@ export function centralMoment(
     values: number[],
     k: number,
     isSample: boolean = true,
-    digits: number = -1
+    digits?: number
 ): number {
     validateValues(values, isSample);
     const m = mean(values);
@@ -456,14 +456,14 @@ export function centralMoment(
  *
  * @param values - Array of numerical values.
  * @param [isSample=false] - Whether to use sample calculations for central moment and standard deviation.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The excess kurtosis value.
  * @throws {Error} If standard deviation is zero.
  */
 export function excessKurtosis(
     values: number[],
     isSample: boolean = true,
-    digits: number = -1
+    digits?: number
 ): number {
     validateValues(values, isSample);
     const s = std(values, isSample);
@@ -481,11 +481,11 @@ export function excessKurtosis(
  *
  * @param values - Array of numerical values.
  * @param [isSample=false] - Whether to use sample statistics.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The skewness coefficient.
  * @throws {Error} If standard deviation is zero.
  */
-export function skewness(values: number[], isSample: boolean = true, digits: number = -1): number {
+export function skewness(values: number[], isSample: boolean = true, digits?: number): number {
     validateValues(values, isSample);
     const s = std(values, isSample);
 
@@ -500,11 +500,11 @@ export function skewness(values: number[], isSample: boolean = true, digits: num
  * Calculates the statistical range (difference between maximum and minimum values) of an array of numbers.
  *
  * @param values - Array of numerical values.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The range value.
  * @throws {Error} If `values` is empty.
  */
-export function range(values: number[], digits: number = -1): number {
+export function range(values: number[], digits?: number): number {
     validateValues(values);
     const sortedVals = orderAsc([...values]);
     const difference = sortedVals[sortedVals.length - 1] - sortedVals[0];
@@ -516,11 +516,11 @@ export function range(values: number[], digits: number = -1): number {
  *
  * @param values - Array of numerical values.
  * @param [mode='interpolated'] - The percentile calculation strategy to use.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The interquartile range.
  * @throws {Error} If `values` is empty.
  */
-export function iqr(values: number[], mode: PercentMode = 'interpolated', digits: number = -1): number {
+export function iqr(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
     validateValues(values);
     const result = percentile(values, 0.75, mode) - percentile(values, 0.25, mode);
     return round(result, digits);
@@ -531,11 +531,11 @@ export function iqr(values: number[], mode: PercentMode = 'interpolated', digits
  *
  * @param values - Array of numerical values.
  * @param [isSample=false] - Whether to use sample standard deviation.
- * @param [digits=-1] - Number of decimal places to round the result to (-1 disables rounding).
+ * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The relative standard deviation (standard deviation divided by mean).
  * @throws {Error} If the mean of `values` is zero.
  */
-export function rsd(values: number[], isSample: boolean = true, digits: number = -1): number {
+export function rsd(values: number[], isSample: boolean = true, digits?: number): number {
     validateValues(values, isSample);
     const m = mean(values);
 

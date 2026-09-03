@@ -1,5 +1,5 @@
-export function round(value: number, decimals = -1): number {
-    if (decimals === -1) return value;
+export function round(value: number, decimals?:number): number {
+    if (decimals === undefined) return value;
 
     const factor = Math.pow(10, decimals);
     return Math.round(value * factor) / factor;
