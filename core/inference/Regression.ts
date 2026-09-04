@@ -248,13 +248,13 @@ export default class Regression {
 
             switch (regression) {
                 case 'linear':
-                    yHat = this.linearFunc(b0, b1, x);
+                    yHat = this.linearFunc(b0!, b1!, x);
                     break;
                 case 'power':
-                    yHat = this.powerFunc(b0, b1, x);
+                    yHat = this.powerFunc(b0!, b1!, x);
                     break;
                 case 'exponential':
-                    yHat = this.exponentialFunc(b0, b1, x);
+                    yHat = this.exponentialFunc(b0!, b1!, x);
                     break;
             }
 
