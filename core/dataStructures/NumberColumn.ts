@@ -371,7 +371,10 @@ export default class NumberColumn extends Column<number> {
      * Fits an exponential regression model ($y = b_0 \cdot e^{b_1 \cdot x}$) between this column (X) and a target column (Y).
      *
      * @param {NumberColumn} column - The target dependent column (Y).
-     * @returns {{ b0: number, b1: number }} An object containing the base parameter (`b0`) and growth rate (`b1`).
+     * @returns {{ b0: number; b1: number; rsd: number }} An object containing:
+     *  - `b0`: The initial value or scale factor (intercept).
+     *  - `b1`: The exponential growth rate constant.
+     *  - `rsd`: The Residual Standard Deviation, measuring the standard error of the regression model fit.
      * @throws {Error} Throws if dependent values contain non-positive numbers.
      */
     public exponentialRegression(column: NumberColumn): RegressionModel {
@@ -394,7 +397,10 @@ export default class NumberColumn extends Column<number> {
      * Fits a power regression model ($y = b_0 \cdot x^{b_1}$) between this column (X) and a target column (Y).
      *
      * @param {NumberColumn} column - The target dependent column (Y).
-     * @returns {{ b0: number, b1: number }} An object containing the proportionality constant (`b0`) and exponent (`b1`).
+     * @returns {{ b0: number; b1: number; rsd: number }} An object containing:
+     *  - `b0`: The proportionality constant (intercept factor).
+     *  - `b1`: The power exponent.
+     *  - `rsd`: The Residual Standard Deviation, indicating the standard error of the regression estimate.
      * @throws {Error} Throws if independent or dependent values contain non-positive numbers.
      */
     public powerRegression(column: NumberColumn): RegressionModel {
@@ -416,7 +422,10 @@ export default class NumberColumn extends Column<number> {
     /**
      * Calculates and caches the linear time-series trend of the column values.
      *
-     * @returns {any} The fitted linear trend parameters or series.
+     * @returns {TrendModel} An object containing:
+     *  - `a`: The baseline trend value (y-intercept).
+     *  - `b`: The rate of change per time step (slope).
+     *  - `mse`: The Mean Squared Error of the fitted trend line.
      */
     public linearTrend(): TrendModel {
         if (this.trend === null) {
@@ -434,7 +443,10 @@ export default class NumberColumn extends Column<number> {
     /**
      * Calculates and caches the exponential time-series trend of the column values.
      *
-     * @returns {any} The fitted exponential trend parameters or series.
+     * @returns {TrendModel} An object containing:
+     *  - `a`: The initial baseline value (scale factor).
+     *  - `b`: The growth or decay rate base.
+     *  - `mse`: The Mean Squared Error of the fitted exponential trend line.
      */
     public exponentialTrend():TrendModel {
         if (this.trend === null) {
@@ -452,7 +464,10 @@ export default class NumberColumn extends Column<number> {
     /**
      * Calculates and caches the logarithmic time-series trend of the column values.
      *
-     * @returns {any} The fitted logarithmic trend parameters or series.
+     * @returns {TrendModel} An object containing:
+     *  - `a`: The constant offset factor (intercept).
+     *  - `b`: The logarithmic growth/decay coefficient (slope).
+     *  - `mse`: The Mean Squared Error of the fitted logarithmic trend line.
      */
     public logarithmicTrend():TrendModel {
         if (this.trend === null) {
@@ -471,7 +486,7 @@ export default class NumberColumn extends Column<number> {
      * Calculates and caches a polynomial time-series trend of a specified degree.
      *
      * @param {number} degree - The polynomial degree (e.g., 2 for quadratic, 3 for cubic).
-     * @returns {any} The fitted polynomial trend parameters or series.
+     * @returns {any} The fitted polynomial trend parameters or series with MSE.
      */
     public polynomialTrend(degree: number) {
         if (this.trend === null) {
