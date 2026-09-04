@@ -2,6 +2,104 @@
 
 **Note:** This is a personal educational project. It was created to master the foundational statistical concepts, probability theories, and mathematical programming required for data analysis. 
 
+## Prerequisites
+
+Before installing TypeStats, make sure you have the following installed on your system:
+
+- **Node.js** (v18 or later recommended) - TypeStats relies on native `node:fs/promises` for filesystem-based CSV/JSON ingestion (`getCSVFromNode`, `getJSONFromNode`), so a reasonably recent Node.js runtime is required.
+- **npm** (bundled with Node.js) - used to install the package and manage dependencies.
+
+You can verify your installed versions with:
+
+```bash
+node -v
+npm -v
+```
+
+If Node.js is not installed, download it from [nodejs.org](https://nodejs.org) (the LTS version is recommended).
+
+## Installation
+
+Install the package via npm:
+
+```bash
+npm i typestats@beta
+```
+
+> **Note:** TypeStats is currently distributed under the `beta` tag while the API stabilizes. Pin your version in `package.json` if you need reproducible builds across environments.
+
+Once installed, import the modules you need directly from the package:
+
+```typescript
+import { getCSVFromNode, tableToCSV, tableToJSON } from "typestats/io";
+import { round } from "typestats/utils";
+```
+
+You're now ready to run the pipeline example above.
+
+## Quickstart & Full Pipeline
+
+This complete end-to-end pipeline demonstrates how to ingest data from CSV, impute missing values, perform feature engineering, run statistical calculations, fit regression/trend models, and export the processed dataset.
+
+### Installation
+
+Install the package via npm:
+
+```bash
+npm i typestats@beta
+```
+
+```typescript
+import { getCSVFromNode, tableToCSV, tableToJSON } from "typestats/io";
+import { round } from "typestats/utils";
+
+async function runPipeline() {
+    try {
+        // 1. Data Ingestion & Imputation
+        const table = (await getCSVFromNode("users_dataset.csv", ";"))
+            .fillNaNumeric("annual_income", "median")
+            .fillNaNumeric("purchase_score", "mean")
+            .fillNaNumeric("age", "median")
+
+            // 2. Feature Engineering & Column Transformations
+            .combineColumns(["annual_income", "purchase_score"], "*", "a")
+            .mapColumn("a", "a_rounded", (val) => round(val, 2))
+            .applyColumn("a", (val) => val * 100)
+            .drop("id", "gender");
+
+        // Print table preview
+        table.print(0, table.rowCount, table.table.length);
+
+        // 3. Column-Level Statistics
+        const annualIncome = table.getCol("annual_income");
+        const purchaseScore = table.getCol("purchase_score");
+
+        console.log("Income Mean:", annualIncome.mean());
+        console.log("Income Kurtosis:", annualIncome.kurtosis());
+        console.log("Income Skewness:", annualIncome.skewness());
+
+        // 4. Trend & Regression Modeling
+        console.log("Linear Regression:", annualIncome.linearRegression(purchaseScore));
+        console.log("Exponential Regression:", annualIncome.exponentialRegression(purchaseScore));
+        console.log("Power Regression:", annualIncome.powerRegression(purchaseScore));
+        console.log("Linear trend:", annualIncome.linearTrend());
+        console.log("Exponential trend:", annualIncome.exponentialTrend());
+        console.log("Logarithmic trend:", annualIncome.logarithmicTrend());
+        console.log("Polynomial Trend:", annualIncome.polynomialTrend(3));
+
+        // 5. Data Export
+        await tableToCSV("processed_users.csv", table);
+        await tableToJSON("processed_users.json", table);
+
+        console.log("Pipeline executed and files exported successfully!");
+    } catch (err) {
+        console.error("Pipeline execution failed:", err.message);
+    }
+}
+
+runPipeline();
+```
+
 ### Project Authorship
 - Core distribution modules: Written by Claude AI
 - All other code: Written by Olivér Mihály Kovács
