@@ -43,12 +43,12 @@ const messyData = [10, null, 20, NaN, 30, "", 1000]; // 1000 is an extreme outli
 console.log("Original Messy Data:           ", messyData);
 
 // Replace empty values (null, NaN, "") with the MEAN of valid values
-const filledData = replaceEmptyValues(messyData, 'MEAN');
+const filledData = replaceEmptyValues(messyData, 'mean');
 console.log("Empty values replaced (MEAN):  ", filledData);
 
 // Replace outliers with MEDIAN based on boundaries
 const boundaries = { min: 0, max: 100 };
-const cleanedData = replaceOutliers(filledData, 'MEDIAN', boundaries);
+const cleanedData = replaceOutliers(filledData, 'median', boundaries);
 console.log("Outliers replaced (MEDIAN):    ", cleanedData);
 
 // Simply remove invalid or boundary-breaking rows
@@ -71,7 +71,7 @@ console.log("Original Table Data:");
 console.table(tableData);
 
 // Fill missing Age (column index 1) with the MEDIAN age
-const tableWithAge = replaceEmptyValues(tableData, 'MEDIAN', 1);
+const tableWithAge = replaceEmptyValues(tableData, 'median', 1);
 console.log("Table with missing Age replaced by MEDIAN (col 1):");
 console.table(tableWithAge);
 

@@ -37,7 +37,7 @@ console.log('Polynomial MSE (Degree 2):', trend.MSEPolynomial(2));
 console.log('\n=== 3. Unified MSE Comparison ===');
 
 // Comparing MSE values across all model types using the unified MSE method
-console.log('Unified MSE (LINEAR):', trend.MSE('LINEAR'));
-console.log('Unified MSE (EXPONENTIAL):', trend.MSE('EXPONENTIAL'));
-console.log('Unified MSE (LOGARITHMIC):', trend.MSE('LOGARITHMIC'));
-console.log('Unified MSE (POLYNOMIAL, degree 3):', trend.MSE('POLYNOMIAL', 3));
+console.log('Unified MSE (LINEAR):', trend.MSE('linear'));
+console.log('Unified MSE (EXPONENTIAL):', trend.MSE('exponential'));
+console.log('Unified MSE (LOGARITHMIC):', trend.MSE('logarithmic'));
+console.log('Unified MSE (POLYNOMIAL, degree 3):', trend.MSE('polynomial', 3));

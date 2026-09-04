@@ -23,7 +23,7 @@ const noOutliersIqr = table.dropOutliersIqr('price', 1.5);
 const noOutliersBounds = table.dropOutliers('price', { min: 0, max: 100 });
 
 // 4. Impute missing numeric values using column mean
-const imputedMean = table.fillNaNumeric('price', 'MEAN');
+const imputedMean = table.fillNaNumeric('price', 'mean');
 
 // 5. Fill missing values with literal constant replacements
 const fullyCleaned = table
