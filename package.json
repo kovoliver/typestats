@@ -1,6 +1,6 @@
 {
   "name": "typestats",
-  "version": "0.9.0-beta.9",
+  "version": "0.9.0-beta.10",
   "type": "module",
   "description": "A comprehensive TypeScript statistics and data preparation library for browser and Node.js.",
   "author": "Olivér Kovács",
