@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import Table from '../../core/dataStructures/Table';
 import { ColInfo } from '../../core/types/types';
 
@@ -63,5 +64,38 @@ describe('Table - Data Cleaning & Imputation', () => {
 
         expect(() => table.fillNa('num', 'not a number')).toThrow();
         expect(() => table.fillNa('str', 123)).toThrow();
+    });
+
+    it('should replace outliers with statistical values via replaceOutliers using Boundaries', () => {
+        const data = [[10, 20, 100, 30]];
+        const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+        const table = new Table(data, infos);
+
+        const replaced = table.replaceOutliers('val', 'mean', { min: 5, max: 50 });
+        expect(replaced.getCol('val').values).toEqual([10, 20, 20, 30]);
+    });
+
+    it('should replace outliers using IQR rule via replaceOutliersIQR', () => {
+        const data = [[10, 12, 14, 15, 16, 18, 1000]];
+        const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+        const table = new Table(data, infos);
+
+        const replaced = table.replaceOutliersIQR('val', 'median', 1.5);
+        
+        expect(replaced.getCol('val').values).toEqual([10, 12, 14, 15, 16, 18, 14.5]);
+    });
+
+    it('should throw error if replaceOutliers or replaceOutliersIQR is called on a non-numeric column', () => {
+        const data = [['a', 'b', 'c']];
+        const infos: ColInfo[] = [{ label: 'str', type: 'string' }];
+        const table = new Table(data, infos);
+
+        expect(() => table.replaceOutliers('str', 'mean', { min: 0, max: 10 })).toThrowError(
+            'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
+        );
+
+        expect(() => table.replaceOutliersIQR('str', 'median')).toThrowError(
+            'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
+        );
     });
 });

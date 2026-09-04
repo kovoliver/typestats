@@ -650,6 +650,76 @@ export default class Table {
     }
 
     /**
+     * Replaces outlier values in a specified numeric column using absolute boundary thresholds.
+     *
+     * @param {string | number} label - The label or zero-based index of the target numeric column.
+     * @param {ImputeType} type - The imputation strategy to apply for outliers (e.g., 'mean', 'median', 'mode').
+     * @param {Boundaries} boundaries - The lower and upper numerical boundaries defining valid data range.
+     * @returns {Table} A new Table instance with imputed outliers in the target column.
+     * @throws {Error} If the specified column is not an instance of NumberColumn.
+     */
+    public replaceOutliers(
+        label: string | number, 
+        type: ImputeType, 
+        boundaries:Boundaries
+    ): Table {
+        const targetIndex = this.getIndex(label);
+        const targetCol = this._table[targetIndex];
+
+        if (!(targetCol instanceof NumberColumn)) {
+            throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
+        }
+        
+        const newCol = targetCol.replaceOutliers(type, boundaries);
+
+        const newCols = this._table.map((col, idx) => {
+            if (idx === targetIndex) {
+                return newCol;
+            }
+
+            return this.cloneColumn(col);
+        });
+
+        return this.createTableFromCols(newCols);
+    }
+
+    /**
+     * Replaces outlier values in a specified numeric column using Tukey's Interquartile Range (IQR) method.
+     *
+     * @param {string | number} label - The label or zero-based index of the target numeric column.
+     * @param {ImputeType} type - The imputation strategy to apply for outliers (e.g., 'mean', 'median', 'mode').
+     * @param {number} [multiplier=1.5] - The IQR multiplier factor determining outlier thresholds (default is 1.5).
+     * @param {PercentMode} [percentMode='interpolated'] - The percentile calculation strategy for IQR boundaries.
+     * @returns {Table} A new Table instance with imputed outliers in the target column.
+     * @throws {Error} If the specified column is not an instance of NumberColumn.
+     */
+    public replaceOutliersIQR(
+        label: string | number, 
+        type: ImputeType,
+        multiplier: number = 1.5,
+        percentMode: PercentMode = 'interpolated'
+    ): Table {
+        const targetIndex = this.getIndex(label);
+        const targetCol = this._table[targetIndex];
+
+        if (!(targetCol instanceof NumberColumn)) {
+            throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
+        }
+        
+        const newCol = targetCol.replaceOutliersIqr(type, multiplier, percentMode);
+
+        const newCols = this._table.map((col, idx) => {
+            if (idx === targetIndex) {
+                return newCol;
+            }
+            
+            return this.cloneColumn(col);
+        });
+
+        return this.createTableFromCols(newCols);
+    }
+
+    /**
      * Fills missing, null, or NaN values in a specified column with a literal constant value.
      * Enforces strict type compatibility between the target column and the provided replacement value.
      * Returns a new Table instance, preserving immutability.
