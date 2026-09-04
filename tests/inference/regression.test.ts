@@ -110,4 +110,60 @@ describe('Regression Class', () => {
             );
         });
     });
+
+    describe('RSD Calculation', () => {
+        it('should throw error if regression model has not been calculated before RSD call', () => {
+            const reg = new Regression([1, 2, 3, 4, 5], [2, 4, 5, 4, 5]);
+
+            expect(() => reg.RSD('linear')).toThrowError(
+                "Cannot calculate RSD for 'linear' regression because the model coefficients have not been calculated yet. Call .linear() first!"
+            );
+
+            expect(() => reg.RSD('exponential')).toThrowError(
+                "Cannot calculate RSD for 'exponential' regression because the model coefficients have not been calculated yet. Call .exponential() first!"
+            );
+
+            expect(() => reg.RSD('power')).toThrowError(
+                "Cannot calculate RSD for 'power' regression because the model coefficients have not been calculated yet. Call .power() first!"
+            );
+        });
+
+        it('should calculate RSD correctly for linear regression after model is fitted', () => {
+            const x = [1, 2, 3, 4, 5];
+            const y = [2, 4, 5, 4, 5];
+            const reg = new Regression(x, y);
+
+            reg.linear();
+            const rsd = reg.RSD('linear');
+
+            expect(rsd).toBeCloseTo(0.894427, 4);
+        });
+
+        it('should calculate RSD correctly for exponential and power regression', () => {
+            const x = [1, 2, 3, 4, 5];
+            const y = [2, 4, 8, 16, 32];
+            const reg = new Regression(x, y);
+
+            reg.exponential();
+            const expRsd = reg.RSD('exponential');
+            expect(expRsd).toBeGreaterThanOrEqual(0);
+
+            reg.power();
+            const powerRsd = reg.RSD('power');
+            expect(powerRsd).toBeGreaterThanOrEqual(0);
+            expect(powerRsd).not.toBe(expRsd);
+        });
+
+        it('should return cached RSD on subsequent calls', () => {
+            const x = [1, 2, 3, 4, 5];
+            const y = [2, 4, 5, 4, 5];
+            const reg = new Regression(x, y);
+
+            reg.linear();
+            const firstRsd = reg.RSD('linear');
+            const secondRsd = reg.RSD('linear');
+
+            expect(secondRsd).toBe(firstRsd);
+        });
+    });
 });

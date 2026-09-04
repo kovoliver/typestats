@@ -218,30 +218,47 @@ export default class Regression {
             return this._rsds.get(rsdKey)!;
         }
 
-        let SSE = this._y.reduce((total, y, i) => {
-            let yHat = 0;
+        let b0: number | null = null;
+        let b1: number | null = null;
+
+        switch (regression) {
+            case 'linear':
+                b0 = this._b0;
+                b1 = this._b1;
+                break;
+            case 'power':
+                b0 = this._b0Pow;
+                b1 = this._b1Pow;
+                break;
+            case 'exponential':
+                b0 = this._b0Exp;
+                b1 = this._b1Exp;
+                break;
+        }
+
+        if (b0 === null || b1 === null) {
+            throw new Error(
+                `Cannot calculate RSD for '${regression}' regression because the model coefficients have not been calculated yet. Call .${regression}() first!`
+            );
+        }
+
+        const SSE = this._y.reduce((total, y, i) => {
             const x = this._x[i];
+            let yHat = 0;
 
             switch (regression) {
                 case 'linear':
-                    yHat = this.linearFunc(
-                        this._b0!, this._b1!, x
-                    );
-
-                    return total + Math.pow(y - yHat, 2);
+                    yHat = this.linearFunc(b0, b1, x);
+                    break;
                 case 'power':
-                    yHat = this.powerFunc(
-                        this._b0!, this._b1!, x
-                    );
-
-                    return total + Math.pow(y - yHat, 2);
+                    yHat = this.powerFunc(b0, b1, x);
+                    break;
                 case 'exponential':
-                    yHat = this.exponentialFunc(
-                        this._b0!, this._b1!, x
-                    );
-
-                    return total + Math.pow(y - yHat, 2);
+                    yHat = this.exponentialFunc(b0, b1, x);
+                    break;
             }
+
+            return total + Math.pow(y - yHat, 2);
         }, 0);
 
         const rsd = Math.sqrt(SSE / (this._y.length - 2));
