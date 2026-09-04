@@ -4,7 +4,7 @@ import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, m
     from '../statistics/univariate.js';
 import { standardizeValues, normalizeValues, replaceOutliers, replaceEmptyValues, isInvalidValue }
     from '../dataPreparation/dataPreparation.js';
-import { Boundaries, ImputeType, PercentMode } from "../types/types.js";
+import { Boundaries, ImputeType, PercentMode, RegressionModel, TrendModel } from "../types/types.js";
 import { correlation, covariance } from "../statistics/bivariate.js";
 import Regression from "../inference/Regression.js";
 import Trend from "../inference/Trend.js";
@@ -207,7 +207,7 @@ export default class NumberColumn extends Column<number> {
      * @throws {Error} Throws an error if the column contains invalid or missing values (`NaN`/`null`).
      */
     public standardize(): NumberColumn {
-        const values:number[] = standardizeValues(this._values as number[]) as number[];
+        const values: number[] = standardizeValues(this._values as number[]) as number[];
         return new NumberColumn(values, this._label);
     }
 
@@ -218,7 +218,7 @@ export default class NumberColumn extends Column<number> {
      * @throws {Error} Throws an error if the column contains invalid or missing values (`NaN`/`null`).
      */
     public normalize(): NumberColumn {
-        const values:number[] = normalizeValues(this._values as number[]) as number[];
+        const values: number[] = normalizeValues(this._values as number[]) as number[];
         return new NumberColumn(values, this._label);
     }
 
@@ -230,7 +230,7 @@ export default class NumberColumn extends Column<number> {
      * @param {Boundaries} boundaries - The threshold boundaries (`min` and/or `max`) for identifying outliers.
      */
     public replaceOutliers(type: ImputeType, boundaries: Boundaries): NumberColumn {
-        const values:number[] = replaceOutliers(this._values as number[], type, boundaries);
+        const values: number[] = replaceOutliers(this._values as number[], type, boundaries);
         return new NumberColumn(values, this._label);
     }
 
@@ -247,7 +247,7 @@ export default class NumberColumn extends Column<number> {
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
     ): NumberColumn {
-        const boundaries:Boundaries = this.getIqrBoundaries(multiplier, percentMode);
+        const boundaries: Boundaries = this.getIqrBoundaries(multiplier, percentMode);
         return this.replaceOutliers(type, boundaries);
     }
 
@@ -258,7 +258,7 @@ export default class NumberColumn extends Column<number> {
      * @param {ImputeType} type - The imputation method ('MEAN', 'MEDIAN', 'MODE').
      */
     public replaceEmptyValues(type: ImputeType): NumberColumn {
-        const values:number[] = replaceEmptyValues(this._values as number[], type) as number[];
+        const values: number[] = replaceEmptyValues(this._values as number[], type) as number[];
         return new NumberColumn(values, this._label);
     }
 
@@ -271,8 +271,8 @@ export default class NumberColumn extends Column<number> {
      * 
      * @param {Boundaries} boundaries - The lower (`min`) and upper (`max`) threshold boundaries.
      */
-    public removeInvalidRows(boundaries: Boundaries):NumberColumn {
-        const values:number[] = this.filterValues((val) => !isInvalidValue(
+    public removeInvalidRows(boundaries: Boundaries): NumberColumn {
+        const values: number[] = this.filterValues((val) => !isInvalidValue(
             (val as number), boundaries)
         ) as number[];
 
@@ -290,7 +290,7 @@ export default class NumberColumn extends Column<number> {
         percentMode: PercentMode = 'interpolated'
     ) {
         const boundaries = this.getIqrBoundaries(multiplier, percentMode);
-        const values:number[] = this.filterValues(val => !isInvalidValue(val, boundaries)) as number[];
+        const values: number[] = this.filterValues(val => !isInvalidValue(val, boundaries)) as number[];
         return new NumberColumn(values, this._label);
     }
 
@@ -351,13 +351,20 @@ export default class NumberColumn extends Column<number> {
      * @returns {{ b0: number, b1: number }} An object containing the y-intercept (`b0`) and slope (`b1`).
      * @throws {Error} Throws if array lengths do not match or if missing/non-positive values violate model assumptions.
      */
-    public linearRegression(column: NumberColumn): { b0: number, b1: number } {
+    public linearRegression(column: NumberColumn): RegressionModel {
+        if(!(column instanceof NumberColumn)) {
+            throw new Error('You must provide a numeric column (NumberColumn) instance!');
+        }
+
         this.regression = new Regression(
             this._values as number[],
             column.values as number[]
         );
 
-        return this.regression.linear();
+        return {
+            ...this.regression.linear(),
+            rsd: this.regression.RSDLinear()
+        };
     }
 
     /**
@@ -367,13 +374,20 @@ export default class NumberColumn extends Column<number> {
      * @returns {{ b0: number, b1: number }} An object containing the base parameter (`b0`) and growth rate (`b1`).
      * @throws {Error} Throws if dependent values contain non-positive numbers.
      */
-    public exponentialRegression(column: NumberColumn): { b0: number, b1: number } {
+    public exponentialRegression(column: NumberColumn): RegressionModel {
+        if(!(column instanceof NumberColumn)) {
+            throw new Error('You must provide a numeric column (NumberColumn) instance!');
+        }
+
         this.regression = new Regression(
             this._values as number[],
             column.values as number[]
         );
 
-        return this.regression.exponential();
+        return {
+            ...this.regression.exponential(),
+            rsd: this.regression.RSDExponential()
+        };
     }
 
     /**
@@ -383,13 +397,20 @@ export default class NumberColumn extends Column<number> {
      * @returns {{ b0: number, b1: number }} An object containing the proportionality constant (`b0`) and exponent (`b1`).
      * @throws {Error} Throws if independent or dependent values contain non-positive numbers.
      */
-    public powerRegression(column: NumberColumn): { b0: number, b1: number } {
+    public powerRegression(column: NumberColumn): RegressionModel {
+        if(!(column instanceof NumberColumn)) {
+            throw new Error('You must provide a numeric column (NumberColumn) instance!');
+        }
+        
         this.regression = new Regression(
             this._values as number[],
             column.values as number[]
         );
 
-        return this.regression.power();
+        return {
+            ...this.regression.power(),
+            rsd: this.regression.RSDPower()
+        };
     }
 
     /**
@@ -397,12 +418,17 @@ export default class NumberColumn extends Column<number> {
      *
      * @returns {any} The fitted linear trend parameters or series.
      */
-    public linearTrend() {
+    public linearTrend(): TrendModel {
         if (this.trend === null) {
             this.trend = new Trend(this.getValidValues());
         }
 
-        return this.getCached('linear_trend', () => this.trend?.linear());
+        return this.getCached('linear_trend', () => {
+            return {
+                ...this.trend?.linear(),
+                mse: this.trend?.MSELinear()
+            }
+        }) as TrendModel;
     }
 
     /**
@@ -410,12 +436,17 @@ export default class NumberColumn extends Column<number> {
      *
      * @returns {any} The fitted exponential trend parameters or series.
      */
-    public exponentialTrend() {
+    public exponentialTrend():TrendModel {
         if (this.trend === null) {
             this.trend = new Trend(this.getValidValues());
         }
 
-        return this.getCached('exponential_trend', () => this.trend?.exponential());
+        return this.getCached('exponential_trend', () => {
+            return {
+                ...this.trend?.exponential(),
+                mse: this.trend?.MSEExponential()
+            }
+        }) as TrendModel;
     }
 
     /**
@@ -423,12 +454,17 @@ export default class NumberColumn extends Column<number> {
      *
      * @returns {any} The fitted logarithmic trend parameters or series.
      */
-    public logarithmicTrend() {
+    public logarithmicTrend():TrendModel {
         if (this.trend === null) {
             this.trend = new Trend(this.getValidValues());
         }
 
-        return this.getCached('logarithmic_trend', () => this.trend?.logarithmic());
+        return this.getCached('exponential_trend', () => {
+            return {
+                ...this.trend?.logarithmic(),
+                mse: this.trend?.MSELogarithmic()
+            }
+        }) as TrendModel;
     }
 
     /**
@@ -442,16 +478,21 @@ export default class NumberColumn extends Column<number> {
             this.trend = new Trend(this.getValidValues());
         }
 
-        return this.getCached(`polynomial_trend_${degree}`, () => this.trend?.polynomial(degree));
+        return this.getCached(`polynomial_trend_${degree}`, () => {
+            return {
+                ...this.trend?.polynomial(degree),
+                mse:this.trend?.MSEPolynomial(degree)
+            }
+        });
     }
 
     /**
      * Sorts the values of the column in ascending order in-place.
      * Clears cached calculations.
      */
-    public orderAsc():NumberColumn {
+    public orderAsc(): NumberColumn {
         const copyValues = [...this._values];
-        const values:number[] = orderAsc(copyValues as number[]);
+        const values: number[] = orderAsc(copyValues as number[]);
         return new NumberColumn(values, this._label);
     }
 
@@ -459,9 +500,9 @@ export default class NumberColumn extends Column<number> {
      * Sorts the values of the column in descending order in-place.
      * Clears cached calculations.
      */
-    public orderDesc():NumberColumn {
+    public orderDesc(): NumberColumn {
         const copyValues = [...this._values];
-        const values:number[] = orderDesc(copyValues as number[]);
+        const values: number[] = orderDesc(copyValues as number[]);
         return new NumberColumn(values, this._label);
     }
 }

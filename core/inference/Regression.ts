@@ -13,8 +13,8 @@ export default class Regression {
     private _lnX: number[];
     private _xMean: number;
     private _yMean: number;
-    private _lnxMean: number|null = null;
-    private _lnyMean: number|null = null;
+    private _lnxMean: number | null = null;
+    private _lnyMean: number | null = null;
     private _b0: number | null = null;
     private _b1: number | null = null;
     private _b0Exp: number | null = null;
@@ -23,6 +23,7 @@ export default class Regression {
     private _b1Pow: number | null = null;
     private _xHasNonPositive: boolean = false;
     private _yHasNonPositive: boolean = false;
+    private _rsds: Map<string, number> = new Map();
 
     /**
      * Initializes the regression model with independent and dependent variable datasets.
@@ -61,7 +62,7 @@ export default class Regression {
             this._lnY = y.map((val) => Math.log(val));
             this._lnyMean = mean(this._lnY);
         }
-            
+
         this._xMean = mean(this._x);
         this._yMean = mean(this._y);
     }
@@ -196,5 +197,68 @@ export default class Regression {
             b0: this._b0Pow,
             b1: this._b1Pow
         };
+    }
+
+    public linearFunc(b0: number, b1: number, x: number): number {
+        return b0 + x * b1;
+    }
+
+    public exponentialFunc(b0: number, b1: number, x: number): number {
+        return b0 * b1 ** x;
+    }
+
+    public powerFunc(b0: number, b1: number, x: number): number {
+        return b0 * x ** b1;
+    }
+
+    public RSD(regression: 'linear' | 'exponential' | 'power'): number {
+        const rsdKey = `rsd_${regression}`;
+
+        if (this._rsds.has(rsdKey)) {
+            return this._rsds.get(rsdKey)!;
+        }
+
+        let SSE = this._y.reduce((total, y, i) => {
+            let yHat = 0;
+            const x = this._x[i];
+
+            switch (regression) {
+                case 'linear':
+                    yHat = this.linearFunc(
+                        this._b0!, this._b1!, x
+                    );
+
+                    return total + Math.pow(y - yHat, 2);
+                case 'power':
+                    yHat = this.powerFunc(
+                        this._b0!, this._b1!, x
+                    );
+
+                    return total + Math.pow(y - yHat, 2);
+                case 'exponential':
+                    yHat = this.exponentialFunc(
+                        this._b0!, this._b1!, x
+                    );
+
+                    return total + Math.pow(y - yHat, 2);
+            }
+        }, 0);
+
+        const rsd = Math.sqrt(SSE / (this._y.length - 2));
+        this._rsds.set(rsdKey, rsd);
+
+        return rsd;
+    }
+
+    public RSDLinear() {
+        return this.RSD('linear');
+    }
+
+    public RSDExponential() {
+        return this.RSD('exponential');
+    }
+
+    public RSDPower() {
+        return this.RSD('power');
     }
 }

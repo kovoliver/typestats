@@ -5,6 +5,7 @@ import BoolColumn from './BoolColumn.js';
 import StringColumn from './StringColumn.js';
 import GroupedTable from './GroupedTable.js';
 import Column from './Column.js';
+type AnyColumn = NumberColumn & StringColumn & BoolColumn;
 
 export default class Table {
     private readonly _originalTable: any[][];
@@ -51,13 +52,13 @@ export default class Table {
         }
     }
 
-    private cloneColumn(col: Column<any>): Column<any> {
-        if (col instanceof NumberColumn) return new NumberColumn([...col.values], col.label);
-        if (col instanceof BoolColumn) return new BoolColumn([...col.values], col.label);
-        return new StringColumn([...col.values], col.label);
+    private cloneColumn(col: Column<any>): AnyColumn {
+        if (col instanceof NumberColumn) return new NumberColumn([...col.values], col.label) as AnyColumn;
+        if (col instanceof BoolColumn) return new BoolColumn([...col.values], col.label) as AnyColumn;
+        return new StringColumn([...col.values], col.label) as AnyColumn;
     }
 
-    private createColumnInstance(values: any[], col: Column<any>): Column<any> {
+    private createColumnInstance(values: any[], col: Column<any>): NumberColumn | StringColumn | BoolColumn {
         if (col instanceof NumberColumn) return new NumberColumn(values, col.label);
         if (col instanceof BoolColumn) return new BoolColumn(values, col.label);
         return new StringColumn(values, col.label);
@@ -127,7 +128,7 @@ export default class Table {
         identifiers.forEach((id, i) => this.setLabel(id, newLabels[i]));
     }
 
-    public getCol(identifier: number | string): Column<number | string | boolean> {
+    public getCol(identifier: number | string): AnyColumn {
         const index = this.getIndex(identifier);
         return this.cloneColumn(this._table[index]);
     }
@@ -204,7 +205,7 @@ export default class Table {
     private createColInstance(
         col: any[],
         colInfo: ColInfo
-    ): Column<number | boolean | string> {
+    ): NumberColumn | StringColumn | BoolColumn {
         const type = this.getColType(col, colInfo.type);
 
         switch (type) {
@@ -381,7 +382,7 @@ export default class Table {
                     diff = firstVal - secondVal;
                 } else if (typeof firstVal === 'string'
                     && typeof secondVal === 'string') {
-                    diff = firstVal.localeCompare(secondVal);
+                    diff = (firstVal as string).localeCompare(secondVal);
                 } else if (typeof firstVal === 'boolean'
                     && typeof secondVal === 'boolean') {
                     diff = Number(firstVal) - Number(secondVal);
@@ -560,7 +561,7 @@ export default class Table {
 
         const newCol = this.createColInstance(values, colInfo);
         const newCols = this._table.map(col => this.cloneColumn(col));
-        newCols.splice(index, 0, newCol);
+        newCols.splice(index, 0, newCol as AnyColumn);
 
         return new Table(newCols);
     }
@@ -830,7 +831,7 @@ export default class Table {
             }
 
             return col;
-        });
+        }) as NumberColumn[];
 
         const rowCount = this.rowCount;
         const newValues: (number | null)[] = [];

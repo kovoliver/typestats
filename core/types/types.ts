@@ -82,3 +82,15 @@ export interface CleanResult<T> {
     cleaned: T;
     indices: number[];
 }
+
+export type RegressionModel = {
+    b0:number;
+    b1:number;
+    rsd:number;
+}
+
+export type TrendModel = {
+    a:number;
+    b:number;
+    mse:number;
+}
