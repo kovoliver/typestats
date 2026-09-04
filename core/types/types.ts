@@ -94,3 +94,11 @@ export type TrendModel = {
     b:number;
     mse:number;
 }
+
+export type ColumnInfo = {
+    columnName: string,
+    type:ColType,
+    validCount: number,
+    missingCount: number,
+    missingPercent: number|string
+}

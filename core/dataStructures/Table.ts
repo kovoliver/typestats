@@ -1,4 +1,4 @@
-import { Boundaries, ColInfo, ColType, ImputeType, PercentMode } from '../types/types.js';
+import { Boundaries, ColInfo, ColType, ColumnInfo, ImputeType, PercentMode } from '../types/types.js';
 import { hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils.js';
 import NumberColumn from './NumberColumn.js';
 import BoolColumn from './BoolColumn.js';
@@ -207,6 +207,7 @@ export default class Table {
         colInfo: ColInfo
     ): NumberColumn | StringColumn | BoolColumn {
         const type = this.getColType(col, colInfo.type);
+        colInfo.type = type;
 
         switch (type) {
             case 'number':
@@ -659,9 +660,9 @@ export default class Table {
      * @throws {Error} If the specified column is not an instance of NumberColumn.
      */
     public replaceOutliers(
-        label: string | number, 
-        type: ImputeType, 
-        boundaries:Boundaries
+        label: string | number,
+        type: ImputeType,
+        boundaries: Boundaries
     ): Table {
         const targetIndex = this.getIndex(label);
         const targetCol = this._table[targetIndex];
@@ -669,7 +670,7 @@ export default class Table {
         if (!(targetCol instanceof NumberColumn)) {
             throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
         }
-        
+
         const newCol = targetCol.replaceOutliers(type, boundaries);
 
         const newCols = this._table.map((col, idx) => {
@@ -694,7 +695,7 @@ export default class Table {
      * @throws {Error} If the specified column is not an instance of NumberColumn.
      */
     public replaceOutliersIQR(
-        label: string | number, 
+        label: string | number,
         type: ImputeType,
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
@@ -705,14 +706,14 @@ export default class Table {
         if (!(targetCol instanceof NumberColumn)) {
             throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
         }
-        
+
         const newCol = targetCol.replaceOutliersIqr(type, multiplier, percentMode);
 
         const newCols = this._table.map((col, idx) => {
             if (idx === targetIndex) {
                 return newCol;
             }
-            
+
             return this.cloneColumn(col);
         });
 
@@ -885,7 +886,7 @@ export default class Table {
             throw new Error('At least two column labels are required to combine columns!');
         }
 
-        if(isEmpty(newLabel) || typeof newLabel !== 'string') {
+        if (isEmpty(newLabel) || typeof newLabel !== 'string') {
             throw new Error('You must provide a non-empty string as a label!');
         }
 
@@ -994,6 +995,61 @@ export default class Table {
 
         const newColInfo: ColInfo = { label: newLabel, type: 'string' };
         return this.addColumnAt(newValues, newColInfo, lastIndex + 1);
+    }
+
+    public describe(): void {
+        console.log(`================================================================================`);
+        console.log(`=================================TABLE SUMMARY==================================`);
+        console.log(`================================================================================`);
+        console.log(`Shape: ${this.rowCount} rows x ${this._table.length} columns\n`);
+        console.log(`--- Column Overview ---`);
+
+        const totalRows = this.rowCount;
+        const columnInfos: ColumnInfo[] = [];
+
+        for (let i = 0; i < this._table.length; i++) {
+            const col = this._table[i];
+            const missing = col.countMissing();
+            const valid = col.countValid();
+
+            const missingPercent = totalRows > 0
+                ? Number(((missing / totalRows) * 100).toFixed(2))
+                : 0;
+
+            let resolvedType: ColType = 'string';
+            if (col instanceof NumberColumn) resolvedType = 'number';
+            else if (col instanceof BoolColumn) resolvedType = 'bool';
+
+            columnInfos.push({
+                columnName: col.label,
+                type: resolvedType,
+                missingCount: missing,
+                validCount: valid,
+                missingPercent: `${missingPercent}%`
+            });
+        }
+
+        console.table(columnInfos);
+
+        const numericStats: Record<string, unknown>[] = [];
+
+        for (const col of this._table) {
+            if (col instanceof NumberColumn) {
+                numericStats.push({
+                    columnName: col.label,
+                    mean: Number(col.mean().toFixed(2)),
+                    std: Number(col.std().toFixed(2)),
+                    min: col.min(),
+                    median: Number(col.median().toFixed(2)),
+                    max: col.max()
+                });
+            }
+        }
+
+        if (numericStats.length > 0) {
+            console.log(`\n--- Numeric Column Statistics ---`);
+            console.table(numericStats);
+        }
     }
 
     /**

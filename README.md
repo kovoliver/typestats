@@ -55,17 +55,17 @@ import { round } from "typestats/utils";
 
 async function runPipeline() {
     try {
-        // 1. Data Ingestion & Imputation
-        const table = (await getCSVFromNode("users_dataset.csv", ";"))
-            .fillNaNumeric("annual_income", "median")
-            .fillNaNumeric("purchase_score", "mean")
-            .fillNaNumeric("age", "median")
+        const table = await await getCSVFromNode('users_dataset.csv', ';');
+        table.describe();
 
-            // 2. Feature Engineering & Column Transformations
-            .combineColumns(["annual_income", "purchase_score"], "*", "a")
-            .mapColumn("a", "a_rounded", (val) => round(val, 2))
-            .applyColumn("a", (val) => val * 100)
-            .drop("id", "gender");
+        table.fillNaNumeric('annual_income', 'median')
+            .fillNaNumeric('purchase_score', 'mean')
+            .fillNaNumeric('age', 'median')
+            .replaceOutliersIQR('annual_income', 'mean')
+            .combineColumns(['annual_income', 'purchase_score'], '*', 'a')
+            .mapColumn('a', 'a_rounded', (val) => round(val, 0))
+            .applyColumn('a', (val) => val * 100)
+            .drop('id', 'gender');
 
         // Print table preview
         table.print(0, table.rowCount, table.table.length);
