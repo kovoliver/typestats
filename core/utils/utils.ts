@@ -178,10 +178,13 @@ export function isBool(value: any): boolean {
     return false;
 }
 
-export function isDate(value:any) {
-    if(value instanceof Date) return value;
+export function isDate(value: any): boolean {
+    if (value instanceof Date) {
+        return !Number.isNaN(value.getTime());
+    }
+
     const d = new Date(value);
-    return isNaN(d.getTime());
+    return !Number.isNaN(d.getTime());
 }
 
 /**
@@ -420,4 +423,23 @@ function isTrimmedChar(
         code === 160 ||
         chars.includes(char)
     );
+}
+
+export function displayDateString(d: Date|null): string | null {
+    if(!(d instanceof Date)) {
+        return null;
+    }
+
+    const hasTime =
+        d.getUTCHours() !== 0 ||
+        d.getUTCMinutes() !== 0 ||
+        d.getUTCSeconds() !== 0 ||
+        d.getUTCMilliseconds() !== 0;
+
+    if (hasTime) {
+        const iso = d.toISOString();
+        return iso.replace('T', ' ').substring(0, 19);
+    }
+
+    return d.toISOString().split('T')[0];
 }

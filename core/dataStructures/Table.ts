@@ -1,12 +1,12 @@
 import { Boundaries, ColInfo, ColType, ColumnInfo, ImputeType, PercentMode } from '../types/types.js';
-import { hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils.js';
+import { displayDateString, hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils.js';
 import NumberColumn from './NumberColumn.js';
 import BoolColumn from './BoolColumn.js';
 import StringColumn from './StringColumn.js';
 import GroupedTable from './GroupedTable.js';
 import Column from './Column.js';
 import DateColumn from './DateColumn.js';
-import { isDate } from 'node:util/types';
+import { isDate } from '../utils/utils.js';
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
 export default class Table {
@@ -203,7 +203,7 @@ export default class Table {
 
         if (isNumeric(firstNonEmpty)) return 'number';
         if (isBool(firstNonEmpty)) return 'bool';
-        if (isDate(firstNonEmpty)) return 'bool';
+        if (isDate(firstNonEmpty)) return 'date';
 
         return 'string';
     }
@@ -883,7 +883,7 @@ export default class Table {
             case 'bool':
                 this._table[index] = new BoolColumn(newValues, currentLabel);
                 break;
-            case 'bool':
+            case 'date':
                 this._table[index] = new DateColumn(newValues, currentLabel);
                 break;
             default:
@@ -1076,8 +1076,8 @@ export default class Table {
             if (col instanceof DateColumn) {
                 dateStats.push({
                     columnName: col.label,
-                    min: col.min(),
-                    max: col.max()
+                    min: displayDateString(col.min()),
+                    max: displayDateString(col.max())
                 });
             }
         }

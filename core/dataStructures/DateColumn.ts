@@ -1,6 +1,6 @@
 import { TimeUnit } from "../types/types.js";
 import { isInteger, orderDesc } from "../utils/numberUtils.js";
-import { getFirstNonEmtpy } from "../utils/utils.js";
+import { displayDateString, getFirstNonEmtpy } from "../utils/utils.js";
 import Column from "./Column.js";
 
 export default class DateColumn extends Column<Date> {
@@ -399,7 +399,7 @@ export default class DateColumn extends Column<Date> {
     }
 
     private order(mode: 'asc' | 'desc'): DateColumn {
-        const dates = this._values.toSorted((a, b) => {
+        const dates = [...this._values].sort((a, b) => {
             if (a === b) return 0;
             if (a === null) return 1;
             if (b === null) return -1;
@@ -538,19 +538,6 @@ export default class DateColumn extends Column<Date> {
 
     public displayString(index: number): string | null {
         const d = this.getElementByIndex(index);
-        if (!d) return null;
-
-        const hasTime =
-            d.getUTCHours() !== 0 ||
-            d.getUTCMinutes() !== 0 ||
-            d.getUTCSeconds() !== 0 ||
-            d.getUTCMilliseconds() !== 0;
-
-        if (hasTime) {
-            const iso = d.toISOString();
-            return iso.replace('T', ' ').substring(0, 19);
-        }
-
-        return d.toISOString().split('T')[0];
+        return displayDateString(d);
     }
 }
