@@ -174,6 +174,14 @@ A high-performance, strongly typed object-oriented layer built on an extensible 
   - Type transformation: `toNumberColumn()` converts boolean states to numeric binary columns ($1$ for `true`, $0$ for `false`, preserving `NaN` representation for missing data).
   - In-place negation (`invert`).
   - Element-wise bitwise operations (`and`, `or`, `xor`).
+- **Date Column (`DateColumn.ts`)**: Specialized column for temporal and timestamp processing:
+  - Automated parsing and validation for `Date` instances, ISO strings, and numeric timestamps.
+  - Component getters (`getYear`, `getMonth`, `getMonthName`, `getDay`, `getDayOfTheMonth`, `getDayOfTheWeek`, `getHours`, `getMinutes`, `getSeconds`, `getMilliseconds`).
+  - Date comparisons (`compare`, `compareDates`, `compareTwoDates`).
+  - Chronological sorting (`orderAsc`, `orderDesc`) placing missing/null values at the end.
+  - Temporal calculations and arithmetic: time differences between indices or columns (`getDiff`, `diffColumn`), date adjustments (`add`, `subtract`), and date range filtering (`filterRange`).
+  - Temporal truncation and summary statistics (`floor`, `min`, `max`, `range`).
+  - Strict pattern-based formatting (`format`) supporting token configurations (e.g., `'yyyy-MM-dd hh:mm:ss'`).
 - **Pragmatic Table / DataFrame (`Table.ts`)**: Core tabular container holding structured columns:
   - **Pragmatic Immutability & Performance**: Heavy row-matrix operations return fresh `Table` instances to support pipeline chaining, while metadata operations (such as column renames and type casting) perform controlled in-place updates to avoid unnecessary memory overhead.
   - **Metadata & Labelling**: Renaming single or multiple column labels in-place (`renameColumn`, `setLabels`).
