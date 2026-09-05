@@ -13,7 +13,7 @@ export function isEmpty<T>(value: T): boolean {
     return value === null || value === "" || value === undefined;
 }
 
-export function isNanNullUndefined(value:any):boolean {
+export function isNanNullUndefined(value: any): boolean {
     if (typeof value === 'number') {
         return !Number.isFinite(value);
     }
@@ -21,12 +21,12 @@ export function isNanNullUndefined(value:any):boolean {
     return value === null || value === undefined;
 }
 
-export function getFirstNonEmtpy(values:any[]):any {
-    if(values.length === 0) {
+export function getFirstNonEmtpy(values: any[]): any {
+    if (values.length === 0) {
         throw new Error('You must provide at least one value!');
     }
 
-    if(values.every(val=>isNanNullUndefined(val))) {
+    if (values.every(val => isNanNullUndefined(val))) {
         throw new Error('All the provided values are empty!');
     }
 
@@ -176,6 +176,12 @@ export function isBool(value: any): boolean {
     }
 
     return false;
+}
+
+export function isDate(value:any) {
+    if(value instanceof Date) return value;
+    const d = new Date(value);
+    return isNaN(d.getTime());
 }
 
 /**
@@ -369,4 +375,49 @@ export function getMax(values: number[]): number {
     }
 
     return max;
+}
+
+export function trim(
+    value: string,
+    chars: readonly string[] = []
+): string {
+    const len = value.length;
+
+    if (len === 0) {
+        return '';
+    }
+
+    let start = 0;
+    let end = len;
+
+    while (
+        start < end &&
+        isTrimmedChar(value.charCodeAt(start), value[start], chars)
+    ) {
+        start++;
+    }
+
+    while (
+        end > start &&
+        isTrimmedChar(value.charCodeAt(end - 1), value[end - 1], chars)
+    ) {
+        end--;
+    }
+
+    return start === 0 && end === len
+        ? value
+        : value.slice(start, end);
+}
+
+function isTrimmedChar(
+    code: number,
+    char: string,
+    chars: readonly string[]
+): boolean {
+    return (
+        code === 32 ||
+        (code >= 9 && code <= 13) ||
+        code === 160 ||
+        chars.includes(char)
+    );
 }

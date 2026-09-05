@@ -39,13 +39,41 @@ describe('Table - Export & Console Printing', () => {
     });
 
     it('should call console.table on print/head/tail without throwing', () => {
-        const spy = vi.spyOn(console, 'table').mockImplementation(() => {});
-        
+        const spy = vi.spyOn(console, 'table').mockImplementation(() => { });
+
         table.print();
         table.head(1);
         table.tail(1);
 
         expect(spy).toHaveBeenCalledTimes(3);
+        spy.mockRestore();
+    });
+
+    it('should format DateColumn values in console.table as Date or DateTime based on time component presence', () => {
+        const spy = vi.spyOn(console, 'table');
+
+        const dateOnly = new Date('2025-10-10T00:00:00.000Z');
+        const dateTime = new Date('2025-10-10T05:10:12.000Z');
+
+        const dateData = [
+            [1, 2],
+            [dateOnly, dateTime]
+        ];
+
+        const dateInfos: ColInfo[] = [
+            { label: 'id', type: 'number' },
+            { label: 'timestamp', type: 'date' }
+        ];
+
+        const dateTable = new Table(dateData, dateInfos);
+
+        dateTable.print();
+
+        expect(spy).toHaveBeenCalledWith({
+            0: { id: 1, timestamp: '2025-10-10' },
+            1: { id: 2, timestamp: '2025-10-10 05:10:12' }
+        });
+
         spy.mockRestore();
     });
 });

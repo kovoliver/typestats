@@ -22,14 +22,15 @@ import { writeTableFile } from './ioutils.js';
 export async function getCSVFromNode(
     filePath: string,
     separator: string = ';',
-    invalidLine: 'drop' | 'throw' | 'impute' = 'impute'
+    invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
+    quoteChar?: string
 ): Promise<Table> {
     try {
         const fileBuffer = await readFile(filePath, { encoding: 'utf-8' });
         const text = fileBuffer.trim();
 
         const { cols, colInfos } = processCSVData(
-            text, separator, invalidLine
+            text, separator, invalidLine, quoteChar
         );
 
         return new Table(cols, colInfos);

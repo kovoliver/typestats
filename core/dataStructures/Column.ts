@@ -1,6 +1,6 @@
 import { Cache } from "../abstractions/abstractClasses.js";
 
-export default abstract class Column<T extends number | boolean | string> extends Cache {
+export default abstract class Column<T extends number | boolean | string | Date> extends Cache {
     protected readonly _values: ReadonlyArray<T | null>;
     protected _label: string;
 

@@ -5,14 +5,16 @@ import BoolColumn from './BoolColumn.js';
 import StringColumn from './StringColumn.js';
 import GroupedTable from './GroupedTable.js';
 import Column from './Column.js';
-type AnyColumn = NumberColumn & StringColumn & BoolColumn;
+import DateColumn from './DateColumn.js';
+import { isDate } from 'node:util/types';
+type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
 export default class Table {
     private readonly _originalTable: any[][];
-    private readonly _table: Column<number | boolean | string>[];
+    private readonly _table: Column<number | boolean | string | Date>[];
     private readonly _colInfos: ColInfo[];
 
-    constructor(table: any[][] | Column<number | boolean | string>[], colInfos?: ColInfo[]) {
+    constructor(table: any[][] | Column<number | boolean | string | Date>[], colInfos?: ColInfo[]) {
         const validatedCells = Array.isArray(table) && table.length !== 0 && table[0] instanceof Column;
 
         if (!validatedCells && !colInfos) {
@@ -55,12 +57,14 @@ export default class Table {
     private cloneColumn(col: Column<any>): AnyColumn {
         if (col instanceof NumberColumn) return new NumberColumn([...col.values], col.label) as AnyColumn;
         if (col instanceof BoolColumn) return new BoolColumn([...col.values], col.label) as AnyColumn;
+        if(col instanceof DateColumn) return new DateColumn([...col.values], col.label) as AnyColumn;
         return new StringColumn([...col.values], col.label) as AnyColumn;
     }
 
-    private createColumnInstance(values: any[], col: Column<any>): NumberColumn | StringColumn | BoolColumn {
+    private createColumnInstance(values: any[], col: Column<any>): NumberColumn | StringColumn | BoolColumn | DateColumn {
         if (col instanceof NumberColumn) return new NumberColumn(values, col.label);
         if (col instanceof BoolColumn) return new BoolColumn(values, col.label);
+        if (col instanceof DateColumn) return new DateColumn(values, col.label);
         return new StringColumn(values, col.label);
     }
 
@@ -71,6 +75,7 @@ export default class Table {
             let type: ColType = 'string';
             if (c instanceof NumberColumn) type = 'number';
             else if (c instanceof BoolColumn) type = 'bool';
+            else if (c instanceof DateColumn) type = 'date';
 
             return {
                 label: c.label,
@@ -198,6 +203,7 @@ export default class Table {
 
         if (isNumeric(firstNonEmpty)) return 'number';
         if (isBool(firstNonEmpty)) return 'bool';
+        if (isDate(firstNonEmpty)) return 'bool';
 
         return 'string';
     }
@@ -205,7 +211,7 @@ export default class Table {
     private createColInstance(
         col: any[],
         colInfo: ColInfo
-    ): NumberColumn | StringColumn | BoolColumn {
+    ): NumberColumn | StringColumn | BoolColumn | DateColumn {
         const type = this.getColType(col, colInfo.type);
         colInfo.type = type;
 
@@ -216,6 +222,8 @@ export default class Table {
                 return new BoolColumn(col, colInfo.label);
             case 'string':
                 return new StringColumn(col, colInfo.label);
+            case 'date':
+                return new DateColumn(col, colInfo.label);
             default:
                 throw new Error(`The provided column type (${colInfo?.type}) is invalid!`);
         }
@@ -266,10 +274,16 @@ export default class Table {
                 const col = this._table[colIndex];
                 const rawVal = col.values[rowIndex];
 
-                let displayVal: any = rawVal;
+                let displayVal: any;
+
                 if (rawVal === undefined) displayVal = '<undefined>';
                 else if (rawVal === null) displayVal = '<null>';
                 else if (typeof rawVal === 'number' && Number.isNaN(rawVal)) displayVal = '<NaN>';
+                else if (col instanceof DateColumn) {
+                    displayVal = col.displayString(rowIndex) ?? '<null>';
+                } else {
+                    displayVal = rawVal;
+                }
 
                 rowObj[col.label] = displayVal;
             }
@@ -726,21 +740,27 @@ export default class Table {
      * Returns a new Table instance, preserving immutability.
      * 
      * @param {string | number} label - The label name or zero-based index of the target column.
-     * @param {number | string | boolean} value - The replacement constant value (must match the target column type).
+     * @param {number | string | boolean | Date} value - The replacement constant value (must match the target column type).
      * @returns {Table} A new Table instance containing the imputed values.
      * @throws {Error} Throws if the replacement value type does not match the target column type.
      */
-    public fillNa(label: string | number, value: number | string | boolean): Table {
+    public fillNa(label: string | number, value: number | string | boolean | Date): Table {
         const targetCol = this.getCol(label);
 
         if (targetCol instanceof NumberColumn && typeof value !== 'number') {
             throw new Error('You must provide a numeric replacement value for numeric columns!');
         }
+
         if (targetCol instanceof BoolColumn && typeof value !== 'boolean') {
             throw new Error('You must provide a boolean replacement value (true/false) for boolean columns!');
         }
+
         if (targetCol instanceof StringColumn && typeof value !== 'string') {
             throw new Error('You must provide a string replacement value for string columns!');
+        }
+
+        if (targetCol instanceof DateColumn && !isDate(value)) {
+            throw new Error('You must provide a Date replacement value for Date columns!');
         }
 
         const targetIndex = this.getIndex(label);
@@ -778,7 +798,7 @@ export default class Table {
         }
 
         const colIndex = this.getIndex(label);
-        const newCols: Column<number | boolean | string>[] = [];
+        const newCols: Column<number | boolean | string | Date>[] = [];
 
         for (let i = 0; i < this._table.length; i++) {
             const col = this._table[i];
@@ -810,6 +830,9 @@ export default class Table {
                         break;
                     case 'bool':
                         newCols.push(new BoolColumn(newValues, newLabel));
+                        break;
+                    case 'date':
+                        newCols.push(new DateColumn(newValues, newLabel));
                         break;
                     default:
                         throw new Error(`Unsupported column type result: ${type}`);
@@ -859,6 +882,9 @@ export default class Table {
                 break;
             case 'bool':
                 this._table[index] = new BoolColumn(newValues, currentLabel);
+                break;
+            case 'bool':
+                this._table[index] = new DateColumn(newValues, currentLabel);
                 break;
             default:
                 throw new Error(`Unsupported column type result: ${newType}`);
@@ -1019,6 +1045,7 @@ export default class Table {
             let resolvedType: ColType = 'string';
             if (col instanceof NumberColumn) resolvedType = 'number';
             else if (col instanceof BoolColumn) resolvedType = 'bool';
+            else if (col instanceof DateColumn) resolvedType = 'date';
 
             columnInfos.push({
                 columnName: col.label,
@@ -1032,6 +1059,7 @@ export default class Table {
         console.table(columnInfos);
 
         const numericStats: Record<string, unknown>[] = [];
+        const dateStats: Record<string, unknown>[] = [];
 
         for (const col of this._table) {
             if (col instanceof NumberColumn) {
@@ -1044,11 +1072,24 @@ export default class Table {
                     max: col.max()
                 });
             }
+
+            if (col instanceof DateColumn) {
+                dateStats.push({
+                    columnName: col.label,
+                    min: col.min(),
+                    max: col.max()
+                });
+            }
         }
 
         if (numericStats.length > 0) {
             console.log(`\n--- Numeric Column Statistics ---`);
             console.table(numericStats);
+        }
+
+        if (dateStats.length > 0) {
+            console.log(`\n--- Date Column Statistics ---`);
+            console.table(dateStats);
         }
     }
 

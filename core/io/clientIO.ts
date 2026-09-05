@@ -16,7 +16,8 @@ import { processCSVData, processJSONData } from "./ioutils.js";
 export async function getCSVFromClient(
     url: string,
     separator: string = ';',
-    invalidLine: 'drop' | 'throw' | 'impute' = 'impute'
+    invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
+    quoteChar?: string
 ): Promise<Table> {
     try {
         const response = await fetch(url);
@@ -28,7 +29,7 @@ export async function getCSVFromClient(
         const text = await response.text();
 
         const { cols, colInfos } = processCSVData(
-            text, separator, invalidLine
+            text, separator, invalidLine, quoteChar
         );
 
         return new Table(cols, colInfos);

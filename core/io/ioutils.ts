@@ -1,53 +1,60 @@
 import { ColInfo } from "../types/types.js";
 import { writeFile } from 'fs/promises';
+import { trim } from "../utils/utils.js";
 
 export function processCSVData(
     text: string,
     separator: string,
-    invalidLine: 'drop' | 'throw' | 'impute' = 'impute'
+    invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
+    quoteChar?: string
 ) {
-    text = text.trim();
+    const trimmedText = trim(text);
 
-    if (text.length === 0) {
+    if (trimmedText.length === 0) {
         throw new Error('The provided CSV file is empty!');
     }
 
-    const lines = text.split(/\r?\n/);
+    const lines = trimmedText.split(/\r?\n/);
 
     if (lines.length === 1) {
         throw new Error('The provided CSV file only has a header row!');
     }
 
-    const head = lines.shift();
-    const labels = head!.trim().split(separator).map(l => l.trim());
-    const colInfos: ColInfo[] = labels.map(label => ({ label }));
+    const head = lines.shift()!;
+    const quotes = quoteChar ? [quoteChar] : [];
+    
+    const labels = head.split(separator).map(l => trim(l, quotes));
+    const colInfos = labels.map(label => ({ label }));
 
-    const cols: any[][] = Array.from({ length: labels.length }, () => []);
+    const cols: (string | null)[][] = Array.from({ length: labels.length }, () => []);
 
     for (const [i, line] of lines.entries()) {
         if (!line.trim()) continue;
 
-        const row: any[] = line.trim().split(separator);
+        const row = line.split(separator);
         const lineDiff = labels.length - row.length;
 
         if (lineDiff < 0) {
-            throw new Error('The header line contains too few columns!');
+            throw new Error(`The header line contains too few columns! (Line ${i + 2})`);
         }
 
         if (lineDiff > 0) {
             switch (invalidLine) {
                 case 'impute':
-                    row.push(...new Array(lineDiff).fill(null));
+                    while (row.length < labels.length) {
+                        row.push('');
+                    }
                     break;
                 case 'drop':
                     continue;
                 case 'throw':
-                    throw new Error(`Line ${i + 1} is invalid!`);
+                    throw new Error(`Line ${i + 2} is invalid!`);
             }
         }
 
         for (let j = 0; j < labels.length; j++) {
-            const val = row[j] ? row[j].trim() : '';
+            const rawVal = row[j] ?? '';
+            const val = trim(rawVal, quotes);
             cols[j].push(val === '' ? null : val);
         }
     }
@@ -55,7 +62,7 @@ export function processCSVData(
     return {
         cols,
         colInfos
-    }
+    };
 }
 
 export function processJSONData(
@@ -123,7 +130,7 @@ export function processJSONData(
 export async function writeTableFile(
     path: string,
     content: string,
-    overWrite:boolean = true
+    overWrite: boolean = true
 ): Promise<void> {
     try {
         await writeFile(path, content, {

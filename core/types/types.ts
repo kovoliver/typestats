@@ -68,7 +68,8 @@ export type ScaleType = (typeof ScaleType)[keyof typeof ScaleType];
 export const ColType = {
     number:'number',
     bool:'bool',
-    string:'string'
+    string:'string',
+    date:'date'
 } as const;
 
 export type ColType = (typeof ColType)[keyof typeof ColType];
@@ -102,3 +103,15 @@ export type ColumnInfo = {
     missingCount: number,
     missingPercent: number|string
 }
+
+export const TimeUnit = {
+    milliseconds: 'milliseconds',
+    seconds: 'seconds',
+    minutes: 'minutes',
+    hours: 'hours',
+    days: 'days',
+    months: 'months',
+    years:'years'
+} as const;
+
+export type TimeUnit = typeof TimeUnit[keyof typeof TimeUnit];
