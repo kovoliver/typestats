@@ -7,3 +7,4 @@ export * as inference from './inference/index.js';
 export * as prep from './dataPreparation/index.js';
 export * as data from './dataStructures/index.js';
 export * as io from './io/index.js';
+export * as db from './db/index.js';
