@@ -1,14 +1,47 @@
 import Column from "./Column.js";
-import { getMax, getMin, isOutlier, toNumberArray } from '../utils/utils.js';
+import { getMax, getMin, toNumberArray } from '../utils/utils.js';
 import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, median, q3, iqr, std }
     from '../statistics/univariate.js';
 import { standardizeValues, normalizeValues, replaceOutliers, replaceEmptyValues, isInvalidValue }
     from '../dataPreparation/dataPreparation.js';
-import { Boundaries, ImputeType, PercentMode, RegressionModel, TrendModel } from "../types/types.js";
+import { Boundaries, ConfidenceInterval, ImputeType, PercentMode, RegressionModel, Stratum, TrendModel } from "../types/types.js";
 import { correlation, covariance } from "../statistics/bivariate.js";
 import Regression from "../inference/Regression.js";
 import Trend from "../inference/Trend.js";
 import { orderAsc, orderDesc } from '../utils/numberUtils.js';
+import {
+    meanEstimationIIDwithSTD,
+    meanEstimationIIDwithoutSTD,
+    proportionEstimationIID,
+    proportionEstimationSRS,
+    meanEstimationSRSwithSTD,
+    meanEstimationSRSwithoutSTD,
+    varianceEstimationIID,
+    varianceEstimationSRS,
+    estimateStratifiedMean,
+    estimateStratifiedTotal,
+    estimateStratifiedVariance,
+    getMeanDiffKnownVariance,
+    getMeanDiffPooledCI,
+    getProportionDiff,
+    getPairedMeanDiff
+} from "../inference/estimations.js";
+import {
+    zTest,
+    tTest,
+    zTestProportion,
+    chi2Test,
+    chi2FitTest,
+    chiSquaredIndependenceTest,
+    zTestTwoSamples,
+    tTestTwoSamples,
+    twoSampleAsymptoticZMeanTest,
+    zTestProportionTwoSamples,
+    fTestTwoSamples,
+    tTestIndependent,
+    oneWayAnova,
+    bartlett
+} from "../inference/hypothesis.js";
 
 export default class NumberColumn extends Column<number> {
     private regression: Regression | null = null;
@@ -352,7 +385,7 @@ export default class NumberColumn extends Column<number> {
      * @throws {Error} Throws if array lengths do not match or if missing/non-positive values violate model assumptions.
      */
     public linearRegression(column: NumberColumn): RegressionModel {
-        if(!(column instanceof NumberColumn)) {
+        if (!(column instanceof NumberColumn)) {
             throw new Error('You must provide a numeric column (NumberColumn) instance!');
         }
 
@@ -378,7 +411,7 @@ export default class NumberColumn extends Column<number> {
      * @throws {Error} Throws if dependent values contain non-positive numbers.
      */
     public exponentialRegression(column: NumberColumn): RegressionModel {
-        if(!(column instanceof NumberColumn)) {
+        if (!(column instanceof NumberColumn)) {
             throw new Error('You must provide a numeric column (NumberColumn) instance!');
         }
 
@@ -404,10 +437,10 @@ export default class NumberColumn extends Column<number> {
      * @throws {Error} Throws if independent or dependent values contain non-positive numbers.
      */
     public powerRegression(column: NumberColumn): RegressionModel {
-        if(!(column instanceof NumberColumn)) {
+        if (!(column instanceof NumberColumn)) {
             throw new Error('You must provide a numeric column (NumberColumn) instance!');
         }
-        
+
         this.regression = new Regression(
             this._values as number[],
             column.values as number[]
@@ -448,7 +481,7 @@ export default class NumberColumn extends Column<number> {
      *  - `b`: The growth or decay rate base.
      *  - `mse`: The Mean Squared Error of the fitted exponential trend line.
      */
-    public exponentialTrend():TrendModel {
+    public exponentialTrend(): TrendModel {
         if (this.trend === null) {
             this.trend = new Trend(this.getValidValues());
         }
@@ -469,7 +502,7 @@ export default class NumberColumn extends Column<number> {
      *  - `b`: The logarithmic growth/decay coefficient (slope).
      *  - `mse`: The Mean Squared Error of the fitted logarithmic trend line.
      */
-    public logarithmicTrend():TrendModel {
+    public logarithmicTrend(): TrendModel {
         if (this.trend === null) {
             this.trend = new Trend(this.getValidValues());
         }
@@ -496,7 +529,7 @@ export default class NumberColumn extends Column<number> {
         return this.getCached(`polynomial_trend_${degree}`, () => {
             return {
                 ...this.trend?.polynomial(degree),
-                mse:this.trend?.MSEPolynomial(degree)
+                mse: this.trend?.MSEPolynomial(degree)
             }
         });
     }
@@ -519,5 +552,534 @@ export default class NumberColumn extends Column<number> {
         const copyValues = [...this._values];
         const values: number[] = orderDesc(copyValues as number[]);
         return new NumberColumn(values, this._label);
+    }
+
+    /**
+     * Calculates the confidence interval for the population mean under Independent and Identically
+     * Distributed (IID) sampling when the population standard deviation is KNOWN.
+     *
+     * @param alpha - Significance level (e.g., 0.05 for a 95% confidence level).
+     * @param sigma - Known population standard deviation (> 0).
+     * @returns An object containing the lower and upper bounds of the confidence interval.
+     */
+    public meanEstimationIIDwithSTD(alpha: number, sigma: number): ConfidenceInterval {
+        return this.getCached(`meanEstimationIIDwithSTD_${alpha}_${sigma}`, () =>
+            meanEstimationIIDwithSTD(this.getValidValues(), alpha, sigma)
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for the population mean when the population
+     * standard deviation is UNKNOWN (Student's t-distribution).
+     * 
+     * @param alpha - Significance level (e.g., 0.05 for a 95% confidence interval).
+     * @returns Object containing the lower and upper bounds of the confidence interval.
+     */
+    public meanEstimationIIDwithoutSTD(alpha: number): ConfidenceInterval {
+        return this.getCached(`meanEstimationIIDwithoutSTD_${alpha}`, () =>
+            meanEstimationIIDwithoutSTD(this.getValidValues(), alpha)
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for a population proportion under IID sampling
+     * using the Wald (normal approximation) method. Lower and upper bounds are clipped to [0, 1].
+     *
+     * @param p - Sample proportion (between 0 and 1).
+     * @param alpha - Significance level (e.g., 0.05 for a 95% confidence level).
+     * @returns An object containing the lower and upper bounds clipped to [0, 1].
+     */
+    public proportionEstimationIID(p: number, alpha: number): ConfidenceInterval {
+        return this.getCached(`proportionEstimationIID_${p}_${alpha}`, () =>
+            proportionEstimationIID(p, alpha, this.getValidValues().length)
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for a population proportion under Simple Random Sampling (SRS, without replacement)
+     * using the Wald method with Finite Population Correction (FPC). Bounds are clipped to [0, 1].
+     *
+     * @param p - Sample proportion (between 0 and 1).
+     * @param alpha - Significance level (e.g., 0.05 for a 95% confidence level).
+     * @param N - Total population size (N >= sample size).
+     * @returns An object containing the lower and upper bounds clipped to [0, 1].
+     */
+    public proportionEstimationSRS(p: number, alpha: number, N: number): ConfidenceInterval {
+        return this.getCached(`proportionEstimationSRS_${p}_${alpha}_${N}`, () =>
+            proportionEstimationSRS(p, alpha, this.getValidValues().length, N)
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for the population mean under Simple Random Sampling (SRS, without replacement)
+     * when the population standard deviation is KNOWN, incorporating the Finite Population Correction (FPC).
+     *
+     * @param alpha - Significance level (e.g., 0.05 for a 95% confidence level).
+     * @param sigma - Known population standard deviation (> 0).
+     * @param N - Total population size (N >= sample size).
+     * @returns An object containing the lower and upper bounds adjusted with FPC.
+     */
+    public meanEstimationSRSwithSTD(alpha: number, sigma: number, N: number): ConfidenceInterval {
+        return this.getCached(`meanEstimationSRSwithSTD_${alpha}_${sigma}_${N}`, () =>
+            meanEstimationSRSwithSTD(this.getValidValues(), alpha, sigma, N)
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for the population mean under Simple Random Sampling (SRS, without replacement)
+     * when the population standard deviation is UNKNOWN, incorporating the Finite Population Correction (FPC).
+     *
+     * @param alpha - Significance level (e.g., 0.05 for a 95% confidence level).
+     * @param N - Total population size (N >= sample size).
+     * @returns An object containing the lower and upper bounds adjusted with FPC.
+     */
+    public meanEstimationSRSwithoutSTD(alpha: number, N: number): ConfidenceInterval {
+        return this.getCached(`meanEstimationSRSwithoutSTD_${alpha}_${N}`, () =>
+            meanEstimationSRSwithoutSTD(this.getValidValues(), alpha, N)
+        );
+    }
+
+    /**
+     * Calculates the asymmetric confidence interval for the population variance
+     * under IID sampling assumptions using the Chi-Square (χ²) distribution.
+     *
+     * @param alpha - Significance level (e.g., 0.05 for a 95% confidence level).
+     * @returns An object containing the lower and upper bounds of the variance confidence interval.
+     */
+    public varianceEstimationIID(alpha: number): ConfidenceInterval {
+        return this.getCached(`varianceEstimationIID_${alpha}`, () =>
+            varianceEstimationIID(this.getValidValues(), alpha)
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for the population variance under Simple Random Sampling (SRS).
+     * Evaluates the adjusted variance bounds for finite populations.
+     *
+     * @param alpha - Significance level (e.g., 0.05 for a 95% confidence level).
+     * @param N - Total population size (N >= sample size).
+     * @returns An object containing the lower and upper bounds of the variance confidence interval.
+     */
+    public varianceEstimationSRS(alpha: number, N: number): ConfidenceInterval {
+        return this.getCached(`varianceEstimationSRS_${alpha}_${N}`, () =>
+            varianceEstimationSRS(this.getValidValues(), alpha, N)
+        );
+    }
+
+    /**
+     * Becsli a teljes sokasági átlagot rétegzett mintából.
+     * 
+     * @param strata - A rétegek adatát (minták és sokasági létszám) tartalmazó tömb.
+     * @returns A teljes sokaság becsült átlaga.
+     */
+    public estimateStratifiedMean(strata: Stratum[]): number {
+        return this.getCached(`estimateStratifiedMean_${JSON.stringify(strata)}`, () =>
+            estimateStratifiedMean(strata)
+        );
+    }
+
+    /**
+     * Estimates the population total (sum of values) from a stratified sample.
+     * 
+     * @param strata - Array containing stratum data (sample values and total population size per stratum).
+     * @returns The estimated total value (sum) of the population.
+     */
+    public estimateStratifiedTotal(strata: Stratum[]): number {
+        return this.getCached(`estimateStratifiedTotal_${JSON.stringify(strata)}`, () =>
+            estimateStratifiedTotal(strata)
+        );
+    }
+
+    /**
+     * Estimates the variance of the stratified mean estimator.
+     * 
+     * @param strata - Array containing stratum data (sample values and total population size per stratum).
+     * @returns The estimated variance of the stratified mean estimator.
+     */
+    public estimateStratifiedVariance(strata: Stratum[]): number {
+        return this.getCached(`estimateStratifiedVariance_${JSON.stringify(strata)}`, () =>
+            estimateStratifiedVariance(strata)
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for the difference between two independent sample means
+     * when population variances are known (Z-distribution approach).
+     *
+     * @param otherColumn - The second sample dataset as a NumberColumn.
+     * @param var1 - Known population variance of the current sample (must be non-negative).
+     * @param var2 - Known population variance of the second sample (must be non-negative).
+     * @param alpha - Significance level strictly between 0 and 1 (e.g., 0.05 for a 95% confidence interval).
+     * @returns An object containing the lower and upper bounds of the estimated confidence interval.
+     */
+    public getMeanDiffKnownVariance(
+        otherColumn: NumberColumn,
+        var1: number,
+        var2: number,
+        alpha: number
+    ): ConfidenceInterval {
+        return this.getCached(`getMeanDiffKnownVariance_${otherColumn}_${var1}_${var2}_${alpha}`, () =>
+            getMeanDiffKnownVariance(
+                this.getValidValues(),
+                otherColumn.getValidValues(),
+                var1,
+                var2,
+                alpha
+            )
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for the difference between two independent sample means
+     * assuming unknown but equal population variances (pooled sample variance t-distribution approach).
+     *
+     * @param otherColumn - The second sample dataset as a NumberColumn.
+     * @param alpha - Significance level strictly between 0 and 1 (e.g., 0.05 for a 95% confidence interval).
+     * @returns An object containing the lower and upper bounds of the estimated confidence interval.
+     */
+    public getMeanDiffPooledCI(otherColumn: NumberColumn, alpha: number): ConfidenceInterval {
+        return this.getCached(`getMeanDiffPooledCI_${otherColumn}_${alpha}`, () =>
+            getMeanDiffPooledCI(this.getValidValues(), otherColumn.getValidValues(), alpha)
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for the difference between two independent proportions
+     * using normal approximation (Wald interval).
+     *
+     * @param k1 - Number of successes in the current sample (must be between 0 and n1).
+     * @param k2 - Number of successes in the second sample (must be between 0 and n2).
+     * @param otherColumn - The second sample dataset as a NumberColumn.
+     * @param alpha - Significance level strictly between 0 and 1 (e.g., 0.05 for a 95% confidence interval).
+     * @returns An object containing the lower and upper bounds of the estimated confidence interval.
+     */
+    public getProportionDiff(
+        k1: number,
+        k2: number,
+        otherColumn: NumberColumn,
+        alpha: number
+    ): ConfidenceInterval {
+        return this.getCached(`getProportionDiff_${k1}_${k2}_${otherColumn}_${alpha}`, () =>
+            getProportionDiff(
+                k1,
+                this.getValidValues().length,
+                k2,
+                otherColumn.getValidValues().length,
+                alpha
+            )
+        );
+    }
+
+    /**
+     * Calculates the confidence interval for the mean difference between two paired/dependent samples
+     * using the Student's t-distribution.
+     *
+     * @param otherColumn - The second paired sample dataset as a NumberColumn.
+     * @param alpha - Significance level strictly between 0 and 1 (e.g., 0.05 for a 95% confidence interval).
+     * @returns An object containing the lower and upper bounds of the estimated confidence interval.
+     */
+    public getPairedMeanDiff(otherColumn: NumberColumn, alpha: number): ConfidenceInterval {
+        return this.getCached(`getPairedMeanDiff_${otherColumn}_${alpha}`, () =>
+            getPairedMeanDiff(this.getValidValues(), otherColumn.getValidValues(), alpha)
+        );
+    }
+
+    /**
+     * Performs a one-sample Z-test on continuous data when the population standard deviation is known.
+     *
+     * @param sigma - The known population standard deviation (> 0).
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param mu - The hypothesized population mean under H0.
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @returns An object containing test statistic z, critical value Z, and boolean result passed.
+     */
+    public zTest(
+        sigma: number,
+        alpha: number,
+        mu: number,
+        testDirection: 'left' | 'right' | 'two-sided'
+    ): { z: number; Z: number; passed: boolean } {
+        return this.getCached(`zTest_${sigma}_${alpha}_${mu}_${testDirection}`, () =>
+            zTest(this.getValidValues(), sigma, alpha, mu, testDirection)
+        );
+    }
+
+    /**
+     * Performs a one-sample Student's t-test when the population standard deviation is unknown.
+     *
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param mu - The hypothesized population mean under H0.
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @returns An object containing test statistic t, critical value T, and boolean result passed.
+     */
+    public tTest(
+        alpha: number,
+        mu: number,
+        testDirection: 'left' | 'right' | 'two-sided'
+    ): { t: number; T: number; passed: boolean } {
+        return this.getCached(`tTest_${alpha}_${mu}_${testDirection}`, () =>
+            tTest(this.getValidValues(), alpha, mu, testDirection)
+        );
+    }
+
+    /**
+     * Performs a one-sample Z-test for a population proportion using the current column's length as sample size.
+     *
+     * @param pPopulation - The hypothesized population proportion (0 < p < 1).
+     * @param pSample - The observed relative frequency in the sample (0 <= p <= 1).
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @returns An object containing z-statistic, Z-critical, and boolean result passed.
+     */
+    public zTestProportion(
+        pPopulation: number,
+        pSample: number,
+        alpha: number,
+        testDirection: 'left' | 'right' | 'two-sided'
+    ): { z: number; Z: number; passed: boolean } {
+        return this.getCached(`zTestProportion_${pPopulation}_${pSample}_${alpha}_${testDirection}`, () =>
+            zTestProportion(pPopulation, pSample, this.getValidValues().length, alpha, testDirection)
+        );
+    }
+
+    /**
+     * Performs a one-sample Chi-squared test for population variance.
+     *
+     * @param hypotheticalVar - The hypothesized population variance under H0 (> 0).
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @returns An object containing chi2 statistic, critical bounds, and boolean result passed.
+     */
+    public chi2Test(
+        hypotheticalVar: number,
+        alpha: number,
+        testDirection: 'left' | 'right' | 'two-sided'
+    ): { chi2: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
+        return this.getCached(`chi2Test_${hypotheticalVar}_${alpha}_${testDirection}`, () =>
+            chi2Test(this.getValidValues(), hypotheticalVar, alpha, testDirection)
+        );
+    }
+
+    /**
+     * Performs a Chi-squared goodness-of-fit test comparing observed frequencies in this column with expected frequencies.
+     *
+     * @param expected - An array of expected frequencies for each category.
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param numEstimatedParams - Number of estimated parameters (default: 0).
+     * @returns An object containing chi2 statistic, degrees of freedom, critical bounds, and boolean result passed.
+     */
+    public chi2FitTest(
+        expected: number[],
+        alpha: number,
+        numEstimatedParams: number = 0
+    ): { chi2: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
+        return this.getCached(`chi2FitTest_${JSON.stringify(expected)}_${alpha}_${numEstimatedParams}`, () =>
+            chi2FitTest(this.getValidValues(), expected, alpha, numEstimatedParams)
+        );
+    }
+
+    /**
+     * Performs a Chi-squared test of independence on a 2D contingency table matrix.
+     *
+     * @param contingencyTable - A 2D array representing observed frequencies.
+     * @param alpha - Significance level (e.g., 0.05).
+     * @returns An object containing chi2 statistic, degrees of freedom, critical bounds, and boolean result passed.
+     */
+    public chiSquaredIndependenceTest(
+        contingencyTable: number[][],
+        alpha: number
+    ): { chi2: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
+        return this.getCached(`chiSquaredIndependenceTest_${JSON.stringify(contingencyTable)}_${alpha}`, () =>
+            chiSquaredIndependenceTest(contingencyTable, alpha)
+        );
+    }
+
+    /**
+     * Performs a two-sample Z-test for the difference between two population means with known population variances.
+     *
+     * @param otherColumn - The second sample dataset as a NumberColumn.
+     * @param popVar1 - Known population variance of the current sample (> 0).
+     * @param popVar2 - Known population variance of the second sample (> 0).
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @param meanDifference - Hypothesized mean difference (default: 0).
+     * @returns An object containing z-statistic, Z-critical, and boolean result passed.
+     */
+    public zTestTwoSamples(
+        otherColumn: NumberColumn,
+        popVar1: number,
+        popVar2: number,
+        alpha: number,
+        testDirection: 'left' | 'right' | 'two-sided',
+        meanDifference: number = 0
+    ): { z: number; Z: number; passed: boolean } {
+        return this.getCached(`zTestTwoSamples_${otherColumn}_${popVar1}_${popVar2}_${alpha}_${testDirection}_${meanDifference}`, () =>
+            zTestTwoSamples(
+                this.getValidValues(),
+                otherColumn.getValidValues(),
+                popVar1,
+                popVar2,
+                alpha,
+                testDirection,
+                meanDifference
+            )
+        );
+    }
+
+    /**
+     * Performs a two-sample t-test for the difference between two population means (Student's or Welch's).
+     *
+     * @param otherColumn - The second sample dataset as a NumberColumn.
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @param assumeEqualVariances - True for Student's t-test, false for Welch's t-test (default: false).
+     * @param meanDifference - Hypothesized mean difference (default: 0).
+     * @returns An object containing t-statistic, T-critical, degrees of freedom, and boolean result passed.
+     */
+    public tTestTwoSamples(
+        otherColumn: NumberColumn,
+        alpha: number,
+        testDirection: 'left' | 'right' | 'two-sided',
+        assumeEqualVariances: boolean = false,
+        meanDifference: number = 0
+    ): { t: number; T: number; passed: boolean } {
+        return this.getCached(`tTestTwoSamples_${otherColumn}_${alpha}_${testDirection}_${assumeEqualVariances}_${meanDifference}`, () =>
+            tTestTwoSamples(
+                this.getValidValues(),
+                otherColumn.getValidValues(),
+                alpha,
+                testDirection,
+                assumeEqualVariances,
+                meanDifference
+            )
+        );
+    }
+
+    /**
+     * Performs an asymptotic two-sample Z-test for the difference between two population means (large sample sizes).
+     *
+     * @param otherColumn - The second sample dataset as a NumberColumn.
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @param meanDifference - Hypothesized mean difference (default: 0).
+     * @returns An object containing z-statistic, Z-critical, and boolean result passed.
+     */
+    public twoSampleAsymptoticZMeanTest(
+        otherColumn: NumberColumn,
+        alpha: number,
+        testDirection: 'left' | 'right' | 'two-sided',
+        meanDifference: number = 0
+    ): { z: number; Z: number; passed: boolean } {
+        return this.getCached(`twoSampleAsymptoticZMeanTest_${otherColumn}_${alpha}_${testDirection}_${meanDifference}`, () =>
+            twoSampleAsymptoticZMeanTest(
+                this.getValidValues(),
+                otherColumn.getValidValues(),
+                alpha,
+                testDirection,
+                meanDifference
+            )
+        );
+    }
+
+    /**
+     * Performs a two-sample Z-test for the difference between two population proportions.
+     *
+     * @param pSample1 - Observed proportion in the current sample.
+     * @param pSample2 - Observed proportion in the second sample.
+     * @param otherColumn - The second sample dataset as a NumberColumn (used for n2 size).
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @param pDifference - Hypothesized difference in proportions (default: 0).
+     * @returns An object containing z-statistic, Z-critical, and boolean result passed.
+     */
+    public zTestProportionTwoSamples(
+        pSample1: number,
+        pSample2: number,
+        otherColumn: NumberColumn,
+        alpha: number,
+        testDirection: 'left' | 'right' | 'two-sided',
+        pDifference: number = 0
+    ): { z: number; Z: number; passed: boolean } {
+        return this.getCached(`zTestProportionTwoSamples_${pSample1}_${pSample2}_${otherColumn}_${alpha}_${testDirection}_${pDifference}`, () =>
+            zTestProportionTwoSamples(
+                pSample1,
+                this.getValidValues().length,
+                pSample2,
+                otherColumn.getValidValues().length,
+                alpha,
+                testDirection,
+                pDifference
+            )
+        );
+    }
+
+    /**
+     * Performs a two-sample F-test for the equality of two population variances.
+     *
+     * @param otherColumn - The second sample dataset as a NumberColumn.
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @returns An object containing F-statistic, degrees of freedom (df1, df2), critical bounds, and boolean result passed.
+     */
+    public fTestTwoSamples(
+        otherColumn: NumberColumn,
+        alpha: number,
+        testDirection: 'left' | 'right' | 'two-sided'
+    ): { F: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
+        return this.getCached(`fTestTwoSamples_${otherColumn}_${alpha}_${testDirection}`, () =>
+            fTestTwoSamples(this.getValidValues(), otherColumn.getValidValues(), alpha, testDirection)
+        );
+    }
+
+    /**
+     * Performs a two-sample independent Student's t-test assuming equal variances (pooled variance approach).
+     *
+     * @param otherColumn - The second sample dataset as a NumberColumn.
+     * @param alpha - Significance level (e.g., 0.05).
+     * @param testDirection - The direction of the test ('left', 'right', or 'two-sided').
+     * @returns An object containing t-statistic, T-critical, and boolean result passed.
+     */
+    public tTestIndependent(
+        otherColumn: NumberColumn,
+        alpha: number,
+        testDirection: 'left' | 'right' | 'two-sided'
+    ): { T: number; t: number; passed: boolean } {
+        return this.getCached(`tTestIndependent_${otherColumn}_${alpha}_${testDirection}`, () =>
+            tTestIndependent(this.getValidValues(), otherColumn.getValidValues(), alpha, testDirection)
+        );
+    }
+
+    /**
+     * Performs a One-Way Analysis of Variance (ANOVA) combining this column with additional NumberColumn groups.
+     *
+     * @param otherColumns - Array of other sample groups as NumberColumn instances.
+     * @param alpha - Significance level (e.g., 0.05).
+     * @returns An object containing F-statistic, degrees of freedom, mean squares, critical bounds, and boolean result passed.
+     */
+    public oneWayAnova(
+        otherColumns: NumberColumn[],
+        alpha: number
+    ): { F: number; msBetween: number; msWithin: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
+        const groups = [this.getValidValues(), ...otherColumns.map(col => col.getValidValues())];
+        return this.getCached(`oneWayAnova_${otherColumns.join('_')}_${alpha}`, () =>
+            oneWayAnova(groups, alpha)
+        );
+    }
+
+    /**
+     * Performs Bartlett's test for homogeneity of variances across this column and additional NumberColumn groups.
+     *
+     * @param otherColumns - Array of other sample groups as NumberColumn instances.
+     * @param alpha - Significance level (e.g., 0.05).
+     * @returns An object containing chi2 statistic, critical bounds, and boolean result passed.
+     */
+    public bartlett(
+        otherColumns: NumberColumn[],
+        alpha: number
+    ): { chi2: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
+        const groups = [this.getValidValues(), ...otherColumns.map(col => col.getValidValues())];
+        return this.getCached(`bartlett_${otherColumns.join('_')}_${alpha}`, () =>
+            bartlett(groups, alpha)
+        );
     }
 }

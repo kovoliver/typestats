@@ -38,45 +38,45 @@ export type ConfidenceInterval = {
 }
 
 export const ImputeType = {
-    mode:'mode',
-    mediam:'median',
-    mean:'mean',
-    none:'none'
+    mode: 'mode',
+    mediam: 'median',
+    mean: 'mean',
+    none: 'none'
 } as const;
 
 export type ImputeType = (typeof ImputeType)[keyof typeof ImputeType];
 
 export const OutlierStrategy = {
-    delete:'delete',
-    impute:'impute'
+    delete: 'delete',
+    impute: 'impute'
 } as const;
 
 export type OutlierStrategy = (typeof OutlierStrategy)[keyof typeof OutlierStrategy];
 
 export type Boundaries = {
-    min?:number,
-    max?:number,
+    min?: number,
+    max?: number,
 };
 
 export const ScaleType = {
-    normalize:'normalize',
-    standardize:'standardize'
+    normalize: 'normalize',
+    standardize: 'standardize'
 } as const;
 
 export type ScaleType = (typeof ScaleType)[keyof typeof ScaleType];
 
 export const ColType = {
-    number:'number',
-    bool:'bool',
-    string:'string',
-    date:'date'
+    number: 'number',
+    bool: 'bool',
+    string: 'string',
+    date: 'date'
 } as const;
 
 export type ColType = (typeof ColType)[keyof typeof ColType];
 
 export type ColInfo = {
-    label:string;
-    type?:ColType;
+    label: string;
+    type?: ColType;
 }
 
 export interface CleanResult<T> {
@@ -85,23 +85,23 @@ export interface CleanResult<T> {
 }
 
 export type RegressionModel = {
-    b0:number;
-    b1:number;
-    rsd:number;
+    b0: number;
+    b1: number;
+    rsd: number;
 }
 
 export type TrendModel = {
-    a:number;
-    b:number;
-    mse:number;
+    a: number;
+    b: number;
+    mse: number;
 }
 
 export type ColumnInfo = {
     columnName: string,
-    type:ColType,
+    type: ColType,
     validCount: number,
     missingCount: number,
-    missingPercent: number|string
+    missingPercent: number | string
 }
 
 export const TimeUnit = {
@@ -111,7 +111,32 @@ export const TimeUnit = {
     hours: 'hours',
     days: 'days',
     months: 'months',
-    years:'years'
+    years: 'years'
 } as const;
 
 export type TimeUnit = typeof TimeUnit[keyof typeof TimeUnit];
+
+export const DbEngineType = {
+    mysql: 'mysql',
+    postgresql: 'postgresql',
+    mssql: 'mssql',
+} as const;
+
+export type DbEngineType = (typeof DbEngineType)[keyof typeof DbEngineType];
+
+export interface DbConfig {
+    engine: DbEngineType;
+    host: string;
+    port?: number;
+    user: string;
+    password?: string;
+    database: string;
+    connectionLimit?: number;
+}
+
+export interface DbConnection {
+    engine: DbEngineType;
+    nativePool: any;
+    execQuery: (sql: string, params?: any[]) => Promise<Record<string, any>[]>;
+    close: () => Promise<void>;
+}

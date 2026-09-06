@@ -15,8 +15,8 @@
     "data-analysis",
     "dataframe",
     "math",
-    "bivariate",
-    "univariate",
+    "bivariate statistics",
+    "univariate statistics",
     "data-preparation"
   ],
   "main": "./dist/index.js",
@@ -62,6 +62,10 @@
     "./io": {
       "types": "./dist/io/index.d.ts",
       "import": "./dist/io/index.js"
+    },
+    "./db": {
+      "types": "./dist/db/index.d.ts",
+      "import": "./dist/db/index.js"
     }
   },
   "files": [
@@ -96,9 +100,31 @@
     "example:univariate": "tsx examples/statistics/univariate.example.ts",
     "example:io": "tsx examples/io-csv.example.ts"
   },
+  "peerDependencies": {
+    "mssql": "^10.0.0",
+    "mysql2": "^3.0.0",
+    "pg": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "mssql": {
+      "optional": true
+    },
+    "mysql2": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@types/mssql": "^9.1.11",
     "@types/node": "^26.4.1",
+    "@types/pg": "^8.23.1",
     "@vitest/ui": "^4.1.11",
+    "dotenv": "^17.4.2",
+    "mssql": "^10.0.4",
+    "mysql2": "^3.24.3",
+    "pg": "^8.23.0",
     "tsx": "^4.19.2",
     "typescript": "^5.0.0",
     "vitest": "^4.1.11"
