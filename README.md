@@ -213,12 +213,21 @@ A high-performance, strongly typed object-oriented layer built on an extensible 
 ### 8. Integration & Offline Datasets (`sampleData/`)
 Directory containing offline, reproducible JSON and CSV datasets (`users_dataset.csv`, `products_dataset.json`) dedicated to integration testing and CI/CD pipelines.
 
-### 9. Utility Functions (`core/utils/`)
+### 9. Database Connectivity (`core/db/`)
+Lightweight, cross-engine RDBMS access layer providing asynchronous connection pooling and seamless data hydration directly into `Table` instances:
+- **Modular Peer Dependencies**: Core bundle remains lightweight by declaring native drivers (`mysql2`, `pg`, `mssql`) as optional `peerDependencies`. Database drivers are dynamically imported at runtime only when requested.
+- **Unified Connection Pool (`connectionPool.ts`)**:
+  - `createConnection(config)`: Asynchronously instantiates engine-specific connection pools for **MySQL**, **PostgreSQL**, or **Microsoft SQL Server (MSSQL)** based on `DbEngineType`. Standardizes raw driver execution via a unified `DbConnection` interface.
+- **Query Hydration (`getTableFromQuery.ts`)**:
+  - `getTableFromQuery(connection, query, params)`: Executes arbitrary SQL queries, converts raw record sets into typed arrays, and hydrates them into a pragmatic `Table` structure. Automatically infers numeric, string, boolean, and date column types across all supported engines.
+- **Environment & Integration Test Support**: Native support for `.env` configuration files for secure credentials management.
+
+### 10. Utility Functions (`core/utils/`)
 - **`numberUtils.ts`**: Helper functions for precision handling, number formatting, array sequence generation (`rangeSequence`), non-mutating sorting (`orderAsc`, `orderDesc`), and bounding (`clamp`, `clamp01`, `clampSymmetric`).
 - **`testAndEstimationUtils.ts`**: Internal utility functions that support the execution of hypothesis tests and estimations (e.g., iterative calculations for degrees of freedom).
 - **`utils.ts`**: General data parsing, validation, numeric conversions, and optimized array operations.
 
-### 10. Type Definitions
+### 11. Type Definitions
 - **`types.ts`**: TypeScript interfaces and custom type definitions. These ensure strict type checking, robust error handling, and comprehensive IntelliSense support throughout the library.
 
 ## 🚀 Usage
