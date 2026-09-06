@@ -70,7 +70,9 @@ export async function createConnection(config: DbConfig): Promise<DbConnection> 
 
         case DbEngineType.mssql: {
             try {
-                const mssql = await import('mssql');
+                const mssqlModule = await import('mssql');
+                const mssql = mssqlModule.default || mssqlModule;
+
                 const pool = new mssql.ConnectionPool({
                     server: config.host,
                     port: config.port ?? 1433,
