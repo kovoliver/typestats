@@ -1,4 +1,4 @@
-import type {PercentMode} from "../types/types.js";
+import type { PercentMode } from "../types/types.js";
 import { orderAsc, round } from "../utils/numberUtils.js";
 import { hasEmptyValues } from "../utils/utils.js";
 
@@ -57,9 +57,15 @@ export function mean(values: number[], digits?: number): number {
             'Please impute or filter missing values before performing statistical calculations.'
         );
     }
-    
-    const sum = values.reduce((total, value) => total + value, 0);
-    return round(sum / values.length, digits);
+
+    let avg = 0;
+
+    for (let i = 0; i < values.length; i++) {
+        const delta = values[i] - avg;
+        avg += delta / (i + 1);
+    }
+
+    return round(avg, digits);
 }
 
 /**
@@ -147,9 +153,17 @@ export function harmonicMean(values: number[], weights: number[], digits?: numbe
  * @throws {Error} If `values` is empty.
  */
 export function ssd(values: number[], digits?: number): number {
-    const m = mean(values);
-    const sumOfSquares = values.reduce((total, value) => total + Math.pow(value - m, 2), 0);
-    return round(sumOfSquares, digits);
+    let avg = 0;
+    let sumSquares = 0;
+
+    for (let i = 0; i < values.length; i++) {
+        const delta = values[i] - avg;
+        avg += delta / (i + 1);
+        const delta2 = values[i] - avg;
+        sumSquares += delta * delta2;
+    }
+
+    return round(sumSquares, digits);
 }
 
 /**
@@ -555,7 +569,7 @@ export function rsd(values: number[], isSample: boolean = true, digits?: number)
  * @throws {Error} If actual and predicted arrays do not have equal lengths.
  */
 export function mse(yValues: number[], yHatValues: number[]): number {
-    if(yValues.length !== yHatValues.length) {
+    if (yValues.length !== yHatValues.length) {
         throw new Error(
             'The number of actual values must match the number of predicted values.'
         );

@@ -48,7 +48,7 @@ export function getColumn(table: number[][], colNumber: number): number[] {
         throw new Error('The given column does not exist!');
     }
 
-    const column:number[] = [];
+    const column: number[] = [];
 
     for (let row = 0; row < table.length; row++) {
         column.push(table[row][colNumber]);
@@ -68,7 +68,7 @@ export default function getColumns(table: number[][]): number[][] {
     validateContingencyTable(table);
 
     const colsLength = table[0].length;
-    const columns:number[][] = [];
+    const columns: number[][] = [];
 
     for (let col = 0; col < colsLength; col++) {
         columns.push(getColumn(table, col));
@@ -249,6 +249,25 @@ export function etaSquared(table: number[][], digits?: number) {
     return round(total === 0 ? 0 : between / total, digits);
 }
 
+function scd(xValues: number[], yValues: number[]) {
+    let avgX = 0;
+    let avgY = 0;
+    let sumCross = 0;
+
+    for (let i = 0; i < xValues.length; i++) {
+        const count = i + 1;
+
+        const deltaX = xValues[i] - avgX;
+        avgX += deltaX / count;
+
+        const deltaY = yValues[i] - avgY;
+        avgY += deltaY / count;
+        sumCross += deltaX * (yValues[i] - avgY);
+    }
+
+    return sumCross;
+}
+
 /**
  * Calculates the covariance between two equal-length numerical datasets.
  *
@@ -273,16 +292,10 @@ export function covariance(values1: number[], values2: number[],
         throw new Error('Sample covariance requires at least 2 data points.');
     }
 
+    const numerator = scd(values1, values2);
     const length = getDegreesOfFreedom(values1, isSample);
 
-    const mean1 = mean(values1);
-    const mean2 = mean(values2);
-
-    const coSSD = values1.reduce(
-        (total, val, i) => total + ((val - mean1) * (values2[i] - mean2)), 0
-    );
-
-    return round(coSSD / length, digits);
+    return round(numerator / length, digits);
 }
 
 /**
@@ -308,8 +321,10 @@ export function correlation(
     }
 
     const covar = covariance(values1, values2, isSample);
-    const rawCorr = round(covar / (std1 * std2), digits);
-    return clampSymmetric(rawCorr, 12);
+    const rawCorr = covar / (std1 * std2);
+
+    const clampedCorr = clampSymmetric(rawCorr, 15);
+    return round(clampedCorr, digits);
 }
 
 /**
