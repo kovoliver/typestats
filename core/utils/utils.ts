@@ -206,6 +206,30 @@ export function only01(values: (number | string | null | undefined)[]): boolean 
     });
 }
 
+export function firstNValuesAreBool(
+    values: (number | string | null | undefined)[],
+    limit: number
+) {
+    if (!values || values.length === 0) return false;
+
+    let n = 0;
+    let allBool = true;
+
+    for (const val of values) {
+        if (isEmpty(val)) continue;
+        n++;
+
+        if (!isBool(val)) {
+            allBool = false;
+            break;
+        }
+
+        if (n === limit) break;
+    }
+
+    return n > 0 && allBool;
+}
+
 /**
  * Converts an array of unknown values into an array of numbers (or NaN for non-finite values).
  *
@@ -425,8 +449,8 @@ function isTrimmedChar(
     );
 }
 
-export function displayDateString(d: Date|null): string | null {
-    if(!(d instanceof Date)) {
+export function displayDateString(d: Date | null): string | null {
+    if (!(d instanceof Date)) {
         return null;
     }
 

@@ -1,5 +1,5 @@
 import { Boundaries, ColInfo, ColType, ColumnInfo, ImputeType, PercentMode } from '../types/types.js';
-import { displayDateString, hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils.js';
+import { displayDateString, firstNValuesAreBool, hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils.js';
 import NumberColumn from './NumberColumn.js';
 import BoolColumn from './BoolColumn.js';
 import StringColumn from './StringColumn.js';
@@ -57,7 +57,7 @@ export default class Table {
     private cloneColumn(col: Column<any>): AnyColumn {
         if (col instanceof NumberColumn) return new NumberColumn([...col.values], col.label) as AnyColumn;
         if (col instanceof BoolColumn) return new BoolColumn([...col.values], col.label) as AnyColumn;
-        if(col instanceof DateColumn) return new DateColumn([...col.values], col.label) as AnyColumn;
+        if (col instanceof DateColumn) return new DateColumn([...col.values], col.label) as AnyColumn;
         return new StringColumn([...col.values], col.label) as AnyColumn;
     }
 
@@ -198,11 +198,10 @@ export default class Table {
     ): ColType {
         if (colType) return colType;
 
-        if (only01(col)) return 'bool';
+        if (firstNValuesAreBool(col, 20)) return 'bool';
         const firstNonEmpty = col.find(val => !isEmpty(val));
 
         if (isNumeric(firstNonEmpty)) return 'number';
-        if (isBool(firstNonEmpty)) return 'bool';
         if (isDate(firstNonEmpty)) return 'date';
 
         return 'string';

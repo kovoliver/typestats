@@ -115,7 +115,7 @@ export function calcCombinationTable(table: number[][]): number[][] {
  * @returns The Chi-Square statistic value.
  * @throws {Error} If the table structure is invalid.
  */
-export function chiSquare(table: number[][], digits?: number): number {
+export function chiSquareDep(table: number[][], digits?: number): number {
     validateContingencyTable(table);
     const combTable = calcCombinationTable(table);
     const total = totalCount(table);
@@ -142,6 +142,49 @@ export function chiSquare(table: number[][], digits?: number): number {
     }
 
     return round(khi, digits);
+}
+
+export function chiSquare(table: number[][], digits?: number): number {
+    validateContingencyTable(table);
+    const combTable = calcCombinationTable(table);
+    const total = totalCount(table);
+    const rows = table.length;
+    const cols = table[0].length;
+
+    let khi = 0;
+    let compensation = 0;
+
+    for (let row = 0; row < rows; row++) {
+        const rowTotal = combTable[row][cols];
+        if (rowTotal === 0) continue;
+
+        for (let col = 0; col < cols; col++) {
+            const colTotal = combTable[rows][col];
+            if (colTotal === 0) continue;
+
+            const expectedValue = (rowTotal * colTotal) / total;
+
+            if (expectedValue < Number.EPSILON) {
+                continue;
+            }
+
+            const observed = table[row][col];
+            const diff = observed - expectedValue;
+
+            const ratio = (diff * diff) / expectedValue;
+
+            const t = khi + ratio;
+            if (Math.abs(khi) >= Math.abs(ratio)) {
+                compensation += (khi - t) + ratio;
+            } else {
+                compensation += (ratio - t) + khi;
+            }
+            khi = t;
+        }
+    }
+
+    const finalKhi = khi + compensation;
+    return round(Math.max(0, finalKhi), digits);
 }
 
 /**
@@ -216,7 +259,7 @@ export function totalSSD(table: number[][], digits?: number): number {
  * @returns The between-group sum of squared deviations.
  * @throws {Error} If the table structure is invalid.
  */
-export function betweenSSD(
+export function betweenSSDDep(
     table: number[][],
     digits?: number
 ): number {
@@ -233,6 +276,46 @@ export function betweenSSD(
     }
 
     return round(totalSsd, digits);
+}
+
+export function betweenSSD(
+    table: number[][],
+    digits?: number
+): number {
+    validateContingencyTable(table);
+
+    let totalSum = 0;
+    let totalCount = 0;
+
+    const groupMeans: number[] = [];
+    const groupSizes: number[] = [];
+
+    for (let i = 0; i < table.length; i++) {
+        const group = table[i];
+        if (!group || group.length === 0) continue;
+
+        const gMean = mean(group);
+        const gSize = group.length;
+
+        groupMeans.push(gMean);
+        groupSizes.push(gSize);
+
+        totalSum += gMean * gSize;
+        totalCount += gSize;
+    }
+
+    if (totalCount === 0) return 0;
+
+    const grandMean = totalSum / totalCount;
+
+    let totalSsd = 0;
+
+    for (let i = 0; i < groupMeans.length; i++) {
+        const diff = groupMeans[i] - grandMean;
+        totalSsd += groupSizes[i] * (diff * diff);
+    }
+
+    return round(Math.max(0, totalSsd), digits);
 }
 
 /**

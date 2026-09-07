@@ -459,9 +459,57 @@ export function centralMoment(
     digits?: number
 ): number {
     validateValues(values, isSample);
-    const m = mean(values);
+
+    if (k < 1 || !Number.isInteger(k)) {
+        throw new Error('Moment order k must be a positive integer.');
+    }
+
+    if (k === 1) {
+        return round(0, digits);
+    }
+
+    const n = values.length;
     const length = getDegreesOfFreedom(values, isSample);
-    const sum = values.reduce((total, value) => total + Math.pow(value - m, k), 0);
+
+    if (k === 2) {
+        return round(ssd(values) / length, digits);
+    }
+
+    if (k === 3 || k === 4) {
+        let meanVal = 0;
+        let M2 = 0;
+        let M3 = 0;
+        let M4 = 0;
+
+        for (let i = 0; i < n; i++) {
+            const count = i + 1;
+            const x = values[i];
+
+            const delta = x - meanVal;
+            const delta_n = delta / count;
+            const delta_n2 = delta_n * delta_n;
+            const term1 = delta * delta_n * i;
+
+            if (k === 4) {
+                M4 += term1 * delta_n2 * (count * count - 3 * count + 3)
+                    + 6 * delta_n2 * M2 - 4 * delta_n * M3;
+            }
+
+            M3 += term1 * delta_n * (count - 2) - 3 * delta_n * M2;
+            M2 += term1;
+            meanVal += delta_n;
+        }
+
+        const rawMoment = k === 3 ? M3 : M4;
+        return round(rawMoment / length, digits);
+    }
+
+    const m = mean(values);
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+        sum += Math.pow(values[i] - m, k);
+    }
+
     return round(sum / length, digits);
 }
 
