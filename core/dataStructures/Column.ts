@@ -7,7 +7,7 @@ export default abstract class Column<T extends number | boolean | string | Date>
     constructor(values: unknown[], label: string) {
         super();
         this._label = label;
-        this._values = Object.freeze(this.prepareData(values));
+        this._values = this.prepareData(values);
     }
 
     protected abstract prepareData(rawValues: unknown[]): (T | null)[];

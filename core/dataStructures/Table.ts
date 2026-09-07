@@ -1,5 +1,5 @@
 import { Boundaries, ColInfo, ColType, ColumnInfo, ImputeType, PercentMode } from '../types/types.js';
-import { displayDateString, firstNValuesAreBool, hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils.js';
+import { displayDateString, firstNTypeCheck, hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils.js';
 import NumberColumn from './NumberColumn.js';
 import BoolColumn from './BoolColumn.js';
 import StringColumn from './StringColumn.js';
@@ -198,11 +198,9 @@ export default class Table {
     ): ColType {
         if (colType) return colType;
 
-        if (firstNValuesAreBool(col, 20)) return 'bool';
-        const firstNonEmpty = col.find(val => !isEmpty(val));
-
-        if (isNumeric(firstNonEmpty)) return 'number';
-        if (isDate(firstNonEmpty)) return 'date';
+        if (firstNTypeCheck(col, 10, isBool)) return 'bool';
+        if (firstNTypeCheck(col, 10, isNumeric)) return 'number';
+        if (firstNTypeCheck(col, 10, isDate)) return 'date';
 
         return 'string';
     }
@@ -400,6 +398,9 @@ export default class Table {
                 } else if (typeof firstVal === 'boolean'
                     && typeof secondVal === 'boolean') {
                     diff = Number(firstVal) - Number(secondVal);
+                } else if ((firstVal as any) instanceof Date
+                    && (secondVal as any) instanceof Date) {
+                    diff = (firstVal as any).getTime() - (secondVal as any).getTime();
                 }
 
                 if (diff !== 0) return diff;

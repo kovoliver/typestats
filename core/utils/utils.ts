@@ -230,33 +230,58 @@ export function firstNValuesAreBool(
     return n > 0 && allBool;
 }
 
+export function firstNTypeCheck(
+    values: (number | string | null | undefined)[],
+    limit: number,
+    checkerFn: (val: unknown) => boolean
+): boolean {
+
+    if (!values || values.length === 0) return false;
+    if (!Number.isInteger(limit) || limit <= 0) {
+        throw new Error('Only integer limit parameters are allowed!');
+    }
+
+    let n = 0;
+
+    for (const val of values) {
+        if (isEmpty(val)) continue;
+
+        n++;
+
+        if (!checkerFn(val)) {
+            return false;
+        }
+
+        if (n === limit) {
+            return true;
+        }
+    }
+
+    return n > 0;
+}
+
 /**
- * Converts an array of unknown values into an array of numbers (or NaN for non-finite values).
+ * Converts an array of raw CSV string values into an array of numbers (or NaN for invalid/empty inputs).
  *
- * @param {unknown[]} values - The array of raw values to convert.
- * @param {boolean} [toInteger=false] - Whether to truncate numbers to integers.
- * @returns {number[]} A new array containing finite numbers or `NaN` for invalid/non-finite inputs.
+ * @param {unknown[]} values - The array of raw string values to convert.
+ * @returns {number[]} A new array containing numbers or `NaN` for invalid/empty inputs.
  */
-export function toNumberArray(
-    values: unknown[],
-    toInteger: boolean = false
-): number[] {
+export function toNumberArray(values: unknown[]): number[] {
     return values.map(val => {
-        let num: number;
-
         if (typeof val === 'number') {
-            num = val;
-        } else if (typeof val === 'string' && val.trim() !== '') {
-            num = Number(val);
-        } else {
+            return val;
+        }
+
+        if (val === null || val === undefined || val === '') {
             return NaN;
         }
 
-        if (!Number.isFinite(num)) {
-            return NaN;
+        if (typeof val === 'string') {
+            const trimmed = val.trim();
+            return trimmed === '' ? NaN : Number(trimmed);
         }
 
-        return toInteger ? Math.trunc(num) : num;
+        return NaN;
     });
 }
 

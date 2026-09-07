@@ -140,3 +140,5 @@ export interface DbConnection {
     execQuery: (sql: string, params?: any[]) => Promise<Record<string, any>[]>;
     close: () => Promise<void>;
 }
+
+export type NumericData = number[] | Float64Array;
