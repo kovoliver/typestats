@@ -96,14 +96,14 @@ export default class Table {
 
         switch (type) {
             case 'number':
-                return new NumberColumn(values, colInfo.label) as AnyColumn;
+                return new NumberColumn(values, colInfo.label, true) as AnyColumn;
             case 'bool':
-                return new BoolColumn(values, colInfo.label) as AnyColumn;
+                return new BoolColumn(values, colInfo.label, true) as AnyColumn;
             case 'date':
-                return new DateColumn(values, colInfo.label) as AnyColumn;
+                return new DateColumn(values, colInfo.label, true) as AnyColumn;
             case 'string':
             default:
-                return new StringColumn(values, colInfo.label) as AnyColumn;
+                return new StringColumn(values, colInfo.label, true) as AnyColumn;
         }
     }
 
@@ -139,7 +139,7 @@ export default class Table {
 
     public getCol(identifier: number | string): AnyColumn {
         const index = this.getIndex(identifier);
-        const values = [...this._processedValues[index]];
+        const values = this._processedValues[index];
         const info = this._colInfos[index];
 
         return this.createColumnFromData(values, info);
@@ -197,6 +197,10 @@ export default class Table {
     public get rowCount(): number {
         if (this._processedValues.length === 0) return 0;
         return this._processedValues[0].length;
+    }
+
+    public get colCount(): number {
+        return this._processedValues.length;
     }
 
     public print(from?: number, to?: number, maxCols: number = 7): void {
@@ -839,16 +843,18 @@ export default class Table {
         console.log(`================================================================================`);
         console.log(`=================================TABLE SUMMARY==================================`);
         console.log(`================================================================================`);
-        console.log(`Shape: ${this.rowCount} rows x ${this._processedValues.length} columns\n`);
+        console.log(`Shape: ${this.rowCount} rows x ${this.colCount} columns\n`);
         console.log(`--- Column Overview ---`);
 
         const totalRows = this.rowCount;
         const columnInfos: ColumnInfo[] = [];
+        const numericStats: Record<string, unknown>[] = [];
+        const dateStats: Record<string, unknown>[] = [];
 
         for (let i = 0; i < this._processedValues.length; i++) {
             const col = this.getCol(i);
             const missing = col.countMissing();
-            const valid = col.countValid();
+            const valid = col.values.length - missing;
 
             const missingPercent = totalRows > 0
                 ? Number(((missing / totalRows) * 100).toFixed(2))
@@ -861,25 +867,9 @@ export default class Table {
                 validCount: valid,
                 missingPercent: `${missingPercent}%`
             });
-        }
-
-        console.table(columnInfos);
-
-        const numericStats: Record<string, unknown>[] = [];
-        const dateStats: Record<string, unknown>[] = [];
-
-        for (let i = 0; i < this._processedValues.length; i++) {
-            const col = this.getCol(i);
 
             if (col instanceof NumberColumn) {
-                numericStats.push({
-                    columnName: col.label,
-                    mean: Number(col.mean().toFixed(2)),
-                    std: Number(col.std().toFixed(2)),
-                    min: col.min(),
-                    median: Number(col.median().toFixed(2)),
-                    max: col.max()
-                });
+                numericStats.push(col.describeStats());
             }
 
             if (col instanceof DateColumn) {
@@ -890,6 +880,8 @@ export default class Table {
                 });
             }
         }
+
+        console.table(columnInfos);
 
         if (numericStats.length > 0) {
             console.log(`\n--- Numeric Column Statistics ---`);

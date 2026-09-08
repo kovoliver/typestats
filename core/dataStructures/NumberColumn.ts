@@ -1072,4 +1072,27 @@ export default class NumberColumn extends Column<number> {
             bartlett(groups, alpha)
         );
     }
+
+    public describeStats() {
+        const missing = this.countMissing();
+        const validCount = this._values.length - missing;
+
+        if (validCount === 0) {
+            return { missing, valid: 0, mean: NaN, std: NaN, min: NaN, median: NaN, max: NaN };
+        }
+
+        const validValues = this.getValidValues();
+        const sortedValues = orderAsc(validValues);
+
+        return {
+            label:this._label,
+            missing,
+            valid: validCount,
+            mean: mean(sortedValues),
+            std: std(sortedValues),
+            min: sortedValues[0],
+            max: sortedValues[sortedValues.length - 1],
+            median: percentile(sortedValues, 0.5, 'interpolated', undefined, true)
+        };
+    }
 }
