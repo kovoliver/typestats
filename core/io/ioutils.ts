@@ -17,18 +17,7 @@ function fastTrimField(s: string, quoteCode: number): string {
     if (quoteCode !== -1 && end > start && s.charCodeAt(end - 1) === quoteCode) end--;
 
     if (start === 0 && end === s.length) return s;
-    return (' ' + s.slice(start, end)).slice(1);
-}
-
-function countFields(line: string, separator: string): number {
-    let count = 1;
-    let pos = 0;
-    while (true) {
-        const idx = line.indexOf(separator, pos);
-        if (idx === -1) return count;
-        count++;
-        pos = idx + separator.length;
-    }
+    return s.substring(start, end);
 }
 
 export function processCSVData(
@@ -37,76 +26,80 @@ export function processCSVData(
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     quoteChar?: string
 ) {
-    const trimmedText = trim(text);
-
-    if (trimmedText.length === 0) {
+    if (!text || text.length === 0) {
         throw new Error('The provided CSV file is empty!');
     }
 
-    const lines = trimmedText.split(/\r?\n/);
-
-    if (lines.length === 1) {
-        throw new Error('The provided CSV file only has a header row!');
-    }
-
-    const head = lines.shift()!;
-    const quotes = quoteChar ? [quoteChar] : [];
     const quoteCode = quoteChar ? quoteChar.charCodeAt(0) : -1;
     const sepLen = separator.length;
+    const quotes = quoteChar ? [quoteChar] : [];
 
-    const labels = head.split(separator).map(l => trim(l, quotes));
+    let firstLineEnd = text.indexOf('\n');
+    if (firstLineEnd === -1) firstLineEnd = text.length;
+
+    let headLine = text.substring(0, firstLineEnd);
+    if (headLine.endsWith('\r')) headLine = headLine.slice(0, -1);
+
+    const labels = headLine.split(separator).map(l => trim(l, quotes));
     const labelCount = labels.length;
     const colInfos = labels.map(label => ({ label }));
+    const estimatedRows = Math.max(100, Math.ceil(text.length / (headLine.length || 50)));
+    const cols: (string | null)[][] = Array.from({ length: labelCount }, () => new Array(estimatedRows));
 
-    const cols: (string | null)[][] = Array.from({ length: labelCount }, () => []);
+    let lineIdx = 0;
+    let lineStart = firstLineEnd + 1;
+    const textLen = text.length;
 
-    const lineCount = lines.length;
-    for (let i = 0; i < lineCount; i++) {
-        const line = lines[i];
-        if (isBlank(line)) continue;
+    while (lineStart < textLen) {
+        let lineEnd = text.indexOf('\n', lineStart);
+        if (lineEnd === -1) lineEnd = textLen;
 
-        const fieldCount = countFields(line, separator);
-        const lineDiff = labelCount - fieldCount;
-
-        if (lineDiff < 0) {
-            throw new Error(`The header line contains too few columns! (Line ${i + 2})`);
+        let endPos = lineEnd;
+        if (endPos > lineStart && text.charCodeAt(endPos - 1) === 13) {
+            endPos--;
         }
 
-        if (lineDiff > 0) {
-            if (invalidLine === 'drop') continue;
-            if (invalidLine === 'throw') throw new Error(`Line ${i + 2} is invalid!`);
+        if (endPos > lineStart) {
+            let pos = lineStart;
+            let col = 0;
+
+            while (pos <= endPos && col < labelCount) {
+                let sepIndex = text.indexOf(separator, pos);
+                if (sepIndex === -1 || sepIndex > endPos) {
+                    sepIndex = endPos;
+                }
+
+                const raw = text.substring(pos, sepIndex);
+                const value = fastTrimField(raw, quoteCode);
+
+                cols[col][lineIdx] = value === '' ? null : value;
+                col++;
+
+                pos = sepIndex + sepLen;
+                if (sepIndex === endPos) break;
+            }
+
+            if (col < labelCount) {
+                if (invalidLine === 'throw') {
+                    throw new Error(`Line ${lineIdx + 2} is invalid!`);
+                }
+                while (col < labelCount) {
+                    cols[col][lineIdx] = null;
+                    col++;
+                }
+            }
+
+            lineIdx++;
         }
 
-        let col = 0;
-        let pos = 0;
-        const len = line.length;
+        lineStart = lineEnd + 1;
+    }
 
-        while (col < fieldCount) {
-            const sepIndex = line.indexOf(separator, pos);
-            const end = sepIndex === -1 ? len : sepIndex;
-            const raw = line.slice(pos, end);
-            const value = fastTrimField(raw, quoteCode);
-
-            cols[col].push(value === '' ? null : value);
-            col++;
-            pos = end + sepLen;
-        }
-
-        while (col < labelCount) {
-            cols[col].push(null);
-            col++;
-        }
+    for (let c = 0; c < labelCount; c++) {
+        cols[c].length = lineIdx;
     }
 
     return { cols, colInfos };
-}
-
-function isBlank(s: string): boolean {
-    for (let k = 0; k < s.length; k++) {
-        const c = s.charCodeAt(k);
-        if (c !== 32 && c !== 9 && c !== 13 && c !== 10) return false;
-    }
-    return true;
 }
 
 export function processJSONData(

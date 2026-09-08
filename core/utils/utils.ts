@@ -267,28 +267,32 @@ export function firstNTypeCheck(
  * @returns {number[]} A new array containing numbers or `NaN` for invalid/empty inputs.
  */
 export function toNumberArray(values: unknown[]): number[] {
+    const len = values.length;
     const result: number[] = [];
-    for (let i = 0; i < values.length; i++) {
+
+    for (let i = 0; i < len; i++) {
         const val = values[i];
+
         if (typeof val === 'number') {
             result.push(val);
-        } else if (typeof val === 'string') {
-            const trimmed = val.trim();
-            result.push(trimmed === '' ? NaN : Number(trimmed));
+        } else if (typeof val === 'string' && val.length > 0) {
+            result.push(+val);
         } else {
             result.push(NaN);
         }
     }
+
     return result;
 }
 
 export function toBoolArray(values: unknown[]): (boolean | null)[] {
     const result: (boolean | null)[] = [];
+    const len = values.length;
 
-    for (let index = 0; index < values.length; index++) {
-        const val = values[index];
+    for (let i = 0; i < len; i++) {
+        const val = values[i];
 
-        if (val === null || val === undefined) {
+        if (val === null || val === undefined || val === '') {
             result.push(null);
             continue;
         }
@@ -298,36 +302,27 @@ export function toBoolArray(values: unknown[]): (boolean | null)[] {
             continue;
         }
 
-        if (typeof val === 'number') {
-            if (val === 1) { result.push(true); continue; }
-            if (val === 0) { result.push(false); continue; }
-            throw new Error(`Invalid number at index ${index}: ${val}. Only 1 and 0 are allowed.`);
+        if (val === 'true' || val === '1' || val === 1 || val === 'yes' || val === 'on') {
+            result.push(true);
+            continue;
         }
 
-        if (typeof val === 'string') {
-            // gyors út: a leggyakoribb esetek allokáció (trim/toLowerCase) nélkül
-            if (val === 'true') { result.push(true); continue; }
-            if (val === 'false') { result.push(false); continue; }
-
-            const normalized = val.trim().toLowerCase();
-
-            if (normalized === '' || normalized === 'null' || normalized === 'undefined') {
-                result.push(null);
-                continue;
-            }
-            if (normalized === 'false' || normalized === '0' || normalized === 'off' || normalized === 'no') {
-                result.push(false);
-                continue;
-            }
-            if (normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes') {
-                result.push(true);
-                continue;
-            }
-
-            throw new Error(`Cannot parse boolean from string at index ${index}: "${val}"`);
+        if (val === 'false' || val === '0' || val === 0 || val === 'no' || val === 'off') {
+            result.push(false);
+            continue;
         }
 
-        throw new Error(`Unsupported type at index ${index}: ${typeof val}`);
+        const s = String(val).trim().toLowerCase();
+
+        if (s === '' || s === 'null' || s === 'undefined') {
+            result.push(null);
+        } else if (s === 'true' || s === '1' || s === 'yes' || s === 'on') {
+            result.push(true);
+        } else if (s === 'false' || s === '0' || s === 'no' || s === 'off') {
+            result.push(false);
+        } else {
+            throw new Error(`Cannot parse boolean value at index ${i}: "${val}"`);
+        }
     }
 
     return result;
@@ -335,56 +330,45 @@ export function toBoolArray(values: unknown[]): (boolean | null)[] {
 
 export function toStringArray(values: unknown[]): (string | null)[] {
     const result: (string | null)[] = [];
+    const len = values.length;
 
-    for (let index = 0; index < values.length; index++) {
-        const val = values[index];
+    for (let i = 0; i < len; i++) {
+        const val = values[i];
 
-        if (val === null || val === undefined) {
+        if (val === null || val === undefined || val === '') {
             result.push(null);
-            continue;
-        }
-
-        if (typeof val === 'string') {
-            if (val.length <= 11) {
-                const normalized = val.trim().toLowerCase();
-                if (normalized === 'null' || normalized === 'undefined') {
-                    result.push(null);
-                    continue;
-                }
-            }
+        } else if (typeof val === 'string') {
             result.push(val);
-            continue;
-        }
-
-        if (typeof val === 'number' || typeof val === 'boolean' || typeof val === 'bigint') {
+        } else {
             result.push(String(val));
-            continue;
         }
-
-        throw new Error(`Cannot convert value at index ${index} to string. Unsupported type: ${typeof val}`);
     }
 
     return result;
 }
 
+function parseFastISO(s: string): Date | null {
+    if (s.length < 10) return null;
+    const y = +s.substring(0, 4);
+    const m = +s.substring(5, 7) - 1;
+    const d = +s.substring(8, 10);
+    const time = Date.UTC(y, m, d);
+    return Number.isNaN(time) ? null : new Date(time);
+}
+
 export function toDateArray(rawValues: unknown[]): (Date | null)[] {
     const result: (Date | null)[] = [];
+    const len = rawValues.length;
 
-    for (let i = 0; i < rawValues.length; i++) {
+    for (let i = 0; i < len; i++) {
         const val = rawValues[i];
-
-        if (val instanceof Date) {
-            result.push(isNaN(val.getTime()) ? null : val);
-            continue;
+        if (typeof val === 'string') {
+            result.push(parseFastISO(val));
+        } else if (val instanceof Date) {
+            result.push(Number.isNaN(val.getTime()) ? null : val);
+        } else {
+            result.push(null);
         }
-
-        if (typeof val === 'string' || typeof val === 'number') {
-            const d = new Date(val);
-            result.push(isNaN(d.getTime()) ? null : d);
-            continue;
-        }
-
-        result.push(null);
     }
 
     return result;

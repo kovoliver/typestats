@@ -14,37 +14,24 @@ import { getIqrBoundaries, replaceEmptyValues, replaceOutliers } from '../dataPr
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
 export default class Table {
-    private readonly _originalValues: any[][];
-    private readonly _processedValues: (number | (boolean | null) | (string | null) | (Date | null))[][];
+    private readonly _values: (number | (boolean | null) | (string | null) | (Date | null))[][];
     private readonly _colInfos: ColInfo[];
 
     constructor(
-        originalValues: any[][],
+        values: any[][],
         colInfos: ColInfo[],
-        processedValues?: any[][],
-        isTrustedSource: boolean = true,
+        isTrustedSource: boolean = false,
     ) {
-        if (isTrustedSource) {
-            this._originalValues = originalValues;
-            this._colInfos = colInfos;
-        } else {
-            this._originalValues = originalValues.map(col => [...col]);
-            this._colInfos = colInfos.map(info => ({ ...info }));
-        }
-
-        if (processedValues) {
-            this._processedValues = processedValues;
-        } else {
-            this._processedValues = this.processValues(this._originalValues, this._colInfos);
-        }
+        this._colInfos = colInfos;
+        this._values = isTrustedSource ? values : this.processValues(values, colInfos);
     }
 
     public get originalTable(): any[][] {
-        return this._originalValues.map(col => [...col]);
+        return this._values.map(col => [...col]);
     }
 
     public get processedValues(): any[][] {
-        return this._processedValues.map(col => [...col]);
+        return this._values.map(col => [...col]);
     }
 
     public get table(): AnyColumn[] {
@@ -139,7 +126,7 @@ export default class Table {
 
     public getCol(identifier: number | string): AnyColumn {
         const index = this.getIndex(identifier);
-        const values = this._processedValues[index];
+        const values = this._values[index];
         const info = this._colInfos[index];
 
         return this.createColumnFromData(values, info);
@@ -172,16 +159,11 @@ export default class Table {
             ? this._colInfos.findIndex(info => info.label === identifier)
             : identifier;
 
-        if (index === undefined || index < 0 || index >= this._processedValues.length) {
+        if (index === undefined || index < 0 || index >= this._values.length) {
             throw new Error(`The provided identifier (${identifier}) does not exist!`);
         }
 
         return index;
-    }
-
-    public getOriginal(identifier: number | string): any[] {
-        const index = this.getIndex(identifier);
-        return [...this._originalValues[index]];
     }
 
     private getColType(col: any[], colType?: ColType): ColType {
@@ -195,17 +177,17 @@ export default class Table {
     }
 
     public get rowCount(): number {
-        if (this._processedValues.length === 0) return 0;
-        return this._processedValues[0].length;
+        if (this._values.length === 0) return 0;
+        return this._values[0].length;
     }
 
     public get colCount(): number {
-        return this._processedValues.length;
+        return this._values.length;
     }
 
     public print(from?: number, to?: number, maxCols: number = 7): void {
         const totalRows = this.rowCount;
-        const totalCols = this._processedValues.length;
+        const totalCols = this._values.length;
         const hasMoreCols = totalCols > maxCols;
         const colsLimit = hasMoreCols ? maxCols : totalCols;
 
@@ -226,7 +208,7 @@ export default class Table {
 
             for (let colIndex = 0; colIndex < colsLimit; colIndex++) {
                 const info = this._colInfos[colIndex];
-                const rawVal = this._processedValues[colIndex][rowIndex];
+                const rawVal = this._values[colIndex][rowIndex];
 
                 let displayVal: any;
 
@@ -278,7 +260,7 @@ export default class Table {
 
             return {
                 label: label,
-                values: this._processedValues[index]
+                values: this._values[index]
             };
         });
 
@@ -299,7 +281,7 @@ export default class Table {
             }
 
             for (let i = 0; i < this._colInfos.length; i++) {
-                groups[compositeKey][this._colInfos[i].label].push(this._processedValues[i][rowIndex]);
+                groups[compositeKey][this._colInfos[i].label].push(this._values[i][rowIndex]);
             }
         }
 
@@ -308,31 +290,25 @@ export default class Table {
 
     private newTableByIndices(indices: Int32Array): Table {
         const rowCount = indices.length;
-        const colCount = this._processedValues.length;
+        const colCount = this._values.length;
 
-        const newOriginal: unknown[][] = new Array(colCount);
-        const newProcessed: unknown[][] = new Array(colCount);
+        const newValues: unknown[][] = new Array(colCount);
 
         for (let c = 0; c < colCount; c++) {
-            const origCol = this._originalValues[c];
-            const procCol = this._processedValues[c];
+            const procCol = this._values[c];
 
-            const targetOrig = new Array(rowCount);
             const targetProc = new Array(rowCount);
 
             for (let r = 0; r < rowCount; r++) {
                 const idx = indices[r];
-                targetOrig[r] = origCol[idx];
                 targetProc[r] = procCol[idx];
             }
 
-            newOriginal[c] = targetOrig;
-            newProcessed[c] = targetProc;
+            newValues[c] = targetProc;
         }
 
         const colInfos = this._colInfos.map(info => ({ ...info }));
-
-        return new Table(newOriginal, colInfos, newProcessed);
+        return new Table(newValues, colInfos, true);
     }
 
     private orderBy(labels: string[], type: 'asc' | 'desc'): Table {
@@ -345,7 +321,7 @@ export default class Table {
 
         const columnsData = labels.map(label => {
             const colIdx = this.getIndex(label);
-            return this._processedValues[colIdx];
+            return this._values[colIdx];
         });
 
         const dir = type === 'asc' ? 1 : -1;
@@ -409,7 +385,7 @@ export default class Table {
         const targetCols: unknown[][] = new Array(labelCount);
         for (let i = 0; i < labelCount; i++) {
             const colIdx = this.getIndex(labels[i]);
-            targetCols[i] = this._processedValues[colIdx];
+            targetCols[i] = this._values[colIdx];
         }
 
         const matchingIndices = new Int32Array(rowCount);
@@ -461,7 +437,7 @@ export default class Table {
 
     public where(label: string | number, fn: (value: any) => boolean): Table {
         const colIdx = this.getIndex(label);
-        const colData = this._processedValues[colIdx];
+        const colData = this._values[colIdx];
         const len = colData.length;
 
         if (len === 0) {
@@ -485,11 +461,10 @@ export default class Table {
             throw new Error('You must provide at least one index!');
         }
 
-        const origCols = indices.map(index => [...this._originalValues[index]]);
-        const procCols = indices.map(index => [...this._processedValues[index]]);
+        const procCols = indices.map(index => [...this._values[index]]);
         const colInfos = indices.map(index => ({ ...this._colInfos[index] }));
 
-        return new Table(origCols, colInfos, procCols);
+        return new Table(procCols, colInfos, true);
     }
 
     public select(...labels: (string | number)[]): Table {
@@ -505,7 +480,7 @@ export default class Table {
         const dropIndices = labels.map(label => this.getIndex(label));
         const keepIndices: number[] = [];
 
-        for (let i = 0; i < this._processedValues.length; i++) {
+        for (let i = 0; i < this._values.length; i++) {
             if (!dropIndices.includes(i)) {
                 keepIndices.push(i);
             }
@@ -519,11 +494,11 @@ export default class Table {
     }
 
     public addColumnLast(values: any[], colInfo: ColInfo): Table {
-        return this.addColumnAt(values, colInfo, this._processedValues.length);
+        return this.addColumnAt(values, colInfo, this._values.length);
     }
 
     public addColumnAt(values: any[], colInfo: ColInfo, index: number): Table {
-        if (index < 0 || index > this._processedValues.length) {
+        if (index < 0 || index > this._values.length) {
             throw new Error('The given index is invalid!');
         }
 
@@ -538,15 +513,12 @@ export default class Table {
             info.type = this.getColType(values);
         }
 
-        const newOrig = this._originalValues.map(c => [...c]);
-        const newProc = this._processedValues.map(c => [...c]);
+        const newValues = this._values.map(c => [...c]);
         const newInfos = this._colInfos.map(i => ({ ...i }));
-
-        newOrig.splice(index, 0, [...values]);
-        newProc.splice(index, 0, [...values]);
+        newValues.splice(index, 0, [...values]);
         newInfos.splice(index, 0, info);
 
-        return new Table(newOrig, newInfos, newProc);
+        return new Table(newValues, newInfos, true);
     }
 
     public dropNa(label: string | number): Table {
@@ -591,12 +563,12 @@ export default class Table {
         const targetIndex = this.getIndex(label);
         const imputedValues = replaceEmptyValues(targetCol.values as number[], type);
 
-        const newProc = this._processedValues.map((col, idx) => {
+        const newValues = this._values.map((col, idx) => {
             if (idx === targetIndex) return [...imputedValues];
             return [...col];
         });
 
-        return new Table(this._originalValues, this._colInfos, newProc);
+        return new Table(newValues, this._colInfos, true);
     }
 
     public replaceOutliers(
@@ -613,12 +585,12 @@ export default class Table {
         const targetIndex = this.getIndex(label);
         const newCol = replaceOutliers((targetCol.values as number[]), type, boundaries);
 
-        const newProc = this._processedValues.map((col, idx) => {
+        const newValues = this._values.map((col, idx) => {
             if (idx === targetIndex) return [...newCol];
             return [...col];
         });
 
-        return new Table(this._originalValues, this._colInfos, newProc);
+        return new Table(newValues, this._colInfos, true);
     }
 
     public replaceOutliersIQR(
@@ -637,11 +609,11 @@ export default class Table {
         const targetIndex = this.getIndex(label);
         const newCol = replaceOutliers(targetCol.values as number[], type, boundaries);
 
-        const newProc = this._processedValues.map((col, idx) =>
+        const newValues = this._values.map((col, idx) =>
             idx === targetIndex ? newCol : col
         );
 
-        return new Table(this._originalValues, this._colInfos, newProc);
+        return new Table(newValues, this._colInfos, true);
     }
 
     public fillNa(label: string | number, value: number | string | boolean | Date): Table {
@@ -666,12 +638,12 @@ export default class Table {
         const targetIndex = this.getIndex(label);
         const filledValues = targetCol.getFilledValues(value as any);
 
-        const newProc = this._processedValues.map((col, idx) => {
+        const newValues = this._values.map((col, idx) => {
             if (idx === targetIndex) return [...filledValues];
             return [...col];
         });
 
-        return new Table(this._originalValues, this._colInfos, newProc);
+        return new Table(newValues, this._colInfos, true);
     }
 
     public mapColumn(
@@ -684,7 +656,7 @@ export default class Table {
         }
 
         const colIndex = this.getIndex(label);
-        const sourceData = this._processedValues[colIndex];
+        const sourceData = this._values[colIndex];
 
         let newValues: any[] = [];
 
@@ -708,7 +680,7 @@ export default class Table {
         fn: (val: number | boolean | string) => number | boolean | string
     ): Table {
         const index = this.getIndex(identifier);
-        const sourceData = this._processedValues[index];
+        const sourceData = this._values[index];
 
         let newValues: any[] = [];
 
@@ -726,7 +698,7 @@ export default class Table {
             ? this.getColType(nonNullValues)
             : this._colInfos[index].type;
 
-        this._processedValues[index] = newValues;
+        this._values[index] = newValues;
         this._colInfos[index].type = newType;
 
         return this;
@@ -761,7 +733,7 @@ export default class Table {
         const newValues: number[] = [];
 
         for (let row = 0; row < rowCount; row++) {
-            let result = this._processedValues[colIndices[0]][row] as number;
+            let result = this._values[colIndices[0]][row] as number;
 
             if (isNanNullUndefined(result)) {
                 newValues.push(NaN);
@@ -771,7 +743,7 @@ export default class Table {
             let hasError = false;
 
             for (let c = 1; c < colIndices.length; c++) {
-                const nextVal = this._processedValues[colIndices[c]][row];
+                const nextVal = this._values[colIndices[c]][row];
 
                 if (isNanNullUndefined(nextVal)) {
                     hasError = true;
@@ -823,7 +795,7 @@ export default class Table {
 
         for (let row = 0; row < rowCount; row++) {
             const rowValues = colIndices.map(idx => {
-                const val = this._processedValues[idx][row];
+                const val = this._values[idx][row];
 
                 if (isNanNullUndefined(val)) {
                     return '';
@@ -851,7 +823,7 @@ export default class Table {
         const numericStats: Record<string, unknown>[] = [];
         const dateStats: Record<string, unknown>[] = [];
 
-        for (let i = 0; i < this._processedValues.length; i++) {
+        for (let i = 0; i < this._values.length; i++) {
             const col = this.getCol(i);
             const missing = col.countMissing();
             const valid = col.values.length - missing;
@@ -897,13 +869,13 @@ export default class Table {
     public toObject(): Record<string, any>[] {
         const finalObj: Record<string, any>[] = [];
         const rowCount = this.rowCount;
-        const colCount = this._processedValues.length;
+        const colCount = this._values.length;
 
         for (let row = 0; row < rowCount; row++) {
             const obj: Record<string, any> = {};
 
             for (let col = 0; col < colCount; col++) {
-                obj[this._colInfos[col].label] = this._processedValues[col][row];
+                obj[this._colInfos[col].label] = this._values[col][row];
             }
 
             finalObj.push(obj);
@@ -918,7 +890,7 @@ export default class Table {
         const rowCount = this.rowCount;
 
         for (let row = 0; row < rowCount; row++) {
-            const rowValues = this._processedValues.map(col => {
+            const rowValues = this._values.map(col => {
                 const val = col[row];
 
                 if (isNanNullUndefined(val)) {
@@ -936,14 +908,14 @@ export default class Table {
 
     public toMatrix(): any[][] {
         const matrix: any[][] = [];
-        const colCount = this._processedValues.length;
+        const colCount = this._values.length;
         const rowCount = this.rowCount;
 
         for (let row = 0; row < rowCount; row++) {
             const rowData: any[] = [];
 
             for (let col = 0; col < colCount; col++) {
-                rowData.push(this._processedValues[col][row]);
+                rowData.push(this._values[col][row]);
             }
 
             matrix.push(rowData);
