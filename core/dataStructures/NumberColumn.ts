@@ -48,16 +48,6 @@ export default class NumberColumn extends Column<number> {
     private trend: Trend | null = null;
 
     /**
-     * Creates an instance of NumberColumn.
-     *
-     * @param {unknown[]} values - The raw input array of values to be converted and processed.
-     * @param {string} label - The label or title identifier for the column.
-     */
-    constructor(values: unknown[], label: string) {
-        super(values, label);
-    }
-
-    /**
      * Converts raw unknown input data into an array of numeric or null values.
      *
      * @protected
@@ -334,7 +324,7 @@ export default class NumberColumn extends Column<number> {
      * @param {Boundaries} boundaries - The lower (`min`) and upper (`max`) threshold boundaries.
      * @returns {number[]} An array of original zero-based row indices that pass boundary validation.
      */
-    public filterIndicesByBoundaries(boundaries: Boundaries): number[] {
+    public filterIndicesByBoundaries(boundaries: Boundaries): Int32Array {
         return this.filterIndices(val => !isInvalidValue(val, boundaries));
     }
 
@@ -349,7 +339,7 @@ export default class NumberColumn extends Column<number> {
     public filterIndicesByIqr(
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
-    ): number[] {
+    ): Int32Array {
         const boundaries = this.getIqrBoundaries(multiplier, percentMode);
         return this.filterIndicesByBoundaries(boundaries);
     }

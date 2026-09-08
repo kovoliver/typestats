@@ -7,120 +7,124 @@ import GroupedTable from './GroupedTable.js';
 import Column from './Column.js';
 import DateColumn from './DateColumn.js';
 import { isDate } from '../utils/utils.js';
+import { toNumberArray, toBoolArray, toDateArray, toStringArray }
+    from '../utils/utils.js';
+import { getIqrBoundaries, replaceEmptyValues, replaceOutliers } from '../dataPreparation/dataPreparation.js';
+
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
 export default class Table {
-    private readonly _originalTable: any[][];
-    private readonly _table: Column<number | boolean | string | Date>[];
+    private readonly _originalValues: any[][];
+    private readonly _processedValues: (number | (boolean | null) | (string | null) | (Date | null))[][];
     private readonly _colInfos: ColInfo[];
 
-    constructor(table: any[][] | Column<number | boolean | string | Date>[], colInfos?: ColInfo[]) {
-        const validatedCells = Array.isArray(table) && table.length !== 0 && table[0] instanceof Column;
-
-        if (!validatedCells && !colInfos) {
-            throw new Error('You must provide the "colInfos" parameter alongside primitive values!');
-        }
-
-        if (validatedCells) {
-            const newTable = this.createTableFromCols(table as Column<number | boolean | string>[]);
-            this._table = newTable.table;
-            this._colInfos = newTable.colInfos;
-            this._originalTable = newTable.originalTable;
-        } else if (Array.isArray(table) && table.length !== 0) {
-            this._originalTable = table as any[][];
-            this._colInfos = colInfos!;
-            this._table = this.createColInstances(table as any[][], colInfos!);
+    constructor(
+        originalValues: any[][],
+        colInfos: ColInfo[],
+        processedValues?: any[][],
+        isTrustedSource: boolean = true,
+    ) {
+        if (isTrustedSource) {
+            this._originalValues = originalValues;
+            this._colInfos = colInfos;
         } else {
-            throw new Error('Invalid constructor arguments!');
+            this._originalValues = originalValues.map(col => [...col]);
+            this._colInfos = colInfos.map(info => ({ ...info }));
+        }
+
+        if (processedValues) {
+            this._processedValues = processedValues;
+        } else {
+            this._processedValues = this.processValues(this._originalValues, this._colInfos);
         }
     }
 
-    public get originalTable() {
-        return this._originalTable.map((col) => [...col]);
+    public get originalTable(): any[][] {
+        return this._originalValues.map(col => [...col]);
     }
 
-    public get table() {
-        return this._table.map(col => this.cloneColumn(col));
+    public get processedValues(): any[][] {
+        return this._processedValues.map(col => [...col]);
     }
 
-    public get colInfos() {
-        return this._colInfos.map(info => this.cloneColInfo(info))
+    public get table(): AnyColumn[] {
+        return this._colInfos.map((_, index) => this.getCol(index));
     }
 
-    private cloneColInfo(colInfo: ColInfo) {
+    public get colInfos(): ColInfo[] {
+        return this._colInfos.map(info => this.cloneColInfo(info));
+    }
+
+    private cloneColInfo(colInfo: ColInfo): ColInfo {
         return {
             label: colInfo.label,
             type: colInfo.type
+        };
+    }
+
+    private processValues(values: any[][], colInfos: ColInfo[]) {
+        const colCount = values.length;
+        const processedValues: any[][] = new Array(colCount);
+
+        for (let i = 0; i < colCount; i++) {
+            const rawCol = values[i];
+            const type = colInfos[i]?.type ?? this.getColType(rawCol);
+            if (colInfos[i]) colInfos[i].type = type;
+
+            switch (type) {
+                case 'number':
+                    processedValues[i] = toNumberArray(rawCol);
+                    break;
+                case 'bool':
+                    processedValues[i] = toBoolArray(rawCol);
+                    break;
+                case 'date':
+                    processedValues[i] = toDateArray(rawCol);
+                    break;
+                case 'string':
+                default:
+                    processedValues[i] = toStringArray(rawCol);
+                    break;
+            }
+        }
+
+        return processedValues;
+    }
+
+    private createColumnFromData(values: any[], colInfo: ColInfo): AnyColumn {
+        const type = colInfo.type ?? this.getColType(values);
+
+        switch (type) {
+            case 'number':
+                return new NumberColumn(values, colInfo.label) as AnyColumn;
+            case 'bool':
+                return new BoolColumn(values, colInfo.label) as AnyColumn;
+            case 'date':
+                return new DateColumn(values, colInfo.label) as AnyColumn;
+            case 'string':
+            default:
+                return new StringColumn(values, colInfo.label) as AnyColumn;
         }
     }
 
-    private cloneColumn(col: Column<any>): AnyColumn {
-        if (col instanceof NumberColumn) return new NumberColumn([...col.values], col.label) as AnyColumn;
-        if (col instanceof BoolColumn) return new BoolColumn([...col.values], col.label) as AnyColumn;
-        if (col instanceof DateColumn) return new DateColumn([...col.values], col.label) as AnyColumn;
-        return new StringColumn([...col.values], col.label) as AnyColumn;
-    }
-
-    private createColumnInstance(values: any[], col: Column<any>): NumberColumn | StringColumn | BoolColumn | DateColumn {
-        if (col instanceof NumberColumn) return new NumberColumn(values, col.label);
-        if (col instanceof BoolColumn) return new BoolColumn(values, col.label);
-        if (col instanceof DateColumn) return new DateColumn(values, col.label);
-        return new StringColumn(values, col.label);
-    }
-
-    private createTableFromCols(cols: Column<any>[]): Table {
-        const matrix = cols.map(c => [...c.values]);
-
-        const infos: ColInfo[] = cols.map(c => {
-            let type: ColType = 'string';
-            if (c instanceof NumberColumn) type = 'number';
-            else if (c instanceof BoolColumn) type = 'bool';
-            else if (c instanceof DateColumn) type = 'date';
-
-            return {
-                label: c.label,
-                type: type
-            };
-        });
-
-        return new Table(matrix, infos);
-    }
-
-    private labelExists(label: string) {
+    private labelExists(label: string): boolean {
         return this._colInfos.findIndex(info => info.label === label) !== -1;
     }
 
-    /**
-     * Renames an existing column identified by its label or index to a new label.
-     * Throws an error if the new label is empty or if a column with the new label already exists.
-     * 
-     * @param {number | string} identifier - The index or current label of the column to rename.
-     * @param {string} newLabel - The new label to assign to the target column.
-     * @throws {Error} Throws if `newLabel` is invalid or if a column with `newLabel` already exists.
-     */
-    public setLabel(identifier: number | string, newLabel: string) {
+    public setLabel(identifier: number | string, newLabel: string): void {
         if (isEmpty(newLabel) || typeof newLabel !== 'string') {
             throw new Error('The new label must be a non-empty string!');
         }
 
         const index = this.getIndex(identifier);
 
-        if (this.labelExists(newLabel)) {
+        if (this.labelExists(newLabel) && this._colInfos[index].label !== newLabel) {
             throw new Error(`A column with the label "${newLabel}" already exists!`);
         }
 
-        this._table[index].label = newLabel;
         this._colInfos[index].label = newLabel;
     }
 
-    /**
-     * Renames multiple columns sequentially using arrays of identifiers and corresponding new labels.
-     * Enforces length equality between input arrays and validates label values.
-     * 
-     * @param {(number | string)[]} identifiers - Array of column indices or current labels.
-     * @param {string[]} newLabels - Array of new labels to assign in matching order.
-     * @throws {Error} Throws if identifier and label array lengths differ or if any new label is empty.
-     */
     public setLabels(identifiers: (number | string)[], newLabels: string[]): void {
         if (identifiers.length !== newLabels.length) {
             throw new Error("The number of identifiers and new labels don't match!");
@@ -135,35 +139,32 @@ export default class Table {
 
     public getCol(identifier: number | string): AnyColumn {
         const index = this.getIndex(identifier);
-        return this.cloneColumn(this._table[index]);
+        const values = [...this._processedValues[index]];
+        const info = this._colInfos[index];
+
+        return this.createColumnFromData(values, info);
     }
 
     public toNumberCol(identifier: number | string): void {
-        const { values, index } = this.getOriginalWithIndex(identifier);
-        const label = this._table[index].label;
-        this._table[index] = new NumberColumn(values, label);
+        const index = this.getIndex(identifier);
         this._colInfos[index].type = 'number';
     }
 
     public toStringCol(identifier: number | string): void {
-        const { values, index } = this.getOriginalWithIndex(identifier);
-        const label = this._table[index].label;
-        this._table[index] = new StringColumn(values, label);
+        const index = this.getIndex(identifier);
         this._colInfos[index].type = 'string';
     }
 
     public toBoolCol(identifier: number | string): void {
-        const { values, index } = this.getOriginalWithIndex(identifier);
-        const label = this._table[index].label;
-        this._table[index] = new BoolColumn(values, label);
+        const index = this.getIndex(identifier);
         this._colInfos[index].type = 'bool';
     }
 
-    private getIndex(identifier: number | string) {
-        if (isEmpty(identifier)
-            || (typeof identifier !== 'number'
-                && typeof identifier !== 'string'
-            )) {
+    private getIndex(identifier: number | string): number {
+        if (
+            isEmpty(identifier) ||
+            (typeof identifier !== 'number' && typeof identifier !== 'string')
+        ) {
             throw new Error('The provided identifier is invalid!');
         }
 
@@ -171,31 +172,19 @@ export default class Table {
             ? this._colInfos.findIndex(info => info.label === identifier)
             : identifier;
 
-        if (index === undefined || index < 0 || index >= this._originalTable.length) {
+        if (index === undefined || index < 0 || index >= this._processedValues.length) {
             throw new Error(`The provided identifier (${identifier}) does not exist!`);
         }
 
         return index;
     }
 
-    private getOriginalWithIndex(identifier: number | string): { values: any[], index: number } {
-        const index = this.getIndex(identifier);
-
-        return {
-            values: this._originalTable[index],
-            index: index
-        };
-    }
-
     public getOriginal(identifier: number | string): any[] {
         const index = this.getIndex(identifier);
-        return this._originalTable[index];
+        return [...this._originalValues[index]];
     }
 
-    private getColType(
-        col: any[],
-        colType?: ColType
-    ): ColType {
+    private getColType(col: any[], colType?: ColType): ColType {
         if (colType) return colType;
 
         if (firstNTypeCheck(col, 10, isBool)) return 'bool';
@@ -205,50 +194,14 @@ export default class Table {
         return 'string';
     }
 
-    private createColInstance(
-        col: any[],
-        colInfo: ColInfo
-    ): NumberColumn | StringColumn | BoolColumn | DateColumn {
-        const type = this.getColType(col, colInfo.type);
-        colInfo.type = type;
-
-        switch (type) {
-            case 'number':
-                return new NumberColumn(col, colInfo.label);
-            case 'bool':
-                return new BoolColumn(col, colInfo.label);
-            case 'string':
-                return new StringColumn(col, colInfo.label);
-            case 'date':
-                return new DateColumn(col, colInfo.label);
-            default:
-                throw new Error(`The provided column type (${colInfo?.type}) is invalid!`);
-        }
-    }
-
-    private createColInstances(
-        table: any[][],
-        colInfos: ColInfo[]
-    ) {
-        return table.map((col, i) => this.createColInstance(col, colInfos[i]));
-    }
-
-    /**
-     * Returns the total number of rows in the table.
-     */
     public get rowCount(): number {
-        if (this._table.length === 0) return 0;
-        return this._table[0].values.length;
+        if (this._processedValues.length === 0) return 0;
+        return this._processedValues[0].length;
     }
 
-    /**
-     * Displays a slice of the table rows in the console within a given index range [fromInclusive, toExclusive).
-     * @param {number} [from=0] The zero-based starting row index (inclusive).
-     * @param {number} [to] The zero-based ending row index (exclusive). Defaults to the total row count.
-     */
     public print(from?: number, to?: number, maxCols: number = 7): void {
         const totalRows = this.rowCount;
-        const totalCols = this._table.length;
+        const totalCols = this._processedValues.length;
         const hasMoreCols = totalCols > maxCols;
         const colsLimit = hasMoreCols ? maxCols : totalCols;
 
@@ -268,21 +221,21 @@ export default class Table {
             const rowObj: Record<string, any> = {};
 
             for (let colIndex = 0; colIndex < colsLimit; colIndex++) {
-                const col = this._table[colIndex];
-                const rawVal = col.values[rowIndex];
+                const info = this._colInfos[colIndex];
+                const rawVal = this._processedValues[colIndex][rowIndex];
 
                 let displayVal: any;
 
                 if (rawVal === undefined) displayVal = '<undefined>';
                 else if (rawVal === null) displayVal = '<null>';
                 else if (typeof rawVal === 'number' && Number.isNaN(rawVal)) displayVal = '<NaN>';
-                else if (col instanceof DateColumn) {
-                    displayVal = col.displayString(rowIndex) ?? '<null>';
+                else if (info.type === 'date') {
+                    displayVal = displayDateString((rawVal as Date)) ?? '<null>';
                 } else {
                     displayVal = rawVal;
                 }
 
-                rowObj[col.label] = displayVal;
+                rowObj[info.label] = displayVal;
             }
 
             if (hasMoreCols) {
@@ -306,18 +259,10 @@ export default class Table {
         }
     }
 
-    /**
-     * Prints the first N rows of the table to the console.
-     * @param {number} [n=5] The number of rows to display from the top.
-     */
     public head(n: number = 5): void {
         this.print(0, n);
     }
 
-    /**
-     * Prints the last N rows of the table to the console.
-     * @param {number} [n=5] The number of rows to display from the bottom.
-     */
     public tail(n: number = 5): void {
         const total = this.rowCount;
         this.print(Math.max(0, total - n), total);
@@ -329,11 +274,11 @@ export default class Table {
 
             return {
                 label: label,
-                values: this._table[index].values
+                values: this._processedValues[index]
             };
         });
 
-        const rowCount = this._table[0].values.length;
+        const rowCount = this.rowCount;
         const groups: Record<string, Record<string, any[]>> = {};
 
         for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
@@ -344,66 +289,88 @@ export default class Table {
             if (!groups[compositeKey]) {
                 groups[compositeKey] = {};
 
-                for (const col of this._table) {
-                    groups[compositeKey][col.label] = [];
+                for (let i = 0; i < this._colInfos.length; i++) {
+                    groups[compositeKey][this._colInfos[i].label] = [];
                 }
             }
 
-            for (const col of this._table) {
-                groups[compositeKey][col.label].push(col.values[rowIndex]);
+            for (let i = 0; i < this._colInfos.length; i++) {
+                groups[compositeKey][this._colInfos[i].label].push(this._processedValues[i][rowIndex]);
             }
         }
 
         return new GroupedTable(groups);
     }
 
-    private newTableByIndices(indices: number[]): Table {
-        const newTable = this._table.map(col => {
-            return indices.map(index => col.values[index]);
-        });
+    private newTableByIndices(indices: Int32Array): Table {
+        const rowCount = indices.length;
+        const colCount = this._processedValues.length;
+
+        const newOriginal: unknown[][] = new Array(colCount);
+        const newProcessed: unknown[][] = new Array(colCount);
+
+        for (let c = 0; c < colCount; c++) {
+            const origCol = this._originalValues[c];
+            const procCol = this._processedValues[c];
+
+            const targetOrig = new Array(rowCount);
+            const targetProc = new Array(rowCount);
+
+            for (let r = 0; r < rowCount; r++) {
+                const idx = indices[r];
+                targetOrig[r] = origCol[idx];
+                targetProc[r] = procCol[idx];
+            }
+
+            newOriginal[c] = targetOrig;
+            newProcessed[c] = targetProc;
+        }
 
         const colInfos = this._colInfos.map(info => ({ ...info }));
 
-        return new Table(newTable, colInfos);
+        return new Table(newOriginal, colInfos, newProcessed);
     }
 
     private orderBy(labels: string[], type: 'asc' | 'desc'): Table {
-        const length = this._table[0].values.length;
-        const data = labels.map(label => this.getCol(label));
+        const length = this.rowCount;
 
-        const indices = Array.from(
-            { length }, (_, i) => i
-        );
+        const indices = new Int32Array(length);
+        for (let i = 0; i < length; i++) {
+            indices[i] = i;
+        }
+
+        const columnsData = labels.map(label => {
+            const colIdx = this.getIndex(label);
+            return this._processedValues[colIdx];
+        });
+
+        const dir = type === 'asc' ? 1 : -1;
+        const numCols = columnsData.length;
 
         indices.sort((a, b) => {
-            let indexA = a;
-            let indexB = b;
+            for (let i = 0; i < numCols; i++) {
+                const col = columnsData[i];
+                const firstVal = col[a];
+                const secondVal = col[b];
 
-            if (type === 'desc') {
-                indexA = b;
-                indexB = a;
-            }
+                if (firstVal === secondVal) continue;
+                if (firstVal === null || firstVal === undefined) return 1 * dir;
+                if (secondVal === null || secondVal === undefined) return -1 * dir;
 
-            for (let i = 0; i < data.length; i++) {
-                const firstVal = data[i].values[indexA];
-                const secondVal = data[i].values[indexB];
-                let diff = 0;
-
-                if (typeof firstVal === 'number'
-                    && typeof secondVal === 'number') {
-                    diff = firstVal - secondVal;
-                } else if (typeof firstVal === 'string'
-                    && typeof secondVal === 'string') {
-                    diff = (firstVal as string).localeCompare(secondVal);
-                } else if (typeof firstVal === 'boolean'
-                    && typeof secondVal === 'boolean') {
-                    diff = Number(firstVal) - Number(secondVal);
-                } else if ((firstVal as any) instanceof Date
-                    && (secondVal as any) instanceof Date) {
-                    diff = (firstVal as any).getTime() - (secondVal as any).getTime();
+                if (typeof firstVal === 'number' && typeof secondVal === 'number') {
+                    return (firstVal - secondVal) * dir;
                 }
 
-                if (diff !== 0) return diff;
+                if (typeof firstVal === 'string' && typeof secondVal === 'string') {
+                    return (firstVal < secondVal ? -1 : 1) * dir;
+                }
+
+                if (firstVal instanceof Date && secondVal instanceof Date) {
+                    return (firstVal.getTime() - secondVal.getTime()) * dir;
+                }
+
+                if (firstVal < secondVal) return -1 * dir;
+                if (firstVal > secondVal) return 1 * dir;
             }
 
             return 0;
@@ -424,30 +391,54 @@ export default class Table {
         labels: (string | number)[],
         fns: ((value: any) => boolean)[],
         andOr: 'and' | 'or'
-    ) {
-        if (labels.length !== fns.length) {
+    ): Table {
+        const labelCount = labels.length;
+        if (labelCount !== fns.length) {
             throw new Error('The number of labels must match the number of filter functions!');
         }
 
-        const cols = labels.map(label => this.getCol(label));
-        const indices: number[] = [];
+        const rowCount = this.rowCount;
+        if (rowCount === 0) {
+            return this.newTableByIndices(new Int32Array(0));
+        }
 
-        for (let row = 0; row < cols[0].values.length; row++) {
-            let passed = andOr === 'and';
+        const targetCols: unknown[][] = new Array(labelCount);
+        for (let i = 0; i < labelCount; i++) {
+            const colIdx = this.getIndex(labels[i]);
+            targetCols[i] = this._processedValues[colIdx];
+        }
 
-            for (let col = 0; col < cols.length; col++) {
-                passed = fns[col](cols[col].values[row]);
+        const matchingIndices = new Int32Array(rowCount);
+        let matchCount = 0;
+        const isAnd = andOr === 'and';
 
-                if (andOr === 'or' && passed) break;
-                if (andOr === 'and' && !passed) break;
+        for (let row = 0; row < rowCount; row++) {
+            let rowPassed = isAnd;
+
+            for (let col = 0; col < labelCount; col++) {
+                const val = targetCols[col][row];
+                const result = fns[col](val);
+
+                if (isAnd) {
+                    if (!result) {
+                        rowPassed = false;
+                        break;
+                    }
+                } else {
+                    if (result) {
+                        rowPassed = true;
+                        break;
+                    }
+                }
             }
 
-            if (passed) {
-                indices.push(row);
+            if (rowPassed) {
+                matchingIndices[matchCount++] = row;
             }
         }
 
-        return this.newTableByIndices(indices);
+        const finalIndices = matchingIndices.subarray(0, matchCount);
+        return this.newTableByIndices(finalIndices);
     }
 
     public whereAll(
@@ -465,16 +456,24 @@ export default class Table {
     }
 
     public where(label: string | number, fn: (value: any) => boolean): Table {
-        const col = this.getCol(label);
-        const indices: number[] = [];
+        const colIdx = this.getIndex(label);
+        const colData = this._processedValues[colIdx];
+        const len = colData.length;
 
-        for (let i = 0; i < col.values.length; i++) {
-            if (fn(col.values[i])) {
-                indices.push(i);
+        if (len === 0) {
+            return this.newTableByIndices(new Int32Array(0));
+        }
+
+        const matchingIndices = new Int32Array(len);
+        let matchCount = 0;
+
+        for (let i = 0; i < len; i++) {
+            if (fn(colData[i])) {
+                matchingIndices[matchCount++] = i;
             }
         }
 
-        return this.newTableByIndices(indices);
+        return this.newTableByIndices(matchingIndices.subarray(0, matchCount));
     }
 
     private getColsByIndices(indices: number[]): Table {
@@ -482,9 +481,11 @@ export default class Table {
             throw new Error('You must provide at least one index!');
         }
 
-        const rows = indices.map(index => [...this._table[index].values]);
+        const origCols = indices.map(index => [...this._originalValues[index]]);
+        const procCols = indices.map(index => [...this._processedValues[index]]);
         const colInfos = indices.map(index => ({ ...this._colInfos[index] }));
-        return new Table(rows, colInfos);
+
+        return new Table(origCols, colInfos, procCols);
     }
 
     public select(...labels: (string | number)[]): Table {
@@ -496,75 +497,29 @@ export default class Table {
         return this.getColsByIndices(indices);
     }
 
-    public drop(...labels: (string | number)[]) {
-        const indices: number[] = [];
+    public drop(...labels: (string | number)[]): Table {
+        const dropIndices = labels.map(label => this.getIndex(label));
+        const keepIndices: number[] = [];
 
-        for (let i = 0; i < this._table.length; i++) {
-            if (!labels.includes(this._table[i].label)) {
-                indices.push(i);
+        for (let i = 0; i < this._processedValues.length; i++) {
+            if (!dropIndices.includes(i)) {
+                keepIndices.push(i);
             }
         }
 
-        return this.getColsByIndices(indices);
+        return this.getColsByIndices(keepIndices);
     }
 
-    /**
-     * Appends a new column to the beginning (index 0) of the table as a first column.
-     * Preserves existing column types and returns a new Table instance to enforce immutability.
-     * 
-     * @param {any[]} values - The row values for the new column. Length must match current row count.
-     * @param {ColInfo} colInfo - Metadata descriptor containing the label and optional column type.
-     * @returns {Table} A new Table instance with the newly prepended column.
-     * @throws {Error} Throws if `values` length does not match the current table row count.
-     */
     public addColumnFirst(values: any[], colInfo: ColInfo): Table {
-        if (values.length !== this.rowCount && this.rowCount !== 0) {
-            throw new Error(
-                `The provided values length (${values.length}) does not match table row count (${this.rowCount})!`
-            );
-        }
-
-        const newCol = this.createColInstance(values, colInfo);
-
-        const newCols = [newCol, ...this._table.map(col => this.cloneColumn(col))];
-
-        return new Table(newCols);
+        return this.addColumnAt(values, colInfo, 0);
     }
 
-    /**
-     * Appends a new column to the end of the table as the last column.
-     * Preserves existing column types and returns a new Table instance to enforce immutability.
-     * 
-     * @param {any[]} values - The row values for the new column. Length must match current row count.
-     * @param {ColInfo} colInfo - Metadata descriptor containing the label and optional column type.
-     * @returns {Table} A new Table instance with the newly appended column.
-     * @throws {Error} Throws if `values` length does not match the current table row count.
-     */
     public addColumnLast(values: any[], colInfo: ColInfo): Table {
-        if (values.length !== this.rowCount && this.rowCount !== 0) {
-            throw new Error(
-                `The provided values length (${values.length}) does not match table row count (${this.rowCount})!`
-            );
-        }
-
-        const newCol = this.createColInstance(values, colInfo);
-        const newCols = [...this._table.map(col => this.cloneColumn(col)), newCol];
-
-        return new Table(newCols);
+        return this.addColumnAt(values, colInfo, this._processedValues.length);
     }
 
-    /**
-     * Inserts a new column into the table at a specified zero-based index position.
-     * Preserves existing column types and returns a new Table instance to enforce immutability.
-     * 
-     * @param {any[]} values - The row values for the new column. Length must match current row count.
-     * @param {ColInfo} colInfo - Metadata descriptor containing the label and optional column type.
-     * @param {number} index - The zero-based index position where the new column should be inserted.
-     * @returns {Table} A new Table instance with the inserted column at the targeted position.
-     * @throws {Error} Throws if `index` is out of bounds or `values` length does not match row count.
-     */
     public addColumnAt(values: any[], colInfo: ColInfo, index: number): Table {
-        if (index < 0 || index > this._table.length) {
+        if (index < 0 || index > this._processedValues.length) {
             throw new Error('The given index is invalid!');
         }
 
@@ -574,33 +529,28 @@ export default class Table {
             );
         }
 
-        const newCol = this.createColInstance(values, colInfo);
-        const newCols = this._table.map(col => this.cloneColumn(col));
-        newCols.splice(index, 0, newCol as AnyColumn);
+        const info = { ...colInfo };
+        if (!info.type) {
+            info.type = this.getColType(values);
+        }
 
-        return new Table(newCols);
+        const newOrig = this._originalValues.map(c => [...c]);
+        const newProc = this._processedValues.map(c => [...c]);
+        const newInfos = this._colInfos.map(i => ({ ...i }));
+
+        newOrig.splice(index, 0, [...values]);
+        newProc.splice(index, 0, [...values]);
+        newInfos.splice(index, 0, info);
+
+        return new Table(newOrig, newInfos, newProc);
     }
 
-    /**
-     * Removes rows containing missing, empty, or NaN values based on the specified column.
-     * Works universally across all column types (NumberColumn, StringColumn, BoolColumn).
-     * 
-     * @param {string | number} label - The label or index identifier of the target column.
-     * @returns {Table} A new Table containing only valid rows.
-     */
     public dropNa(label: string | number): Table {
         const col = this.getCol(label);
         const validIndices = col.getValidIndices();
         return this.newTableByIndices(validIndices);
     }
 
-    /**
-     * Removes rows where values in the specified numeric column fall outside boundary thresholds.
-     * 
-     * @param {string | number} label - The label or index identifier of the target numeric column.
-     * @param {Boundaries} boundaries - The lower (`min`) and upper (`max`) threshold boundaries.
-     * @returns {Table} A new Table containing only non-outlier rows based on the boundaries.
-     */
     public dropOutliers(label: string | number, boundaries: Boundaries): Table {
         const col = this.getCol(label);
 
@@ -612,14 +562,6 @@ export default class Table {
         return this.newTableByIndices(validIndices);
     }
 
-    /**
-     * Removes rows where values in the specified numeric column are outliers based on Tukey's IQR rule.
-     * 
-     * @param {string | number} label - The label or index identifier of the target numeric column.
-     * @param {number} [multiplier=1.5] - The IQR multiplier factor (1.5 for mild, 3.0 for extreme outliers).
-     * @param {PercentMode} [percentMode='interpolated'] - The mode used for percentile estimation.
-     * @returns {Table} A new Table containing only non-outlier rows based on IQR logic.
-     */
     public dropOutliersIqr(
         label: string | number,
         multiplier: number = 1.5,
@@ -635,115 +577,69 @@ export default class Table {
         return this.newTableByIndices(validIndices);
     }
 
-    /**
-     * Imputes missing or NaN values in a specified numeric column using a statistical imputation strategy (MEAN, MEDIAN, MODE).
-     * Returns a new Table instance, preserving immutability.
-     * 
-     * @param {string | number} label - The label name or zero-based index of the target numeric column.
-     * @param {ImputeType} type - The statistical imputation strategy to apply ('MEAN', 'MEDIAN', or 'MODE').
-     * @returns {Table} A new Table instance containing the statistically imputed values.
-     * @throws {Error} Throws if the target column is not an instance of NumberColumn.
-     */
     public fillNaNumeric(label: string | number, type: ImputeType): Table {
-        const targetCol = this.getCol(label);
+        const targetCol = this.getCol(label) as NumberColumn;
 
         if (!(targetCol instanceof NumberColumn)) {
             throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
         }
 
         const targetIndex = this.getIndex(label);
-        const imputedValues = targetCol.getImputedValues(type);
+        const imputedValues = replaceEmptyValues(targetCol.values as number[], type);
 
-        const newCols = this._table.map((col, idx) => {
-            if (idx === targetIndex) {
-                return new NumberColumn(imputedValues, col.label);
-            }
-            return this.cloneColumn(col);
+        const newProc = this._processedValues.map((col, idx) => {
+            if (idx === targetIndex) return [...imputedValues];
+            return [...col];
         });
 
-        return this.createTableFromCols(newCols);
+        return new Table(this._originalValues, this._colInfos, newProc);
     }
 
-    /**
-     * Replaces outlier values in a specified numeric column using absolute boundary thresholds.
-     *
-     * @param {string | number} label - The label or zero-based index of the target numeric column.
-     * @param {ImputeType} type - The imputation strategy to apply for outliers (e.g., 'mean', 'median', 'mode').
-     * @param {Boundaries} boundaries - The lower and upper numerical boundaries defining valid data range.
-     * @returns {Table} A new Table instance with imputed outliers in the target column.
-     * @throws {Error} If the specified column is not an instance of NumberColumn.
-     */
     public replaceOutliers(
         label: string | number,
         type: ImputeType,
         boundaries: Boundaries
     ): Table {
-        const targetIndex = this.getIndex(label);
-        const targetCol = this._table[targetIndex];
+        const targetCol = this.getCol(label) as NumberColumn;
 
         if (!(targetCol instanceof NumberColumn)) {
             throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
         }
 
-        const newCol = targetCol.replaceOutliers(type, boundaries);
+        const targetIndex = this.getIndex(label);
+        const newCol = replaceOutliers((targetCol.values as number[]), type, boundaries);
 
-        const newCols = this._table.map((col, idx) => {
-            if (idx === targetIndex) {
-                return newCol;
-            }
-
-            return this.cloneColumn(col);
+        const newProc = this._processedValues.map((col, idx) => {
+            if (idx === targetIndex) return [...newCol];
+            return [...col];
         });
 
-        return this.createTableFromCols(newCols);
+        return new Table(this._originalValues, this._colInfos, newProc);
     }
 
-    /**
-     * Replaces outlier values in a specified numeric column using Tukey's Interquartile Range (IQR) method.
-     *
-     * @param {string | number} label - The label or zero-based index of the target numeric column.
-     * @param {ImputeType} type - The imputation strategy to apply for outliers (e.g., 'mean', 'median', 'mode').
-     * @param {number} [multiplier=1.5] - The IQR multiplier factor determining outlier thresholds (default is 1.5).
-     * @param {PercentMode} [percentMode='interpolated'] - The percentile calculation strategy for IQR boundaries.
-     * @returns {Table} A new Table instance with imputed outliers in the target column.
-     * @throws {Error} If the specified column is not an instance of NumberColumn.
-     */
     public replaceOutliersIQR(
         label: string | number,
         type: ImputeType,
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
     ): Table {
-        const targetIndex = this.getIndex(label);
-        const targetCol = this._table[targetIndex];
+        const targetCol = this.getCol(label) as NumberColumn;
 
         if (!(targetCol instanceof NumberColumn)) {
             throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
         }
 
-        const newCol = targetCol.replaceOutliersIqr(type, multiplier, percentMode);
+        const boundaries = getIqrBoundaries(targetCol.values as number[], multiplier, percentMode);
+        const targetIndex = this.getIndex(label);
+        const newCol = replaceOutliers(targetCol.values as number[], type, boundaries);
 
-        const newCols = this._table.map((col, idx) => {
-            if (idx === targetIndex) {
-                return newCol;
-            }
+        const newProc = this._processedValues.map((col, idx) =>
+            idx === targetIndex ? newCol : col
+        );
 
-            return this.cloneColumn(col);
-        });
-
-        return this.createTableFromCols(newCols);
+        return new Table(this._originalValues, this._colInfos, newProc);
     }
 
-    /**
-     * Fills missing, null, or NaN values in a specified column with a literal constant value.
-     * Enforces strict type compatibility between the target column and the provided replacement value.
-     * Returns a new Table instance, preserving immutability.
-     * 
-     * @param {string | number} label - The label name or zero-based index of the target column.
-     * @param {number | string | boolean | Date} value - The replacement constant value (must match the target column type).
-     * @returns {Table} A new Table instance containing the imputed values.
-     * @throws {Error} Throws if the replacement value type does not match the target column type.
-     */
     public fillNa(label: string | number, value: number | string | boolean | Date): Table {
         const targetCol = this.getCol(label);
 
@@ -764,30 +660,16 @@ export default class Table {
         }
 
         const targetIndex = this.getIndex(label);
+        const filledValues = targetCol.getFilledValues(value as any);
 
-        const newCols = this._table.map((col, idx) => {
-            if (idx === targetIndex) {
-                const filledValues = col.getFilledValues(value as any);
-                return this.createColumnInstance(filledValues, col);
-            }
-
-            return this.cloneColumn(col);
+        const newProc = this._processedValues.map((col, idx) => {
+            if (idx === targetIndex) return [...filledValues];
+            return [...col];
         });
 
-        return this.createTableFromCols(newCols);
+        return new Table(this._originalValues, this._colInfos, newProc);
     }
 
-    /**
-         * Creates a new calculated column by applying a transformation function to each valid element of an existing column.
-         * Places the newly generated column immediately next to the source column.
-         * Preserves missing/null/NaN values during transformation.
-         * Returns a new Table instance preserving immutability.
-         * 
-         * @param {string | number} label - The label or index identifier of the source column.
-         * @param {string} newLabel - The label for the newly created column.
-         * @param {function(val: any): any} fn - The transformation function applied to each valid entry.
-         * @returns {Table} A new Table instance containing both the original and the new calculated column.
-         */
     public mapColumn(
         label: string | number,
         newLabel: string,
@@ -798,111 +680,54 @@ export default class Table {
         }
 
         const colIndex = this.getIndex(label);
-        const newCols: Column<number | boolean | string | Date>[] = [];
+        const sourceData = this._processedValues[colIndex];
 
-        for (let i = 0; i < this._table.length; i++) {
-            const col = this._table[i];
+        let newValues: any[] = [];
 
-            if (i !== colIndex) {
-                newCols.push(this.cloneColumn(col));
-            } else {
-                newCols.push(this.cloneColumn(col));
-
-                let newValues: any[] = [];
-
-                try {
-                    newValues = col.values.map(val => {
-                        if (isNanNullUndefined(val)) return val;
-                        return fn(val as any);
-                    });
-                } catch {
-                    throw new Error(`The transformation function failed on column "${col.label}"!`);
-                }
-
-                const type = this.getColType(newValues);
-
-                switch (type) {
-                    case 'number':
-                        newCols.push(new NumberColumn(newValues, newLabel));
-                        break;
-                    case 'string':
-                        newCols.push(new StringColumn(newValues, newLabel));
-                        break;
-                    case 'bool':
-                        newCols.push(new BoolColumn(newValues, newLabel));
-                        break;
-                    case 'date':
-                        newCols.push(new DateColumn(newValues, newLabel));
-                        break;
-                    default:
-                        throw new Error(`Unsupported column type result: ${type}`);
-                }
-            }
+        try {
+            newValues = sourceData.map(val => {
+                if (isNanNullUndefined(val)) return val;
+                return fn(val as any);
+            });
+        } catch {
+            throw new Error(`The transformation function failed on column "${this._colInfos[colIndex].label}"!`);
         }
 
-        return this.createTableFromCols(newCols);
+        const newType = this.getColType(newValues);
+        const newColInfo: ColInfo = { label: newLabel, type: newType };
+
+        return this.addColumnAt(newValues, newColInfo, colIndex + 1);
     }
 
-    /**
-     * Applies a transformation function in-place to each valid cell of an existing column.
-     * Preserves missing/null/undefined/NaN values during transformation.
-     * Automatically updates the column class instance and metadata type if the output data type changes.
-     * 
-     * @param {string | number} identifier - The label or zero-based index of the target column.
-     * @param {function(val: any): any} fn - The mapping function applied to each non-missing cell value.
-     * @throws {Error} Throws if the transformation fails or if the updated type is unsupported.
-     */
     public applyColumn(
         identifier: string | number,
         fn: (val: number | boolean | string) => number | boolean | string
     ): Table {
         const index = this.getIndex(identifier);
-        const col = this._table[index];
+        const sourceData = this._processedValues[index];
 
         let newValues: any[] = [];
 
         try {
-            newValues = col.values.map(val => {
+            newValues = sourceData.map(val => {
                 if (isNanNullUndefined(val)) return val;
                 return fn(val as any);
             });
         } catch {
-            throw new Error(`The transformation function failed on column "${col.label}"!`);
+            throw new Error(`The transformation function failed on column "${this._colInfos[index].label}"!`);
         }
 
-        const newType = this.getColType(newValues);
-        const currentLabel = col.label;
+        const nonNullValues = newValues.filter(v => !isNanNullUndefined(v));
+        const newType = nonNullValues.length > 0
+            ? this.getColType(nonNullValues)
+            : this._colInfos[index].type;
 
-        switch (newType) {
-            case 'number':
-                this._table[index] = new NumberColumn(newValues, currentLabel);
-                break;
-            case 'string':
-                this._table[index] = new StringColumn(newValues, currentLabel);
-                break;
-            case 'bool':
-                this._table[index] = new BoolColumn(newValues, currentLabel);
-                break;
-            case 'date':
-                this._table[index] = new DateColumn(newValues, currentLabel);
-                break;
-            default:
-                throw new Error(`Unsupported column type result: ${newType}`);
-        }
-
+        this._processedValues[index] = newValues;
         this._colInfos[index].type = newType;
-        return new Table(this._table);
+
+        return this;
     }
 
-    /**
-     * Performs element-wise arithmetic operations across multiple numeric columns 
-     * and appends the result as a new NumberColumn.
-     * 
-     * @param {string[]} labels - The labels of the target numeric columns to evaluate in order.
-     * @param {'+' | '-' | '*' | '/'} operation - The arithmetic operator to apply sequentially across columns.
-     * @param {string} newLabel - The label for the newly created calculated column.
-     * @returns {Table} A new Table instance containing the new calculated column.
-     */
     public combineColumns(
         labels: string[],
         operation: '+' | '-' | '*' | '/',
@@ -920,31 +745,29 @@ export default class Table {
             throw new Error(`A column with the label "${newLabel}" already exists!`);
         }
 
-        const numCols = labels.map(label => {
-            const col = this.getCol(label);
-
-            if (!(col instanceof NumberColumn)) {
+        const colIndices = labels.map(label => {
+            const index = this.getIndex(label);
+            if (this._colInfos[index].type !== 'number') {
                 throw new Error(`Column "${label}" is not a numeric column!`);
             }
-
-            return col;
-        }) as NumberColumn[];
+            return index;
+        });
 
         const rowCount = this.rowCount;
-        const newValues: (number | null)[] = [];
+        const newValues: number[] = [];
 
         for (let row = 0; row < rowCount; row++) {
-            let result = numCols[0].values[row];
+            let result = this._processedValues[colIndices[0]][row] as number;
 
             if (isNanNullUndefined(result)) {
-                newValues.push(null);
+                newValues.push(NaN);
                 continue;
             }
 
             let hasError = false;
 
-            for (let c = 1; c < numCols.length; c++) {
-                const nextVal = numCols[c].values[row];
+            for (let c = 1; c < colIndices.length; c++) {
+                const nextVal = this._processedValues[colIndices[c]][row];
 
                 if (isNanNullUndefined(nextVal)) {
                     hasError = true;
@@ -980,17 +803,6 @@ export default class Table {
         return this.addColumnLast(newValues, newColInfo);
     }
 
-    /**
-     * Merges multiple string columns element-wise into a single new string column using a specified separator string.
-     * Places the newly created column immediately after the last column in the labels list.
-     * Treats missing/NaN/null values as empty strings during concatenation.
-     * 
-     * @param {string[]} labels - Array of column labels to merge in order.
-     * @param {string} separator - The delimiter inserted between merged column values.
-     * @param {string} newLabel - The label for the newly created merged string column.
-     * @returns {Table} A new Table instance containing the newly created merged column.
-     * @throws {Error} Throws if fewer than two column labels are provided.
-     */
     public mergeColumns(
         labels: string[],
         separator: string,
@@ -1000,14 +812,14 @@ export default class Table {
             throw new Error('At least two column labels are required to merge!');
         }
 
-        const cols = labels.map(label => this.getCol(label));
-        const lastIndex = this.getIndex(labels[labels.length - 1]);
+        const colIndices = labels.map(label => this.getIndex(label));
+        const lastIndex = colIndices[colIndices.length - 1];
         const rowCount = this.rowCount;
         const newValues: string[] = [];
 
         for (let row = 0; row < rowCount; row++) {
-            const rowValues = cols.map(col => {
-                const val = col.values[row];
+            const rowValues = colIndices.map(idx => {
+                const val = this._processedValues[idx][row];
 
                 if (isNanNullUndefined(val)) {
                     return '';
@@ -1027,14 +839,14 @@ export default class Table {
         console.log(`================================================================================`);
         console.log(`=================================TABLE SUMMARY==================================`);
         console.log(`================================================================================`);
-        console.log(`Shape: ${this.rowCount} rows x ${this._table.length} columns\n`);
+        console.log(`Shape: ${this.rowCount} rows x ${this._processedValues.length} columns\n`);
         console.log(`--- Column Overview ---`);
 
         const totalRows = this.rowCount;
         const columnInfos: ColumnInfo[] = [];
 
-        for (let i = 0; i < this._table.length; i++) {
-            const col = this._table[i];
+        for (let i = 0; i < this._processedValues.length; i++) {
+            const col = this.getCol(i);
             const missing = col.countMissing();
             const valid = col.countValid();
 
@@ -1042,14 +854,9 @@ export default class Table {
                 ? Number(((missing / totalRows) * 100).toFixed(2))
                 : 0;
 
-            let resolvedType: ColType = 'string';
-            if (col instanceof NumberColumn) resolvedType = 'number';
-            else if (col instanceof BoolColumn) resolvedType = 'bool';
-            else if (col instanceof DateColumn) resolvedType = 'date';
-
             columnInfos.push({
                 columnName: col.label,
-                type: resolvedType,
+                type: this._colInfos[i].type ?? 'string',
                 missingCount: missing,
                 validCount: valid,
                 missingPercent: `${missingPercent}%`
@@ -1061,7 +868,9 @@ export default class Table {
         const numericStats: Record<string, unknown>[] = [];
         const dateStats: Record<string, unknown>[] = [];
 
-        for (const col of this._table) {
+        for (let i = 0; i < this._processedValues.length; i++) {
+            const col = this.getCol(i);
+
             if (col instanceof NumberColumn) {
                 numericStats.push({
                     columnName: col.label,
@@ -1076,8 +885,8 @@ export default class Table {
             if (col instanceof DateColumn) {
                 dateStats.push({
                     columnName: col.label,
-                    min: displayDateString(col.min()),
-                    max: displayDateString(col.max())
+                    min: displayDateString((col as DateColumn).min()),
+                    max: displayDateString((col as DateColumn).max())
                 });
             }
         }
@@ -1093,20 +902,16 @@ export default class Table {
         }
     }
 
-    /**
-     * Converts the table data into an array of plain JavaScript objects,
-     * where each object represents a single row mapped by column labels.
-     * 
-     * @returns {Record<string, any>[]} An array of row objects mapping column labels to cell values.
-     */
     public toObject(): Record<string, any>[] {
         const finalObj: Record<string, any>[] = [];
+        const rowCount = this.rowCount;
+        const colCount = this._processedValues.length;
 
-        for (let row = 0; row < this.rowCount; row++) {
+        for (let row = 0; row < rowCount; row++) {
             const obj: Record<string, any> = {};
 
-            for (let col = 0; col < this._table.length; col++) {
-                obj[this._table[col].label] = this._table[col].values[row];
+            for (let col = 0; col < colCount; col++) {
+                obj[this._colInfos[col].label] = this._processedValues[col][row];
             }
 
             finalObj.push(obj);
@@ -1115,20 +920,14 @@ export default class Table {
         return finalObj;
     }
 
-    /**
-     * Exports the table data into a CSV string format using a custom delimiter.
-     * Handles missing, null, or NaN values by outputting empty entries.
-     * 
-     * @param {string} [separator=';'] - The column separator character to use in the output.
-     * @returns {string} Delimited text output containing headers and formatted row values.
-     */
     public toCSV(separator: string = ';'): string {
-        const labels = this._table.map(col => col.label);
+        const labels = this._colInfos.map(info => info.label);
         let finalStr = labels.join(separator) + "\n";
+        const rowCount = this.rowCount;
 
-        for (let row = 0; row < this.rowCount; row++) {
-            const rowValues = this._table.map(col => {
-                const val = col.values[row];
+        for (let row = 0; row < rowCount; row++) {
+            const rowValues = this._processedValues.map(col => {
+                const val = col[row];
 
                 if (isNanNullUndefined(val)) {
                     return '';
@@ -1143,21 +942,16 @@ export default class Table {
         return finalStr;
     }
 
-    /**
-     * Converts the table structure into a 2D matrix (array of row arrays),
-     * omitting column headers and keeping raw cell values.
-     * 
-     * @returns {any[][]} A 2D array representing table rows and cell values.
-     */
     public toMatrix(): any[][] {
         const matrix: any[][] = [];
-        const colCount = this._table.length;
+        const colCount = this._processedValues.length;
+        const rowCount = this.rowCount;
 
-        for (let row = 0; row < this.rowCount; row++) {
+        for (let row = 0; row < rowCount; row++) {
             const rowData: any[] = [];
 
             for (let col = 0; col < colCount; col++) {
-                rowData.push(this._table[col].values[row]);
+                rowData.push(this._processedValues[col][row]);
             }
 
             matrix.push(rowData);

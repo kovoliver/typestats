@@ -1,6 +1,7 @@
 import { getColumn } from "../statistics/bivariate.js";
-import { mean, median, mode, std } from "../statistics/univariate.js";
-import { Boundaries, ImputeType, ScaleType } from "../types/types.js";
+import { mean, median, mode, q1, q3, std } from "../statistics/univariate.js";
+import { Boundaries, ImputeType, PercentMode, ScaleType } from "../types/types.js";
+import { orderAsc } from "../utils/numberUtils.js";
 import {
     defaultValue, getMax, getMin,
     getNonEmptyValues, isEmpty, isNumeric,
@@ -42,6 +43,23 @@ function getSubstitute(
         default:
             throw new Error("The specified imputation type isn't implemented!");
     }
+}
+
+export function getIqrBoundaries(
+    values: (number|null)[],
+    multiplier: number = 1.5,
+    percentMode: PercentMode = 'interpolated'
+): Boundaries {
+    const validValues = getNonEmptyValues(values);
+    const sortedValues = orderAsc([...validValues]);
+    const q1Val = q1(sortedValues, percentMode, undefined, true);
+    const q3Val = q3(sortedValues, percentMode, undefined, true);
+    const iqrVal = q3Val - q1Val;
+
+    return {
+        min: q1Val - (iqrVal * multiplier),
+        max: q3Val + (iqrVal * multiplier)
+    };
 }
 
 export function isInvalidValue(val: any, boundaries?: Boundaries): boolean {
@@ -121,81 +139,40 @@ export function decodeOneHot(matrix: number[][], categories: string[]): string[]
  * @throws {Error} Throws if the array is empty, non-2D structures are passed, or `colIndex` is missing for a 2D matrix.
  */
 export function replaceValues(
-    values: any[] | any[][],
+    values: number[],
     type: ImputeType,
-    boundaries?: Boundaries,
-    colIndex?: number
-) {
-    if (values.length === 0) {
+    boundaries?: Boundaries
+): number[] {
+    const len = values.length;
+
+    if (len === 0) {
         throw new Error('You must add at least one value!');
     }
 
-    if (Array.isArray(values[0]) && colIndex === undefined) {
-        throw new Error('You must provide column index when the given values are in a 2d array!');
+    const validValues = getNonEmptyValues(values);
+    const substitute = getSubstitute(validValues, type, boundaries);
+    const result = new Float64Array(len);
+
+    if (boundaries !== undefined) {
+        const min = boundaries.min ?? -Infinity;
+        const max = boundaries.max ?? Infinity;
+
+        for (let i = 0; i < len; i++) {
+            const val = values[i];
+            if (Number.isFinite(val) && (val < min || val > max)) {
+                result[i] = substitute;
+            } else {
+                result[i] = val;
+            }
+        }
+    } else {
+        for (let i = 0; i < len; i++) {
+            const val = values[i];
+            result[i] = Number.isNaN(val) ? substitute : val;
+        }
     }
 
-    if (Array.isArray(values[0])) {
-        if (!values.every(arr => Array.isArray(arr))) {
-            throw new Error('You must provide a strictly two-dimensional array!');
-        }
-
-        if (values[0].length === 0) {
-            throw new Error('You must add at least one value!');
-        }
-
-        const newValues = values.map(row => [...row]);
-
-        const column = toNumberArray(getNonEmptyValues(getColumn(values, colIndex!)));
-        const substitute = getSubstitute(column, type, boundaries);
-
-        for (let row = 0; row < values.length; row++) {
-            const currentVal = isNumeric(values[row][colIndex!])
-                ? parseFloat(values[row][colIndex!].toString()) : NaN;
-
-            newValues[row][colIndex!] = boundaries
-                ? replaceOutlier(
-                    currentVal, substitute, boundaries.min, boundaries.max
-                )
-                : defaultValue(currentVal, substitute);
-        }
-
-        return newValues;
-    }
-
-    const numericValues = toNumberArray(values);
-    const substitute = getSubstitute(getNonEmptyValues(numericValues), type, boundaries);
-
-    return numericValues.map((val) => boundaries ?
-        replaceOutlier(val, substitute, boundaries.min, boundaries.max)
-        : defaultValue<number>(val, substitute));
-}
-
-/**
- * Replaces empty (`NaN`, `null`, `undefined`, `""`) values or numeric strings in a 1D array or 
- * a specific column of a 2D matrix using a statistical imputation method.
- *
- * @param {any[] | any[][]} values - A 1D array or 2D matrix containing numeric values or numeric strings.
- * @param {ImputeType} type - The imputation strategy ('MEAN', 'MEDIAN', 'MODE').
- * @param {number} [colIndex] - The target column index when processing a 2D matrix. Required for 2D arrays.
- * @returns {any[] | any[][]} A new 1D array or 2D matrix with missing values imputed.
- */
-export function replaceEmptyValues(
-    values: any[],
-    type: ImputeType
-): any[];
-
-export function replaceEmptyValues(
-    values: any[][],
-    type: ImputeType,
-    colIndex: number
-): any[][];
-
-export function replaceEmptyValues(
-    values: any[] | any[][],
-    type: ImputeType,
-    colIndex?: number
-): any[] | any[][] {
-    return replaceValues(values, type, undefined, colIndex);
+    return Array.from(result);
 }
 
 /**
@@ -210,29 +187,15 @@ export function replaceEmptyValues(
  * @throws {Error} Throws if `boundaries` is missing or contains neither a `min` nor a `max` value.
  */
 export function replaceOutliers(
-    values: any[],
+    values: number[],
     type: ImputeType,
     boundaries: Boundaries
-): any[];
-
-export function replaceOutliers(
-    values: any[][],
-    type: ImputeType,
-    boundaries: Boundaries,
-    colIndex: number
-): any[][];
-
-export function replaceOutliers(
-    values: any[] | any[][],
-    type: ImputeType,
-    boundaries: Boundaries,
-    colIndex?: number
-): any[] | any[][] {
+): number[] {
     if (!boundaries || (boundaries.min === undefined && boundaries.max === undefined)) {
         throw new Error('You must provide at least a minimum or a maximum boundary to replace outliers!');
     }
 
-    return replaceValues(values, type, boundaries, colIndex);
+    return replaceValues(values, type, boundaries);
 }
 
 /**
@@ -453,4 +416,19 @@ export function labelEncoding(
         newRow[colIndex!] = labels[column[rIdx] as string];
         return newRow;
     });
+}
+
+export function replaceEmptyValues(values: number[], imputType: ImputeType): number[] {
+    const len = values.length;
+    if (len === 0) return [];
+
+    const substitute = getSubstitute(getNonEmptyValues(values), imputType);
+    const result = new Float64Array(len);
+
+    for (let i = 0; i < len; i++) {
+        const val = values[i];
+        result[i] = isEmpty(val) ? substitute : val;
+    }
+
+    return Array.from(result);
 }

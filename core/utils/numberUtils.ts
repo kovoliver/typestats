@@ -6,11 +6,30 @@ export function round(value: number, decimals?:number): number {
 }
 
 export function orderAsc(values: number[]): number[] {
-    return values.sort((a, b) => a - b);
+    const len = values.length;
+    if (len <= 1) return [...values];
+
+    if (len >= 10000) {
+        const typed = Float64Array.from(values);
+        typed.sort();
+        return Array.from(typed);
+    }
+
+    return [...values].sort((a, b) => a - b);
 }
 
 export function orderDesc(values: number[]): number[] {
-    return values.sort((a, b) => b - a);
+    const len = values.length;
+    if (len <= 1) return [...values];
+
+    if (len >= 10000) {
+        const typed = Float64Array.from(values);
+        typed.sort();
+        typed.reverse();
+        return Array.from(typed);
+    }
+
+    return [...values].sort((a, b) => b - a);
 }
 
 export function isInteger(value: number): boolean {

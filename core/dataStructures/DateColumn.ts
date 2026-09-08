@@ -1,6 +1,6 @@
 import { TimeUnit } from "../types/types.js";
 import { isInteger, orderDesc } from "../utils/numberUtils.js";
-import { displayDateString, getFirstNonEmtpy } from "../utils/utils.js";
+import { displayDateString, getFirstNonEmtpy, toDateArray } from "../utils/utils.js";
 import Column from "./Column.js";
 
 export default class DateColumn extends Column<Date> {
@@ -29,28 +29,8 @@ export default class DateColumn extends Column<Date> {
         'Saturday'
     ] as const;
 
-    /**
-     * Creates a new DateColumn instance from raw input data.
-     * @param rawValues - Array of raw input items (string, number, Date, or null/undefined).
-     * @param label - Unique identifier/name for the column.
-     */
-    constructor(rawValues: unknown[], label: string) {
-        super(rawValues, label);
-    }
-
     protected prepareData(rawValues: unknown[]): (Date | null)[] {
-        return rawValues.map(val => {
-            if (val instanceof Date) {
-                return this.isValid(val) ? val : null;
-            }
-
-            if (typeof val === 'string' || typeof val === 'number') {
-                const d = new Date(val);
-                return this.isValid(d) ? d : null;
-            }
-
-            return null;
-        });
+        return toDateArray(rawValues);
     }
 
     protected isValid(value: Date | null): boolean {

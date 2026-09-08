@@ -4,10 +4,14 @@ export default abstract class Column<T extends number | boolean | string | Date>
     protected readonly _values: ReadonlyArray<T | null>;
     protected _label: string;
 
-    constructor(values: unknown[], label: string) {
+    constructor(
+        values: unknown[] | (T | null)[],
+        label: string,
+        isProcessed: boolean = false
+    ) {
         super();
         this._label = label;
-        this._values = this.prepareData(values);
+        this._values = !isProcessed ? this.prepareData(values) : values as (T | null)[];
     }
 
     protected abstract prepareData(rawValues: unknown[]): (T | null)[];
@@ -33,16 +37,23 @@ export default abstract class Column<T extends number | boolean | string | Date>
     /**
      * Returns an array of original zero-based row indices corresponding to valid entries.
      */
-    public getValidIndices(): number[] {
-        const indices: number[] = [];
+    public getValidIndices(): Int32Array {
+        const len = this._values.length;
 
-        for (let i = 0; i < this._values.length; i++) {
+        if (len === 0) {
+            return new Int32Array(0);
+        }
+
+        const validIndices = new Int32Array(len);
+        let count = 0;
+
+        for (let i = 0; i < len; i++) {
             if (this.isValid(this._values[i])) {
-                indices.push(i);
+                validIndices[count++] = i;
             }
         }
 
-        return indices;
+        return validIndices.subarray(0, count);
     }
 
     public get label(): string {
@@ -61,16 +72,23 @@ export default abstract class Column<T extends number | boolean | string | Date>
         return this._values;
     }
 
-    public filterIndices(predicate: (val: T | null, index: number) => boolean): number[] {
-        const indices: number[] = [];
+    public filterIndices(predicate: (val: T | null, index: number) => boolean): Int32Array {
+        const len = this._values.length;
 
-        for (let i = 0; i < this._values.length; i++) {
+        if (len === 0) {
+            return new Int32Array(0);
+        }
+
+        const indices = new Int32Array(len);
+        let count = 0;
+
+        for (let i = 0; i < len; i++) {
             if (predicate(this._values[i], i)) {
-                indices.push(i);
+                indices[count++] = i;
             }
         }
 
-        return indices;
+        return indices.subarray(0, count);
     }
 
     public filterValues(predicate: (val: T | null, index: number) => boolean): (T | null)[] {

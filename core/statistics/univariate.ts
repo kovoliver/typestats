@@ -211,7 +211,8 @@ export function percentile(
     values: number[],
     percent: number,
     mode: PercentMode = 'interpolated',
-    digits?: number
+    digits?: number,
+    isSorted: boolean = false
 ): number {
     validateValues(values);
 
@@ -219,7 +220,7 @@ export function percentile(
         throw new Error('The given percentage should be between 0 and 1!');
     }
 
-    const sortedVals = orderAsc([...values]);
+    const sortedVals = isSorted ? values : orderAsc([...values]);
 
     if (percent === 0) return round(sortedVals[0], digits);
     if (percent === 1) return round(sortedVals[sortedVals.length - 1], digits);
@@ -268,8 +269,13 @@ export function percentile(
  * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The median value.
  */
-export function median(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
-    return percentile(values, 0.5, mode, digits);
+export function median(
+    values: number[], 
+    mode: PercentMode = 'interpolated', 
+    digits?: number,
+    isSorted:boolean = false
+): number {
+    return percentile(values, 0.5, mode, digits, isSorted);
 }
 
 /**
@@ -280,8 +286,13 @@ export function median(values: number[], mode: PercentMode = 'interpolated', dig
  * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The first quartile value.
  */
-export function q1(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
-    return percentile(values, 0.25, mode, digits);
+export function q1(
+    values: number[], 
+    mode: PercentMode = 'interpolated', 
+    digits?: number, 
+    isSorted:boolean = false
+): number {
+    return percentile(values, 0.25, mode, digits, isSorted);
 }
 
 /**
@@ -292,8 +303,13 @@ export function q1(values: number[], mode: PercentMode = 'interpolated', digits?
  * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The second quartile (median) value.
  */
-export function q2(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
-    return median(values, mode, digits);
+export function q2(
+    values: number[],
+     mode: PercentMode = 'interpolated', 
+     digits?: number, 
+     isSorted:boolean = false
+    ): number {
+    return median(values, mode, digits, isSorted);
 }
 
 /**
@@ -304,8 +320,13 @@ export function q2(values: number[], mode: PercentMode = 'interpolated', digits?
  * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The third quartile value.
  */
-export function q3(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
-    return percentile(values, 0.75, mode, digits);
+export function q3(
+    values: number[],
+    mode: PercentMode = 'interpolated',
+    digits?: number,
+    isSorted:boolean = false 
+): number {
+    return percentile(values, 0.75, mode, digits, isSorted);
 }
 
 /**

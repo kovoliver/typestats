@@ -4,16 +4,6 @@ import { labelEncoding, oneHotEncode } from "../dataPreparation/dataPreparation.
 import { toStringArray } from "../utils/utils.js";
 
 export default class StringColumn extends Column<string> {
-    /**
-     * Creates an instance of StringColumn.
-     *
-     * @param {unknown[]} values - The raw input values to be converted and stored.
-     * @param {string} label - The column label/identifier.
-     */
-    constructor(values: unknown[], label: string) {
-        super(values, label);
-    }
-
     protected isValid(val: string | null): boolean {
         return typeof val === 'string' && val.trim() !== '';
     }

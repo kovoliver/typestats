@@ -3,16 +3,6 @@ import NumberColumn from "./NumberColumn.js";
 import { toBoolArray } from "../utils/utils.js";
 
 export default class BoolColumn extends Column<boolean> {
-    /**
-     * Creates an instance of BoolColumn.
-     *
-     * @param {unknown[]} values - The raw input array of values to be converted and processed.
-     * @param {string} label - The label or title identifier for the column.
-     */
-    constructor(values: unknown[], label: string) {
-        super(values, label);
-    }
-
     protected isValid(val: boolean | null): boolean {
         return typeof val === 'boolean';
     }

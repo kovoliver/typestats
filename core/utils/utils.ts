@@ -267,82 +267,127 @@ export function firstNTypeCheck(
  * @returns {number[]} A new array containing numbers or `NaN` for invalid/empty inputs.
  */
 export function toNumberArray(values: unknown[]): number[] {
-    return values.map(val => {
+    const result: number[] = [];
+    for (let i = 0; i < values.length; i++) {
+        const val = values[i];
         if (typeof val === 'number') {
-            return val;
-        }
-
-        if (val === null || val === undefined || val === '') {
-            return NaN;
-        }
-
-        if (typeof val === 'string') {
+            result.push(val);
+        } else if (typeof val === 'string') {
             const trimmed = val.trim();
-            return trimmed === '' ? NaN : Number(trimmed);
+            result.push(trimmed === '' ? NaN : Number(trimmed));
+        } else {
+            result.push(NaN);
         }
-
-        return NaN;
-    });
+    }
+    return result;
 }
 
 export function toBoolArray(values: unknown[]): (boolean | null)[] {
-    return values.map((val, index) => {
+    const result: (boolean | null)[] = [];
+
+    for (let index = 0; index < values.length; index++) {
+        const val = values[index];
+
         if (val === null || val === undefined) {
-            return null;
+            result.push(null);
+            continue;
         }
 
         if (typeof val === 'boolean') {
-            return val;
+            result.push(val);
+            continue;
         }
 
         if (typeof val === 'number') {
-            if (val === 1) return true;
-            if (val === 0) return false;
+            if (val === 1) { result.push(true); continue; }
+            if (val === 0) { result.push(false); continue; }
             throw new Error(`Invalid number at index ${index}: ${val}. Only 1 and 0 are allowed.`);
         }
 
         if (typeof val === 'string') {
+            // gyors út: a leggyakoribb esetek allokáció (trim/toLowerCase) nélkül
+            if (val === 'true') { result.push(true); continue; }
+            if (val === 'false') { result.push(false); continue; }
+
             const normalized = val.trim().toLowerCase();
 
             if (normalized === '' || normalized === 'null' || normalized === 'undefined') {
-                return null;
+                result.push(null);
+                continue;
             }
-
             if (normalized === 'false' || normalized === '0' || normalized === 'off' || normalized === 'no') {
-                return false;
+                result.push(false);
+                continue;
             }
-
             if (normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes') {
-                return true;
+                result.push(true);
+                continue;
             }
 
             throw new Error(`Cannot parse boolean from string at index ${index}: "${val}"`);
         }
 
         throw new Error(`Unsupported type at index ${index}: ${typeof val}`);
-    });
+    }
+
+    return result;
 }
 
 export function toStringArray(values: unknown[]): (string | null)[] {
-    return values.map((val, index) => {
+    const result: (string | null)[] = [];
+
+    for (let index = 0; index < values.length; index++) {
+        const val = values[index];
+
         if (val === null || val === undefined) {
-            return null;
+            result.push(null);
+            continue;
         }
 
         if (typeof val === 'string') {
-            const normalized = val.trim().toLowerCase();
-            if (normalized === 'null' || normalized === 'undefined') {
-                return null;
+            if (val.length <= 11) {
+                const normalized = val.trim().toLowerCase();
+                if (normalized === 'null' || normalized === 'undefined') {
+                    result.push(null);
+                    continue;
+                }
             }
-            return val;
+            result.push(val);
+            continue;
         }
 
         if (typeof val === 'number' || typeof val === 'boolean' || typeof val === 'bigint') {
-            return String(val);
+            result.push(String(val));
+            continue;
         }
 
         throw new Error(`Cannot convert value at index ${index} to string. Unsupported type: ${typeof val}`);
-    });
+    }
+
+    return result;
+}
+
+export function toDateArray(rawValues: unknown[]): (Date | null)[] {
+    const result: (Date | null)[] = [];
+
+    for (let i = 0; i < rawValues.length; i++) {
+        const val = rawValues[i];
+
+        if (val instanceof Date) {
+            result.push(isNaN(val.getTime()) ? null : val);
+            continue;
+        }
+
+        if (typeof val === 'string' || typeof val === 'number') {
+            const d = new Date(val);
+            result.push(isNaN(d.getTime()) ? null : d);
+            continue;
+        }
+
+        result.push(null);
+    }
+
+    return result;
 }
 
 /**
