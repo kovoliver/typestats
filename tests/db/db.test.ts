@@ -1,9 +1,13 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { createConnection } from '../../core/db/connectionPool';
 import { getTableFromQuery } from '../../core/db/getTableFromQuery';
-import { DbEngineType, DbConnection } from '../../core/types';
+import { DbEngineType } from '../../core/types';
 import Table from '../../core/dataStructures/Table';
 import dotenv from 'dotenv';
+import { DbConnection } from '../../core/types/interfaces';
+import { performance } from 'perf_hooks';
+import { getTableFromQueryParallel } from '../../core/db/getTableFromQueryParallel';
+
 dotenv.config();
 
 describe('Database Integration Tests (Local RDBMS)', () => {
@@ -18,11 +22,11 @@ describe('Database Integration Tests (Local RDBMS)', () => {
     it('should fetch data and convert to Table from local MySQL', async () => {
         const conn = await createConnection({
             engine: DbEngineType.mysql,
-            host: process.env.MYSQL_HOST ?? '',
-            port: parseInt(process.env.MYSQL_PORT ?? '3306'),
-            user: process.env.MYSQL_USER ?? '',
+            host: process.env.MYSQL_HOST ?? 'localhost',
+            port: parseInt(process.env.MYSQL_PORT ?? '3306', 10),
+            user: process.env.MYSQL_USER ?? 'root',
             password: process.env.MYSQL_PASSWORD ?? '',
-            database: process.env.MYSQL_DATABASE ?? '',
+            database: process.env.MYSQL_DATABASE ?? 'typestats_test',
         });
         connections.push(conn);
 
@@ -68,4 +72,79 @@ describe('Database Integration Tests (Local RDBMS)', () => {
         expect(table.rowCount).toBeGreaterThan(0);
         expect(table.table.length).toBeGreaterThan(0);
     });
+
+    it('PERFORMANCE TEST: Large dataset streaming benchmark (MySQL - mock_data)', async () => {
+        const conn = await createConnection({
+            engine: DbEngineType.mysql,
+            host: process.env.MYSQL_HOST ?? 'localhost',
+            port: parseInt(process.env.MYSQL_PORT ?? '3306', 10),
+            user: process.env.MYSQL_USER ?? 'root',
+            password: process.env.MYSQL_PASSWORD ?? '',
+            database: 'typestats_test',
+        });
+        connections.push(conn);
+
+        const startMemory = process.memoryUsage().heapUsed / 1024 / 1024;
+        const startTime = performance.now();
+
+        const table = await getTableFromQuery(conn, 'SELECT * FROM mock_data');
+
+        const endTime = performance.now();
+        const endMemory = process.memoryUsage().heapUsed / 1024 / 1024;
+
+        const durationInSeconds = (endTime - startTime) / 1000;
+        const rowsPerSecond = Math.round(table.rowCount / durationInSeconds);
+        const memoryDiffMB = (endMemory - startMemory).toFixed(2);
+
+        console.log('\n==================================================');
+        console.log('🚀 MYSQL PERFORMANCE BENCHMARK RESULTS');
+        console.log('==================================================');
+        console.log(`📊 Tábla:             mock_data`);
+        console.log(`🔢 Beolvasott sorok:  ${table.rowCount.toLocaleString()} db`);
+        console.log(`📐 Oszlopok száma:    ${table.colCount} db`);
+        console.log(`⏱️  Feldolgozási idő:  ${durationInSeconds.toFixed(3)} másodperc`);
+        console.log(`⚡ Sebesség:          ${rowsPerSecond.toLocaleString()} sor/másodperc`);
+        console.log(`🧠 Memória változás:  +${memoryDiffMB} MB`);
+        console.log('==================================================\n');
+
+        expect(table).toBeInstanceOf(Table);
+        expect(table.rowCount).toBeGreaterThan(0);
+    }, 60_000);
+
+    it('PERFORMANCE TEST: Large dataset streaming benchmark PARALLEL (MySQL - mock_data)', async () => {
+        const conn = await createConnection({
+            engine: DbEngineType.mysql,
+            host: process.env.MYSQL_HOST ?? 'localhost',
+            port: parseInt(process.env.MYSQL_PORT ?? '3306', 10),
+            user: process.env.MYSQL_USER ?? 'root',
+            password: process.env.MYSQL_PASSWORD ?? '',
+            database: 'typestats_test',
+        });
+        connections.push(conn);
+
+        const startMemory = process.memoryUsage().heapUsed / 1024 / 1024;
+        const startTime = performance.now();
+        const table = await getTableFromQueryParallel(conn, 'SELECT * FROM mock_data');
+
+        const endTime = performance.now();
+        const endMemory = process.memoryUsage().heapUsed / 1024 / 1024;
+
+        const durationInSeconds = (endTime - startTime) / 1000;
+        const rowsPerSecond = Math.round(table.rowCount / durationInSeconds);
+        const memoryDiffMB = (endMemory - startMemory).toFixed(2);
+
+        console.log('\n==================================================');
+        console.log('⚡ MYSQL PARALLEL PERFORMANCE BENCHMARK RESULTS');
+        console.log('==================================================');
+        console.log(`📊 Tábla:             mock_data`);
+        console.log(`🔢 Beolvasott sorok:  ${table.rowCount.toLocaleString()} db`);
+        console.log(`📐 Oszlopok száma:    ${table.colCount} db`);
+        console.log(`⏱️  Feldolgozási idő:  ${durationInSeconds.toFixed(3)} másodperc`);
+        console.log(`⚡ Sebesség:          ${rowsPerSecond.toLocaleString()} sor/másodperc`);
+        console.log(`🧠 Memória változás:  +${memoryDiffMB} MB`);
+        console.log('==================================================\n');
+
+        expect(table).toBeInstanceOf(Table);
+        expect(table.rowCount).toBeGreaterThan(0);
+    }, 60_000);
 });
