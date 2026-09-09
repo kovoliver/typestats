@@ -329,46 +329,57 @@ export function toBoolArray(values: unknown[]): (boolean | null)[] {
 }
 
 export function toStringArray(values: unknown[]): (string | null)[] {
-    const result: (string | null)[] = [];
     const len = values.length;
+    const result: (string | null)[] = [];
+
+    for (let i = 0; i < len; i++) {
+        const val = values[i];
+
+        if (val === null || val === undefined) {
+            result.push(null);
+            continue;
+        }
+
+        if (typeof val === 'string') {
+            const trimmed = val.trim();
+            if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
+                result.push(null);
+            } else {
+                result.push(val);
+            }
+            continue;
+        }
+
+        result.push(String(val));
+    }
+
+    return result;
+}
+
+export function toDateArray(values: unknown[]): (Date | null)[] {
+    const len = values.length;
+    const result: (Date | null)[] = [];
 
     for (let i = 0; i < len; i++) {
         const val = values[i];
 
         if (val === null || val === undefined || val === '') {
             result.push(null);
-        } else if (typeof val === 'string') {
-            result.push(val);
-        } else {
-            result.push(String(val));
+            continue;
         }
-    }
 
-    return result;
-}
-
-function parseFastISO(s: string): Date | null {
-    if (s.length < 10) return null;
-    const y = +s.substring(0, 4);
-    const m = +s.substring(5, 7) - 1;
-    const d = +s.substring(8, 10);
-    const time = Date.UTC(y, m, d);
-    return Number.isNaN(time) ? null : new Date(time);
-}
-
-export function toDateArray(rawValues: unknown[]): (Date | null)[] {
-    const result: (Date | null)[] = [];
-    const len = rawValues.length;
-
-    for (let i = 0; i < len; i++) {
-        const val = rawValues[i];
-        if (typeof val === 'string') {
-            result.push(parseFastISO(val));
-        } else if (val instanceof Date) {
-            result.push(Number.isNaN(val.getTime()) ? null : val);
-        } else {
-            result.push(null);
+        if (val instanceof Date) {
+            result.push(isNaN(val.getTime()) ? null : val);
+            continue;
         }
+
+        if (typeof val === 'string' || typeof val === 'number') {
+            const d = new Date(val);
+            result.push(isNaN(d.getTime()) ? null : d);
+            continue;
+        }
+
+        result.push(null);
     }
 
     return result;
@@ -520,4 +531,58 @@ export function displayDateString(d: Date | null): string | null {
     }
 
     return d.toISOString().split('T')[0];
+}
+
+export function parseNumber(val: unknown): number {
+    if (typeof val === 'number') return val;
+
+    if (typeof val === 'string' && val.length > 0) {
+        const num = +val;
+        return isNaN(num) ? NaN : num;
+    }
+
+    return NaN;
+}
+
+export function parseBool(val: unknown): boolean | null {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'boolean') return val;
+    if (val === 'true' || val === '1' || val === 1 || val === 'yes' || val === 'on') return true;
+    if (val === 'false' || val === '0' || val === 0 || val === 'no' || val === 'off') return false;
+
+    const s = String(val).trim().toLowerCase();
+    if (s === '' || s === 'null' || s === 'undefined') return null;
+    if (s === 'true' || s === '1' || s === 'yes' || s === 'on') return true;
+    if (s === 'false' || s === '0' || s === 'no' || s === 'off') return false;
+
+    throw new Error(`Cannot parse boolean value: "${val}"`);
+}
+
+export function parseString(val: unknown): string | null {
+    if (val === null || val === undefined) return null;
+
+    if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
+            return null;
+        }
+        return val;
+    }
+
+    return String(val);
+}
+
+export function parseDate(val: unknown): Date | null {
+    if (val === null || val === undefined || val === '') return null;
+
+    if (val instanceof Date) {
+        return isNaN(val.getTime()) ? null : val;
+    }
+
+    if (typeof val === 'string' || typeof val === 'number') {
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    
+    return null;
 }

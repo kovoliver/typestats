@@ -1,7 +1,15 @@
 import { readFile } from 'fs/promises';
 import Table from "../dataStructures/Table.js";
-import { processCSVData, processJSONData } from './ioutils.js';
+import { processCSVData, processJSONData, readInChunks } from './ioutils.js';
 import { writeTableFile } from './ioutils.js';
+import { ColInfo, ColType } from '../types/types.js';
+import { getColType } from './chunkProcessor.js';
+import {
+    toNumberArray,
+    toBoolArray,
+    toDateArray,
+    toStringArray
+} from '../utils/utils.js';
 
 /**
  * Asynchronously reads and parses a local CSV file directly from the filesystem
@@ -26,14 +34,80 @@ export async function getCSVFromNode(
     quoteChar?: string
 ): Promise<Table> {
     try {
-        const fileBuffer = await readFile(filePath, { encoding: 'utf-8' });
-        const text = fileBuffer.trim();
+        const tableData: any[][] = [];
+        let labels: string[] | null = null;
+        let colTypes: ColType[] = [];
+        let isTypeDetermined = false;
 
-        const { cols, colInfos } = processCSVData(
-            text, separator, invalidLine, quoteChar
-        );
+        for await (let lines of readInChunks(filePath, 50000, 50)) {
+            if (lines.length === 0) continue;
 
-        return new Table(cols, colInfos);
+            if (labels === null) {
+                const headerLine: string | undefined = lines.shift();
+                if (!headerLine) continue;
+
+                labels = headerLine.split(separator).map(l => l.trim());
+
+                if (labels.length === 0) {
+                    throw new Error('Invalid header line!');
+                }
+
+                for (let c = 0; c < labels.length; c++) {
+                    tableData.push([]);
+                }
+            }
+
+            if (lines.length === 0) continue;
+
+            const unprocessed = processCSVData(
+                lines,
+                separator,
+                labels.length,
+                colTypes,
+                invalidLine,
+                quoteChar
+            );
+
+            if (!isTypeDetermined) {
+                for (let i = 0; i < unprocessed.length; i++) {
+                    const rawCol = unprocessed[i];
+                    colTypes[i] = getColType(rawCol);
+
+                    let processedCol: any[] = [];
+                    switch (colTypes[i]) {
+                        case 'number':
+                            processedCol = toNumberArray(rawCol);
+                            break;
+                        case 'bool':
+                            processedCol = toBoolArray(rawCol);
+                            break;
+                        case 'date':
+                            processedCol = toDateArray(rawCol);
+                            break;
+                        default:
+                            processedCol = toStringArray(rawCol);
+                            break;
+                    }
+                    tableData[i].push(...processedCol);
+                }
+                isTypeDetermined = true;
+            } else {
+                for (let i = 0; i < unprocessed.length; i++) {
+                    tableData[i].push(...unprocessed[i]);
+                }
+            }
+        }
+
+        if (labels === null) {
+            throw new Error('The provided file is empty!');
+        }
+
+        const colInfos: ColInfo[] = labels.map((label, i) => ({
+            label,
+            colType: colTypes[i]
+        }));
+
+        return new Table(tableData, colInfos, true);
     } catch (err) {
         console.error('Error reading CSV in Node:', err);
         throw err;
@@ -75,9 +149,9 @@ export async function getJSONFromNode(
  * @throws {Error} Throws an error if the specified file path already exists or if writing fails.
  */
 export async function tableToJSON(
-    path: string, 
-    table: Table, 
-    overWrite:boolean = true
+    path: string,
+    table: Table,
+    overWrite: boolean = true
 ): Promise<void> {
     await writeTableFile(path, JSON.stringify(table.toObject(), null, 2), overWrite);
 }
@@ -91,9 +165,9 @@ export async function tableToJSON(
  * @throws {Error} Throws an error if the specified file path already exists or if writing fails.
  */
 export async function tableToCSV(
-    path: string, 
+    path: string,
     table: Table,
-    overWrite:boolean = true
+    overWrite: boolean = true
 ): Promise<void> {
     await writeTableFile(path, table.toCSV(), overWrite);
 }

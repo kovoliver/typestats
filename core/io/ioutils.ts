@@ -1,6 +1,8 @@
-import { ColInfo } from "../types/types.js";
+import { ColInfo, ColType } from "../types/types.js";
 import { writeFile } from 'fs/promises';
-import { trim } from "../utils/utils.js";
+import fs from 'node:fs';
+import readline from 'node:readline';
+import { parseBool, parseDate, parseNumber, parseString } from "../utils/utils.js";
 
 function isWhitespaceCode(c: number): boolean {
     return c === 32 || c === 9 || c === 13 || c === 10 || c === 12 || c === 11;
@@ -20,86 +22,83 @@ function fastTrimField(s: string, quoteCode: number): string {
     return s.substring(start, end);
 }
 
+function parseValue(val: unknown, type: ColType | undefined): any {
+    if (type === undefined) return val;
+    switch (type) {
+        case 'number': return parseNumber(val);
+        case 'bool': return parseBool(val);
+        case 'date': return parseDate(val);
+        default: return parseString(val);
+    }
+}
+
 export function processCSVData(
-    text: string,
+    lines: string[],
     separator: string,
+    validLength: number,
+    colTypes: (ColType | undefined)[],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     quoteChar?: string
 ) {
-    if (!text || text.length === 0) {
-        throw new Error('The provided CSV file is empty!');
-    }
+    const cols: any[][] = Array.from({ length: validLength }, () => []);
 
-    const quoteCode = quoteChar ? quoteChar.charCodeAt(0) : -1;
-    const sepLen = separator.length;
-    const quotes = quoteChar ? [quoteChar] : [];
+    for (let line of lines) {
+        if (line.length === 0) continue;
 
-    let firstLineEnd = text.indexOf('\n');
-    if (firstLineEnd === -1) firstLineEnd = text.length;
-
-    let headLine = text.substring(0, firstLineEnd);
-    if (headLine.endsWith('\r')) headLine = headLine.slice(0, -1);
-
-    const labels = headLine.split(separator).map(l => trim(l, quotes));
-    const labelCount = labels.length;
-    const colInfos = labels.map(label => ({ label }));
-    const estimatedRows = Math.max(100, Math.ceil(text.length / (headLine.length || 50)));
-    const cols: (string | null)[][] = Array.from({ length: labelCount }, () => new Array(estimatedRows));
-
-    let lineIdx = 0;
-    let lineStart = firstLineEnd + 1;
-    const textLen = text.length;
-
-    while (lineStart < textLen) {
-        let lineEnd = text.indexOf('\n', lineStart);
-        if (lineEnd === -1) lineEnd = textLen;
-
-        let endPos = lineEnd;
-        if (endPos > lineStart && text.charCodeAt(endPos - 1) === 13) {
-            endPos--;
+        if (quoteChar) {
+            if (line.startsWith(quoteChar)) line = line.substring(1);
+            if (line.endsWith(quoteChar)) line = line.substring(0, line.length - 1);
         }
 
-        if (endPos > lineStart) {
-            let pos = lineStart;
-            let col = 0;
+        let start = 0;
+        let delimIdx = line.indexOf(separator);
+        let col = 0;
 
-            while (pos <= endPos && col < labelCount) {
-                let sepIndex = text.indexOf(separator, pos);
-                if (sepIndex === -1 || sepIndex > endPos) {
-                    sepIndex = endPos;
-                }
+        while (delimIdx !== -1 && col < validLength) {
+            const rawVal = line.substring(start, delimIdx);
+            cols[col].push(parseValue(rawVal, colTypes[col]));
 
-                const raw = text.substring(pos, sepIndex);
-                const value = fastTrimField(raw, quoteCode);
-
-                cols[col][lineIdx] = value === '' ? null : value;
-                col++;
-
-                pos = sepIndex + sepLen;
-                if (sepIndex === endPos) break;
-            }
-
-            if (col < labelCount) {
-                if (invalidLine === 'throw') {
-                    throw new Error(`Line ${lineIdx + 2} is invalid!`);
-                }
-                while (col < labelCount) {
-                    cols[col][lineIdx] = null;
-                    col++;
-                }
-            }
-
-            lineIdx++;
+            start = delimIdx + separator.length;
+            delimIdx = line.indexOf(separator, start);
+            col++;
         }
 
-        lineStart = lineEnd + 1;
+        if (col < validLength) {
+            const rawVal = line.substring(start);
+            cols[col].push(parseValue(rawVal, colTypes[col]));
+            col++;
+        }
+
+        if (delimIdx !== -1 && invalidLine === 'throw') {
+            throw new Error(
+                `Invalid CSV row length: Expected ${validLength} columns, but received more. Row content: "${line}"`
+            );
+        }
+
+        if (col < validLength) {
+            switch (invalidLine) {
+                case 'drop':
+                    for (let c = 0; c < col; c++) {
+                        cols[c].pop();
+                    }
+                    break;
+
+                case 'throw':
+                    throw new Error(
+                        `Invalid CSV row length: Expected ${validLength} columns, but received ${col}. Row content: "${line}"`
+                    );
+
+                case 'impute':
+                    while (col < validLength) {
+                        cols[col].push(parseValue(null, colTypes[col]));
+                        col++;
+                    }
+                    break;
+            }
+        }
     }
 
-    for (let c = 0; c < labelCount; c++) {
-        cols[c].length = lineIdx;
-    }
-
-    return { cols, colInfos };
+    return cols;
 }
 
 export function processJSONData(
@@ -180,5 +179,38 @@ export async function writeTableFile(
         }
 
         throw err;
+    }
+}
+
+export async function* readInChunks(
+    filePath: string,
+    chunkSize: number = 50000,
+    firstChunkSize: number = 50
+) {
+    const fileStream = fs.createReadStream(filePath, {
+        encoding: 'utf-8',
+        highWaterMark: 64 * 1024
+    });
+
+    const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+    });
+
+    let chunk: string[] = [];
+    let currentLimit = firstChunkSize;
+
+    for await (const line of rl) {
+        chunk.push(line);
+
+        if (chunk.length === currentLimit) {
+            yield chunk;
+            chunk = [];
+            currentLimit = chunkSize;
+        }
+    }
+
+    if (chunk.length > 0) {
+        yield chunk;
     }
 }

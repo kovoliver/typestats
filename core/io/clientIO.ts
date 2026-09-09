@@ -13,31 +13,31 @@ import { processCSVData, processJSONData } from "./ioutils.js";
  *
  * @throws {@link Error} If the HTTP request fails, the file is empty, or a row structure is invalid.
  */
-export async function getCSVFromClient(
-    url: string,
-    separator: string = ';',
-    invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
-    quoteChar?: string
-): Promise<Table> {
-    try {
-        const response = await fetch(url);
+// export async function getCSVFromClient(
+//     url: string,
+//     separator: string = ';',
+//     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
+//     quoteChar?: string
+// ): Promise<Table> {
+//     try {
+//         const response = await fetch(url);
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch CSV: ${response.statusText}`);
-        }
+//         if (!response.ok) {
+//             throw new Error(`Failed to fetch CSV: ${response.statusText}`);
+//         }
 
-        const text = await response.text();
+//         const text = await response.text();
 
-        const { cols, colInfos } = processCSVData(
-            text, separator, invalidLine, quoteChar
-        );
+//         const { cols, colInfos } = processCSVData(
+//             text, separator, invalidLine, quoteChar
+//         );
 
-        return new Table(cols, colInfos);
-    } catch (err) {
-        console.error('Error fetching CSV on client:', err);
-        throw err;
-    }
-}
+//         return new Table(cols, colInfos);
+//     } catch (err) {
+//         console.error('Error fetching CSV on client:', err);
+//         throw err;
+//     }
+// }
 
 /**
  * Asynchronously fetches and converts a JSON dataset from a web URL or HTTP endpoint

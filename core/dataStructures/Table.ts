@@ -4,7 +4,6 @@ import NumberColumn from './NumberColumn.js';
 import BoolColumn from './BoolColumn.js';
 import StringColumn from './StringColumn.js';
 import GroupedTable from './GroupedTable.js';
-import Column from './Column.js';
 import DateColumn from './DateColumn.js';
 import { isDate } from '../utils/utils.js';
 import { toNumberArray, toBoolArray, toDateArray, toStringArray }

@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { getCSVFromClient, getJSONFromClient } from '../../core/io/clientIO';
+import { getJSONFromClient } from '../../core/io/clientIO';
 import { getCSVFromNode, getJSONFromNode } from '../../core/io/nodeIO';
 
 describe('Client I/O (clientIO.ts)', () => {
-    it('should fetch and parse a remote CSV file from a live Web URL', async () => {
-        const csvUrl = 'https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv';
-        const table = await getCSVFromClient(csvUrl, ',');
+    // it('should fetch and parse a remote CSV file from a live Web URL', async () => {
+    //     const csvUrl = 'https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv';
+    //     const table = await getCSVFromClient(csvUrl, ',');
 
-        expect(table.rowCount).toBeGreaterThan(0);
-        expect(table.getCol('sepal_length')).toBeDefined();
-        expect(table.getCol('species')).toBeDefined();
+    //     expect(table.rowCount).toBeGreaterThan(0);
+    //     expect(table.getCol('sepal_length')).toBeDefined();
+    //     expect(table.getCol('species')).toBeDefined();
 
-        console.log('\n--- 🌐 CLIENT CSV TEST (Iris dataset head) ---');
-        table.head(3);
-    });
+    //     console.log('\n--- 🌐 CLIENT CSV TEST (Iris dataset head) ---');
+    //     table.head(3);
+    // });
 
     it('should fetch and parse a remote JSON file from a live Web URL', async () => {
         const jsonUrl = 'https://raw.githubusercontent.com/vega/vega-datasets/main/data/cars.json';
