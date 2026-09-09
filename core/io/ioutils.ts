@@ -4,24 +4,6 @@ import fs from 'node:fs';
 import readline from 'node:readline';
 import { parseBool, parseDate, parseNumber, parseString } from "../utils/utils.js";
 
-function isWhitespaceCode(c: number): boolean {
-    return c === 32 || c === 9 || c === 13 || c === 10 || c === 12 || c === 11;
-}
-
-function fastTrimField(s: string, quoteCode: number): string {
-    let start = 0;
-    let end = s.length;
-
-    while (start < end && isWhitespaceCode(s.charCodeAt(start))) start++;
-    if (quoteCode !== -1 && start < end && s.charCodeAt(start) === quoteCode) start++;
-
-    while (end > start && isWhitespaceCode(s.charCodeAt(end - 1))) end--;
-    if (quoteCode !== -1 && end > start && s.charCodeAt(end - 1) === quoteCode) end--;
-
-    if (start === 0 && end === s.length) return s;
-    return s.substring(start, end);
-}
-
 export function parseValue(val: unknown, type: ColType | undefined): any {
     if (type === undefined) return val;
     switch (type) {
@@ -101,66 +83,68 @@ export function processCSVData(
     return cols;
 }
 
-export function processJSONData(
-    data: any[],
+export function processJSONDataChunk(
+    chunk: any[],
+    labels: string[],
+    cols: any[][],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute'
 ) {
-    if (!Array.isArray(data) || data.length === 0) {
-        throw new Error('The JSON data must be a non-empty array of objects!');
-    }
+    const validLength = labels.length;
 
-    const labels = Object.keys(data[0]);
-    const colInfos: ColInfo[] = labels.map(label => ({ label }));
-    const cols: any[][] = Array.from({ length: labels.length }, () => []);
+    for (let i = 0; i < chunk.length; i++) {
+        const row = chunk[i];
 
-    for (const [i, row] of data.entries()) {
         if (!row || typeof row !== 'object' || Array.isArray(row)) {
             switch (invalidLine) {
-                case 'impute':
-                    cols.forEach(col => col.push(null));
-                    continue;
                 case 'drop':
                     continue;
                 case 'throw':
-                    throw new Error(`Row ${i} is invalid!`);
+                    throw new Error(`Invalid row at index ${i}`);
+                case 'impute':
+                    for (let j = 0; j < validLength; j++) cols[j].push(null);
+                    continue;
             }
         }
 
-        const rowKeys = Object.keys(row);
-        const missingKeys = labels.filter(label => !(label in row));
-        const extraKeys = rowKeys.filter(key => !labels.includes(key));
+        if (invalidLine === 'throw') {
+            const rowKeys = Object.keys(row);
 
-        if (extraKeys.length > 0 && invalidLine === 'throw') {
-            throw new Error(`Row ${i} contains unexpected properties!`);
+            if (rowKeys.length > validLength) {
+                throw new Error(`Row contains unexpected properties!`);
+            }
         }
 
-        if (missingKeys.length > 0) {
+        let hasMissing = false;
+
+        for (let j = 0; j < validLength; j++) {
+            const val = row[labels[j]];
+
+            if (val === undefined) {
+                hasMissing = true;
+                break;
+            }
+        }
+
+        if (hasMissing) {
             switch (invalidLine) {
+                case 'drop':
+                    continue;
+                case 'throw':
+                    throw new Error(`Row is missing required columns!`);
                 case 'impute':
-                    for (let j = 0; j < labels.length; j++) {
-                        const label = labels[j];
-                        const val = row[label];
+                    for (let j = 0; j < validLength; j++) {
+                        const val = row[labels[j]];
                         cols[j].push(val !== undefined && val !== null ? val : null);
                     }
                     break;
-                case 'drop':
-                    continue;
-                case 'throw':
-                    throw new Error(`Row ${i} is missing columns!`);
             }
         } else {
-            for (let j = 0; j < labels.length; j++) {
-                const label = labels[j];
-                const val = row[label];
-                cols[j].push(val !== undefined && val !== null ? val : null);
+            for (let j = 0; j < validLength; j++) {
+                const val = row[labels[j]];
+                cols[j].push(val !== null ? val : null);
             }
         }
     }
-
-    return {
-        cols,
-        colInfos
-    };
 }
 
 export async function writeTableFile(
@@ -207,6 +191,53 @@ export async function* readInChunks(
             yield chunk;
             chunk = [];
             currentLimit = chunkSize;
+        }
+    }
+
+    if (chunk.length > 0) {
+        yield chunk;
+    }
+}
+
+export async function* readClientChunks(
+    url: string,
+    chunkSize: number = 50000,
+    firstChunkSize: number = 50
+) {
+    const response = await fetch(url);
+    if (!response.ok || !response.body) {
+        throw new Error(`Failed to fetch CSV: ${response.statusText}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+
+    let chunk: string[] = [];
+    let currentLimit = firstChunkSize;
+    let partialLine = '';
+
+    while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+            if (partialLine.length > 0) {
+                chunk.push(partialLine);
+            }
+            break;
+        }
+
+        const textChunk = decoder.decode(value, { stream: true });
+        const lines = (partialLine + textChunk).split(/\r?\n/);
+        partialLine = lines.pop() ?? '';
+
+        for (const line of lines) {
+            chunk.push(line);
+
+            if (chunk.length === currentLimit) {
+                yield chunk;
+                chunk = [];
+                currentLimit = chunkSize;
+            }
         }
     }
 

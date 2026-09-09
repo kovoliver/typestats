@@ -1,6 +1,8 @@
+import fs from 'node:fs';
+import readline from 'node:readline';
 import { readFile } from 'fs/promises';
 import Table from "../dataStructures/Table.js";
-import { processCSVData, processJSONData, readInChunks } from './ioutils.js';
+import { processCSVData, processJSONDataChunk, readInChunks } from './ioutils.js';
 import { writeTableFile } from './ioutils.js';
 import { ColInfo, ColType } from '../types/types.js';
 import { getColType } from './chunkProcessor.js';
@@ -126,18 +128,83 @@ export async function getCSVFromNode(
  */
 export async function getJSONFromNode(
     filePath: string,
-    invalidLine: 'drop' | 'throw' | 'impute' = 'impute'
+    invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
+    chunkSize: number = 50_000
 ): Promise<Table> {
     try {
-        const fileBuffer = await readFile(filePath, { encoding: 'utf-8' });
-        const data = JSON.parse(fileBuffer);
-        const { cols, colInfos } = processJSONData(data, invalidLine);
+        const isNDJSON = filePath.endsWith('.ndjson') || filePath.endsWith('.jsonl');
 
+        if (isNDJSON) {
+            return await getNDJSONFromNode(filePath, invalidLine, chunkSize);
+        }
+
+        const fileContent = await readFile(filePath, { encoding: 'utf-8' });
+        const data: any[] = JSON.parse(fileContent);
+
+        if (!Array.isArray(data) || data.length === 0) {
+            throw new Error('The JSON file must contain a non-empty array of objects!');
+        }
+
+        const labels = Object.keys(data[0]);
+        const cols: any[][] = Array.from({ length: labels.length }, () => []);
+
+        for (let i = 0; i < data.length; i += chunkSize) {
+            const chunk = data.slice(i, i + chunkSize);
+            processJSONDataChunk(chunk, labels, cols, invalidLine);
+        }
+
+        const colInfos: ColInfo[] = labels.map(label => ({ label }));
         return new Table(cols, colInfos);
+
     } catch (err) {
         console.error('Error reading JSON in Node:', err);
         throw err;
     }
+}
+
+async function getNDJSONFromNode(
+    filePath: string,
+    invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
+    chunkSize: number = 50_000
+): Promise<Table> {
+    const fileStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
+    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+
+    const cols: any[][] = [];
+    let labels: string[] = [];
+    let isInitialized = false;
+    let jsonChunk: any[] = [];
+
+    for await (const line of rl) {
+        const trimmed = line.trim();
+        if (trimmed.length === 0) continue;
+
+        jsonChunk.push(JSON.parse(trimmed));
+
+        if (jsonChunk.length === chunkSize) {
+            if (!isInitialized) {
+                labels = Object.keys(jsonChunk[0]);
+                for (let i = 0; i < labels.length; i++) cols.push([]);
+                isInitialized = true;
+            }
+
+            processJSONDataChunk(jsonChunk, labels, cols, invalidLine);
+            jsonChunk = [];
+        }
+    }
+
+    if (jsonChunk.length > 0) {
+        if (!isInitialized) {
+            labels = Object.keys(jsonChunk[0]);
+            for (let i = 0; i < labels.length; i++) cols.push([]);
+            isInitialized = true;
+        }
+
+        processJSONDataChunk(jsonChunk, labels, cols, invalidLine);
+    }
+
+    const colInfos: ColInfo[] = labels.map(label => ({ label }));
+    return new Table(cols, colInfos);
 }
 
 /**
