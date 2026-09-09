@@ -4,6 +4,18 @@ import { ColInfo, ColType } from '../types/types.js';
 import { getColType } from '../utils/utils.js';
 import { getDbStream, makeDBChunk } from './dbUtils.js';
 
+/**
+ * Executes an SQL query against a database connection and transforms the result set
+ * directly into a {@link Table} instance.
+ *
+ * @param conn - An active {@link DbConnection} instance.
+ * @param sql - The SQL query string to be executed.
+ * @param params - Optional parameter array for parameterized SQL queries.
+ *
+ * @returns A Promise that resolves to a newly instantiated {@link Table} object populated with query results.
+ *
+ * @throws {@link Error} If query execution fails or the connection encounters a network/protocol error.
+ */
 export async function getTableFromQuery(
     conn: DbConnection,
     sql: string,

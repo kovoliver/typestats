@@ -4,10 +4,24 @@ import { DbConnection } from '../types/interfaces.js';
 import { ColInfo, ColType } from '../types/types.js';
 import Table from '../dataStructures/Table.js';
 import { getDbStream, makeDBChunk } from './dbUtils.js';
-import { firstNTypeCheck, isNumeric, isBool, isDate, getColType } from '../utils/utils.js';
+import { getColType } from '../utils/utils.js';
 
 const WORKER_PATH_DB = new URL('./dbWorker.js', import.meta.url);
 
+/**
+ * Executes an SQL query and transforms large result sets into a {@link Table} instance
+ * using parallel worker threads for chunked data transformation.
+ *
+ * @param conn - An active {@link DbConnection} instance.
+ * @param sql - The SQL query string to be executed.
+ * @param params - Optional parameter array for parameterized SQL queries.
+ * @param poolSize - Number of worker threads to spawn for data transformation. Defaults to CPU core count (`os.cpus().length`).
+ * @param chunkSize - The number of database rows processed per worker chunk. Defaults to `100_000`.
+ *
+ * @returns A Promise that resolves to a newly instantiated {@link Table} object.
+ *
+ * @throws {@link Error} If query execution fails, memory allocation limits are exceeded, or worker execution fails.
+ */
 export async function getTableFromQueryParallel(
     conn: DbConnection,
     sql: string,

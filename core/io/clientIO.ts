@@ -9,11 +9,17 @@ import { processCSVData, processJSONDataChunk, readClientChunks } from "./ioutil
  *
  * @param url - The HTTP/HTTPS URL or endpoint of the CSV file to fetch.
  * @param separator - The column delimiter character (e.g., `,`, `;`, `\t`). Defaults to `;`.
- * @param invalidLine - Strategy for handling rows with missing columns relative to the header. Defaults to `'impute'`.
+ * @param invalidLine - Strategy for handling rows with missing columns relative to the header:
+ *   - `'impute'`: Appends `null` values to pad incomplete rows to match the header length.
+ *   - `'drop'`: Skips incomplete rows entirely.
+ *   - `'throw'`: Throws an {@link Error} immediately upon encountering an invalid row.
+ *   Defaults to `'impute'`.
+ * @param quoteChar - Optional character used to enclose fields containing special characters (e.g., `"` or `'`).
+ * @param chunkSize - The number of rows processed per chunk during parsing. Defaults to `50_000`.
  *
  * @returns A Promise that resolves to a newly instantiated {@link Table} object.
  *
- * @throws {@link Error} If the HTTP request fails, the file is empty, or a row structure is invalid.
+ * @throws {@link Error} If the HTTP request fails, the file is empty, or a row structure is invalid (when `invalidLine` is set to `'throw'`).
  */
 export async function getCSVFromClient(
     url: string,
@@ -103,7 +109,13 @@ export async function getCSVFromClient(
  * into a {@link Table} instance in client-side / browser environments.
  *
  * @param url - The HTTP/HTTPS URL or endpoint returning a JSON array of objects.
- * @param invalidLine - Strategy for handling rows with missing columns relative to the header. Defaults to `'impute'`.
+ * @param invalidLine - Strategy for handling rows with missing columns relative to the header:
+ *   - `'impute'`: Appends `null` values to pad incomplete rows to match the header length.
+ *   - `'drop'`: Skips incomplete rows entirely.
+ *   - `'throw'`: Throws an {@link Error} immediately upon encountering an invalid row.
+ *   Defaults to `'impute'`.
+ * @param chunkSize - The number of objects processed per chunk during parsing. Defaults to `50_000`.
+ *
  * @returns A Promise that resolves to a newly instantiated {@link Table} object.
  *
  * @throws {@link Error} If the HTTP response is not OK, or if the parsed JSON is not a non-empty array of objects.
@@ -162,6 +174,22 @@ export async function getJSONFromClient(
     }
 }
 
+/**
+ * Asynchronously fetches and streams a Newline Delimited JSON (NDJSON) dataset from a web URL or HTTP endpoint
+ * into a {@link Table} instance in client-side / browser environments.
+ *
+ * @param url - The HTTP/HTTPS URL or endpoint of the NDJSON stream/file.
+ * @param invalidLine - Strategy for handling rows with missing columns relative to the header:
+ *   - `'impute'`: Appends `null` values to pad incomplete rows to match the header length.
+ *   - `'drop'`: Skips incomplete rows entirely.
+ *   - `'throw'`: Throws an {@link Error} immediately upon encountering an invalid row.
+ *   Defaults to `'impute'`.
+ * @param chunkSize - The number of lines processed per chunk during streaming. Defaults to `50_000`.
+ *
+ * @returns A Promise that resolves to a newly instantiated {@link Table} object.
+ *
+ * @throws {@link Error} If the HTTP request fails, NDJSON parsing fails, or a line structure is invalid.
+ */
 export async function getNDJSONFromClient(
     url: string,
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',

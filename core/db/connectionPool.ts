@@ -1,6 +1,15 @@
 import { DbConnection } from '../types/interfaces.js';
 import { DbConfig, DbEngineType } from '../types/types.js';
 
+/**
+ * Initializes and creates a database connection or connection pool based on the provided configuration.
+ *
+ * @param config - The database connection configuration object specifying engine type, host, credentials, and pool limits.
+ *
+ * @returns A Promise that resolves to a unified {@link DbConnection} instance.
+ *
+ * @throws {@link Error} If the connection fails or an unsupported database engine type is specified.
+ */
 export async function createConnection(config: DbConfig): Promise<DbConnection> {
     switch (config.engine) {
         case DbEngineType.mysql: {

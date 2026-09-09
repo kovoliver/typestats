@@ -4,11 +4,25 @@ import os from 'node:os';
 import { Worker } from 'node:worker_threads';
 import Table from '../dataStructures/Table.js';
 import { ColInfo, ColType } from '../types/types.js';
-import { getColType } from './chunkProcessor.js';
+import { getColType } from '../utils/utils.js';
 
 const WORKER_PATH_CSV = new URL('./csvWorker.js', import.meta.url);
 const WORKER_PATH_JSON = new URL('./jsonWorker.js', import.meta.url);
 
+/**
+ * Asynchronously parses a local CSV file using worker threads / parallel processing
+ * into a {@link Table} instance in Node.js backend environments.
+ *
+ * @param filePath - The absolute or relative path to the local CSV file on the filesystem.
+ * @param separator - The column delimiter character (e.g., `,`, `;`, `\t`). Defaults to `;`.
+ * @param invalidLine - Strategy for handling rows with missing columns relative to the header. Defaults to `'impute'`.
+ * @param quoteChar - Optional character used to enclose fields containing special characters.
+ * @param poolSize - Number of worker threads to spawn for parallel processing. Defaults to CPU core count (`os.cpus().length`).
+ *
+ * @returns A Promise that resolves to a newly instantiated {@link Table} object.
+ *
+ * @throws {@link Error} If file reading fails, worker thread initialization fails, or row structure is invalid.
+ */
 export async function getCSVFromNodeParallel(
     filePath: string,
     separator: string = ';',
@@ -143,6 +157,19 @@ export async function getCSVFromNodeParallel(
     }
 }
 
+/**
+ * Asynchronously parses a local NDJSON file using worker threads / parallel processing
+ * into a {@link Table} instance in Node.js backend environments.
+ *
+ * @param filePath - The absolute or relative path to the local NDJSON file on the filesystem.
+ * @param invalidLine - Strategy for handling rows with missing columns relative to the header. Defaults to `'impute'`.
+ * @param poolSize - Number of worker threads to spawn for parallel processing. Defaults to CPU core count (`os.cpus().length`).
+ * @param chunkSize - The number of lines handled per worker chunk. Defaults to `50_000`.
+ *
+ * @returns A Promise that resolves to a newly instantiated {@link Table} object.
+ *
+ * @throws {@link Error} If file reading fails, worker thread execution fails, or line formatting is invalid.
+ */
 export async function getNDJSONFromNodeParallel(
     filePath: string,
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
@@ -254,6 +281,16 @@ export async function getNDJSONFromNodeParallel(
     }
 }
 
+/**
+ * Converts a standard JSON array file into a memory-efficient Newline Delimited JSON (NDJSON) file on the filesystem.
+ *
+ * @param inputPath - The absolute or relative path to the source JSON file.
+ * @param outputPath - The target path where the converted NDJSON file will be saved.
+ *
+ * @returns A Promise that resolves when the file conversion is completed.
+ *
+ * @throws {@link Error} If the input file cannot be read, contains invalid JSON, or writing to the output path fails.
+ */
 export async function convertJSONToNDJSON(
     inputPath: string,
     outputPath: string
