@@ -5,7 +5,7 @@ import Table from "../dataStructures/Table.js";
 import { processCSVData, processJSONDataChunk, readInChunks } from './ioutils.js';
 import { writeTableFile } from './ioutils.js';
 import { ColInfo, ColType } from '../types/types.js';
-import { getColType } from './chunkProcessor.js';
+import { getColType } from '../utils/utils.js';
 import {
     toNumberArray,
     toBoolArray,

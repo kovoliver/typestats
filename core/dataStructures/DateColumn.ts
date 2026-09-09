@@ -1,9 +1,9 @@
 import { TimeUnit } from "../types/types.js";
-import { isInteger, orderDesc } from "../utils/numberUtils.js";
-import { displayDateString, getFirstNonEmtpy, toDateArray } from "../utils/utils.js";
+import { isInteger } from "../utils/numberUtils.js";
+import { displayDateString, isEmpty, toUnixTimestampArray } from "../utils/utils.js";
 import Column from "./Column.js";
 
-export default class DateColumn extends Column<Date> {
+export default class DateColumn extends Column<number | Date> {
     private readonly _months = [
         'January',
         'February',
@@ -29,12 +29,18 @@ export default class DateColumn extends Column<Date> {
         'Saturday'
     ] as const;
 
-    protected prepareData(rawValues: unknown[]): (Date | null)[] {
-        return toDateArray(rawValues);
+    public get values(): (Date | null)[] {
+        return this._values.map(ts => (Number.isNaN(ts) ? null : new Date(ts!)));
     }
 
-    protected isValid(value: Date | null): boolean {
-        return value instanceof Date && !isNaN(value.getTime());
+    protected prepareData(rawValues: unknown[]): number[] {
+        return toUnixTimestampArray(rawValues);
+    }
+
+    protected isValid(value: number): boolean {
+        if (isEmpty(value)) return false;
+        const d = new Date(value);
+        return !Number.isNaN(d.getTime());
     }
 
     /**
@@ -48,8 +54,8 @@ export default class DateColumn extends Column<Date> {
             throw new Error('You must provide a valid index!');
         }
 
-        const d = this._values[index];
-        return d;
+        const timestamp = this._values[index];
+        return !Number.isNaN(timestamp) ? new Date(timestamp!) : null;
     }
 
     /**
@@ -380,10 +386,14 @@ export default class DateColumn extends Column<Date> {
 
     private order(mode: 'asc' | 'desc'): DateColumn {
         const dates = [...this._values].sort((a, b) => {
-            if (a === b) return 0;
-            if (a === null) return 1;
-            if (b === null) return -1;
-            const diff = a.getTime() - b.getTime();
+            const aNaN = Number.isNaN(a);
+            const bNaN = Number.isNaN(b);
+
+            if (aNaN && bNaN) return 0;
+            if (aNaN) return 1;
+            if (bNaN) return -1;
+
+            const diff = (a as number) - (b as number);
             return mode === 'asc' ? diff : -diff;
         });
 
@@ -415,8 +425,11 @@ export default class DateColumn extends Column<Date> {
     public min(): Date | null {
         let minDate: Date | null = null;
 
-        for (const d of this._values) {
-            if (d === null) continue;
+        for (const timestamp of this._values) {
+            if (Number.isNaN(timestamp)) continue;
+
+            const d = new Date(timestamp!);
+
             if (minDate === null || d < minDate) {
                 minDate = d;
             }
@@ -430,16 +443,19 @@ export default class DateColumn extends Column<Date> {
      * @returns The latest Date instance or null if no valid dates exist.
      */
     public max(): Date | null {
-        let maxDate: Date | null = null;
+        let minDate: Date | null = null;
 
-        for (const d of this._values) {
-            if (d === null) continue;
-            if (maxDate === null || d > maxDate) {
-                maxDate = d;
+        for (const timestamp of this._values) {
+            if (Number.isNaN(timestamp)) continue;
+
+            const d = new Date(timestamp!);
+
+            if (minDate === null || d > minDate) {
+                minDate = d;
             }
         }
 
-        return maxDate;
+        return minDate;
     }
 
     /**
@@ -450,8 +466,10 @@ export default class DateColumn extends Column<Date> {
         let minDate: Date | null = null;
         let maxDate: Date | null = null;
 
-        for (const d of this._values) {
-            if (d === null) continue;
+        for (const timestamp of this._values) {
+            if (Number.isNaN(timestamp)) continue;
+
+            const d = new Date(timestamp!);
 
             if (minDate === null || d < minDate) {
                 minDate = d;
@@ -471,7 +489,13 @@ export default class DateColumn extends Column<Date> {
      * @returns A new DateColumn with matching rows.
      */
     public filterRange(start: Date, end: Date): DateColumn {
-        const filtered = this._values.filter(d => d !== null && d >= start && d <= end);
+        const startTs = (start as Date).getTime();
+        const endTs = (end as Date).getTime();
+
+        const filtered = this._values.filter(
+            d => !Number.isNaN(d) && (d as number) >= startTs && (d as number) <= endTs
+        );
+
         return new DateColumn(filtered, this._label);
     }
 
@@ -481,9 +505,10 @@ export default class DateColumn extends Column<Date> {
      * @returns A new DateColumn with floored dates.
      */
     public floor(unit: TimeUnit): DateColumn {
-        const newValues = this._values.map(d => {
-            if (!d) return null;
-            const res = new Date(d);
+        const newValues = this._values.map(timestamp => {
+            if (Number.isNaN(timestamp)) return NaN;
+
+            const res = new Date(timestamp!);
 
             if (unit === 'seconds') res.setUTCMilliseconds(0);
             else if (unit === 'minutes') res.setUTCSeconds(0, 0);
@@ -492,7 +517,7 @@ export default class DateColumn extends Column<Date> {
             else if (unit === 'months') { res.setUTCDate(1); res.setUTCHours(0, 0, 0, 0); }
             else if (unit === 'years') { res.setUTCMonth(0, 1); res.setUTCHours(0, 0, 0, 0); }
 
-            return res;
+            return res.getTime();
         });
 
         return new DateColumn(newValues, this._label);
@@ -509,10 +534,28 @@ export default class DateColumn extends Column<Date> {
         if (this._values.length !== other._values.length) {
             throw new Error('Columns must have the same length!');
         }
-        return this._values.map((d1, i) => {
-            const d2 = other._values[i];
+
+        return this._values.map((_, i) => {
+            const d1 = this.getElementByIndex(i);
+            const d2 = other.getElementByIndex(i);
+
             if (!d1 || !d2) return null;
-            return Math.trunc((d1.getTime() - d2.getTime()) / this.toMs(unit));
+
+            if (['milliseconds', 'seconds', 'minutes', 'hours', 'days'].includes(unit)) {
+                return Math.trunc((d1.getTime() - d2.getTime()) / this.toMs(unit));
+            }
+
+            switch (unit) {
+                case 'months':
+                    return (
+                        (d1.getFullYear() - d2.getFullYear()) * 12 +
+                        (d1.getMonth() - d2.getMonth())
+                    );
+                case 'years':
+                    return d1.getFullYear() - d2.getFullYear();
+            }
+
+            return null;
         });
     }
 

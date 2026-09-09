@@ -1,5 +1,5 @@
 import { parentPort } from 'node:worker_threads';
-import { parseValue } from './ioutils.js';
+import { parseValue } from '../utils/utils.js';
 import { WorkerData } from '../types/types.js';
 
 parentPort?.on('message', (data: WorkerData) => {

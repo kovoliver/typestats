@@ -1,7 +1,7 @@
 import Table from '../dataStructures/Table.js';
 import { DbConnection } from '../types/interfaces.js';
 import { ColInfo, ColType } from '../types/types.js';
-import { isBool, isNumeric, isDate, firstNTypeCheck } from '../utils/utils.js';
+import { getColType } from '../utils/utils.js';
 import { getDbStream, makeDBChunk } from './dbUtils.js';
 
 export async function getTableFromQuery(
@@ -30,14 +30,7 @@ export async function getTableFromQuery(
                     const label = labels[i];
                     const sampleValues = chunk.slice(0, 50).map(row => row[label]);
 
-                    let type: ColType = 'string';
-                    if (firstNTypeCheck(sampleValues, 10, isNumeric)) {
-                        type = 'number';
-                    } else if (firstNTypeCheck(sampleValues, 10, isBool)) {
-                        type = 'bool';
-                    } else if (firstNTypeCheck(sampleValues, 10, isDate)) {
-                        type = 'date';
-                    }
+                    let type: ColType = getColType(sampleValues);
 
                     colInfos.push({ label, type });
                 }

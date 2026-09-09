@@ -31,3 +31,5 @@ ideas
 
 *.tgz
 core/db/dbWorker.js
+core/io/jsonWorker.js
+core/io/csvWorker.js

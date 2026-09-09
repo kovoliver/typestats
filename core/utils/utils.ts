@@ -1,3 +1,5 @@
+import { ColType } from "../types";
+
 /**
  * Checks if a given value is considered empty (`null`, `undefined`, empty string, or `NaN`).
  *
@@ -385,6 +387,35 @@ export function toDateArray(values: unknown[]): (Date | null)[] {
     return result;
 }
 
+export function toUnixTimestampArray(values: unknown[]): number[] {
+    const len = values.length;
+    const result: number[] = [];
+
+    for (let i = 0; i < len; i++) {
+        const val = values[i];
+
+        if (val === null || val === undefined || val === '') {
+            result.push(NaN);
+            continue;
+        }
+
+        if (val instanceof Date) {
+            result.push(val.getTime());
+            continue;
+        }
+
+        if (typeof val === 'string' || typeof val === 'number') {
+            const d = new Date(val);
+            result.push(d.getTime());
+            continue;
+        }
+
+        result.push(NaN);
+    }
+
+    return result;
+}
+
 /**
  * Normalizes a single numeric value to a [0, 1] range using Min-Max scaling.
  *
@@ -585,4 +616,24 @@ export function parseDate(val: unknown): Date | null {
     }
     
     return null;
+}
+
+export function parseValue(val: unknown, type: ColType | undefined): any {
+    if (type === undefined) return val;
+    switch (type) {
+        case 'number': return parseNumber(val);
+        case 'bool': return parseBool(val);
+        case 'date': return parseDate(val);
+        default: return parseString(val);
+    }
+}
+
+export function getColType(col: any[], colType?: ColType): ColType {
+    if (colType) return colType;
+
+    if (firstNTypeCheck(col, 10, isBool)) return 'bool';
+    if (firstNTypeCheck(col, 10, isNumeric)) return 'number';
+    if (firstNTypeCheck(col, 10, isDate)) return 'date';
+
+    return 'string';
 }

@@ -1,18 +1,8 @@
-import { ColInfo, ColType } from "../types/types.js";
+import { ColType } from "../types/types.js";
 import { writeFile } from 'fs/promises';
 import fs from 'node:fs';
 import readline from 'node:readline';
-import { parseBool, parseDate, parseNumber, parseString } from "../utils/utils.js";
-
-export function parseValue(val: unknown, type: ColType | undefined): any {
-    if (type === undefined) return val;
-    switch (type) {
-        case 'number': return parseNumber(val);
-        case 'bool': return parseBool(val);
-        case 'date': return parseDate(val);
-        default: return parseString(val);
-    }
-}
+import { parseValue } from "../utils/utils.js";
 
 export function processCSVData(
     lines: string[],

@@ -1,6 +1,6 @@
 import Table from "../dataStructures/Table.js";
 import { ColInfo, ColType } from "../types/types.js";
-import { getColType } from "./chunkProcessor.js";
+import { getColType } from "../utils/utils.js";
 import { processCSVData, processJSONDataChunk, readClientChunks } from "./ioutils.js";
 
 /**

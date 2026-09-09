@@ -4,7 +4,7 @@ import { DbConnection } from '../types/interfaces.js';
 import { ColInfo, ColType } from '../types/types.js';
 import Table from '../dataStructures/Table.js';
 import { getDbStream, makeDBChunk } from './dbUtils.js';
-import { firstNTypeCheck, isNumeric, isBool, isDate } from '../utils/utils.js';
+import { firstNTypeCheck, isNumeric, isBool, isDate, getColType } from '../utils/utils.js';
 
 const WORKER_PATH_DB = new URL('./dbWorker.js', import.meta.url);
 
@@ -80,15 +80,7 @@ export async function getTableFromQueryParallel(
                     const label = labels[i];
                     const sampleValues = chunk.slice(0, 50).map((row: any) => row[label]);
 
-                    let type: ColType = 'string';
-                    if (firstNTypeCheck(sampleValues, 10, isNumeric)) {
-                        type = 'number';
-                    } else if (firstNTypeCheck(sampleValues, 10, isBool)) {
-                        type = 'bool';
-                    } else if (firstNTypeCheck(sampleValues, 10, isDate)) {
-                        type = 'date';
-                    }
-
+                    let type: ColType = getColType(sampleValues);
                     colInfos.push({ label, type });
                 }
 
