@@ -145,3 +145,9 @@ export type WorkerData = {
     invalidLine: 'drop' | 'throw' | 'impute';
     quoteChar?: string;
 }
+
+export type JSONWorkerData = {
+    lines: string[];
+    labels: string[];
+    invalidLine: 'drop' | 'throw' | 'impute';
+}

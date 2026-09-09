@@ -6,7 +6,8 @@ import Table from '../dataStructures/Table.js';
 import { ColInfo, ColType } from '../types/types.js';
 import { getColType } from './chunkProcessor.js';
 
-const WORKER_PATH = new URL('./csvWorker.js', import.meta.url);
+const WORKER_PATH_CSV = new URL('./csvWorker.js', import.meta.url);
+const WORKER_PATH_JSON = new URL('./jsonWorker.js', import.meta.url);
 
 export async function getCSVFromNodeParallel(
     filePath: string,
@@ -50,7 +51,7 @@ export async function getCSVFromNodeParallel(
         const idleWorkers: Worker[] = [];
 
         for (let i = 0; i < poolSize; i++) {
-            const w = new Worker(WORKER_PATH);
+            const w = new Worker(WORKER_PATH_CSV);
             workers.push(w);
             idleWorkers.push(w);
         }
@@ -73,7 +74,7 @@ export async function getCSVFromNodeParallel(
                             cleanup();
                             resolve(cols);
                         };
-                        
+
                         const onErr = (err: any) => {
                             cleanup();
                             reject(err);
@@ -140,4 +141,140 @@ export async function getCSVFromNodeParallel(
         console.error('Error in multi-threaded CSV parsing:', err);
         throw err;
     }
+}
+
+export async function getNDJSONFromNodeParallel(
+    filePath: string,
+    invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
+    poolSize: number = os.cpus().length,
+    chunkSize: number = 50_000
+): Promise<Table> {
+    try {
+        const fileStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
+        const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+
+        let labels: string[] = [];
+        for await (const line of rl) {
+            const trimmed = line.trim();
+            if (trimmed.length > 0) {
+                const firstObj = JSON.parse(trimmed);
+                labels = Object.keys(firstObj);
+                rl.close();
+                fileStream.destroy();
+                break;
+            }
+        }
+
+        if (labels.length === 0) throw new Error('NDJSON file is empty or invalid');
+        const validLength = labels.length;
+
+        const workers: Worker[] = [];
+        const idleWorkers: Worker[] = [];
+
+        for (let i = 0; i < poolSize; i++) {
+            const w = new Worker(WORKER_PATH_JSON);
+            workers.push(w);
+            idleWorkers.push(w);
+        }
+
+        const tableData: any[][] = Array.from({ length: validLength }, () => []);
+        const pendingPromisifiedChunks: Promise<any[][]>[] = [];
+
+        const dispatchChunk = (lines: string[]): Promise<any[][]> => {
+            return new Promise((resolve, reject) => {
+                const getWorker = () => {
+                    const w = idleWorkers.pop();
+                    if (w) {
+                        const cleanup = () => {
+                            w.off('message', onMsg);
+                            w.off('error', onErr);
+                            idleWorkers.push(w);
+                        };
+                        const onMsg = (cols: any[][]) => {
+                            cleanup();
+                            resolve(cols);
+                        };
+                        const onErr = (err: any) => {
+                            cleanup();
+                            reject(err);
+                        };
+
+                        w.once('message', onMsg);
+                        w.once('error', onErr);
+
+                        w.postMessage({
+                            lines,
+                            labels,
+                            invalidLine
+                        });
+                    } else {
+                        setTimeout(getWorker, 2);
+                    }
+                };
+                getWorker();
+            });
+        };
+
+        const fullStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
+        const fullRl = readline.createInterface({ input: fullStream, crlfDelay: Infinity });
+
+        let chunk: string[] = [];
+
+        for await (const line of fullRl) {
+            if (line.trim().length === 0) continue;
+
+            chunk.push(line);
+
+            if (chunk.length === chunkSize) {
+                pendingPromisifiedChunks.push(dispatchChunk(chunk));
+                chunk = [];
+            }
+        }
+
+        if (chunk.length > 0) {
+            pendingPromisifiedChunks.push(dispatchChunk(chunk));
+        }
+
+        const results = await Promise.all(pendingPromisifiedChunks);
+
+        workers.forEach(w => w.terminate());
+
+        for (const workerCols of results) {
+            for (let c = 0; c < validLength; c++) {
+                tableData[c].push(...workerCols[c]);
+            }
+        }
+
+        const colInfos: ColInfo[] = labels.map(label => ({ label }));
+        return new Table(tableData, colInfos, true);
+
+    } catch (err) {
+        console.error('Error in multi-threaded NDJSON parsing:', err);
+        throw err;
+    }
+}
+
+export async function convertJSONToNDJSON(
+    inputPath: string,
+    outputPath: string
+): Promise<void> {
+    const readStream = fs.createReadStream(inputPath, { encoding: 'utf-8' });
+    const writeStream = fs.createWriteStream(outputPath, { encoding: 'utf-8' });
+    const rl = readline.createInterface({ input: readStream, crlfDelay: Infinity });
+
+    for await (let line of rl) {
+        line = line.trim();
+
+        if (line === '[' || line === ']') continue;
+
+        if (line.endsWith(',')) {
+            line = line.slice(0, -1);
+        }
+
+        if (line.length > 0) {
+            writeStream.write(line + '\n');
+        }
+    }
+
+    writeStream.end();
 }
