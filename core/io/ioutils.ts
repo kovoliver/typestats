@@ -22,7 +22,7 @@ function fastTrimField(s: string, quoteCode: number): string {
     return s.substring(start, end);
 }
 
-function parseValue(val: unknown, type: ColType | undefined): any {
+export function parseValue(val: unknown, type: ColType | undefined): any {
     if (type === undefined) return val;
     switch (type) {
         case 'number': return parseNumber(val);

@@ -1,0 +1,143 @@
+import fs from 'node:fs';
+import readline from 'node:readline';
+import os from 'node:os';
+import { Worker } from 'node:worker_threads';
+import Table from '../dataStructures/Table.js';
+import { ColInfo, ColType } from '../types/types.js';
+import { getColType } from './chunkProcessor.js';
+
+const WORKER_PATH = new URL('./csvWorker.js', import.meta.url);
+
+export async function getCSVFromNodeParallel(
+    filePath: string,
+    separator: string = ';',
+    invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
+    quoteChar?: string,
+    poolSize: number = os.cpus().length
+): Promise<Table> {
+    try {
+        const fileStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
+        const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+
+        const firstChunk: string[] = [];
+
+        for await (const line of rl) {
+            if (line.trim().length > 0) firstChunk.push(line);
+
+            if (firstChunk.length >= 51) {
+                rl.close();
+                fileStream.destroy();
+                break;
+            }
+        }
+
+        if (firstChunk.length === 0) throw new Error('CSV file is empty');
+
+        const headerLine = firstChunk.shift()!;
+        const labels = headerLine.split(separator).map(l => l.trim());
+        const validLength = labels.length;
+
+        const sampleCols: string[][] = Array.from({ length: validLength }, () => []);
+
+        for (const line of firstChunk) {
+            const row = line.split(separator);
+            for (let c = 0; c < validLength; c++) sampleCols[c].push(row[c] ?? '');
+        }
+
+        const colTypes: ColType[] = sampleCols.map(c => getColType(c) ?? 'string');
+
+        const workers: Worker[] = [];
+        const idleWorkers: Worker[] = [];
+
+        for (let i = 0; i < poolSize; i++) {
+            const w = new Worker(WORKER_PATH);
+            workers.push(w);
+            idleWorkers.push(w);
+        }
+
+        const tableData: any[][] = Array.from({ length: validLength }, () => []);
+        const pendingPromisifiedChunks: Promise<any[][]>[] = [];
+
+        const dispatchChunk = (lines: string[]): Promise<any[][]> => {
+            return new Promise((resolve, reject) => {
+                const getWorker = () => {
+                    const w = idleWorkers.pop();
+                    if (w) {
+                        const cleanup = () => {
+                            w.off('message', onMsg);
+                            w.off('error', onErr);
+                            idleWorkers.push(w);
+                        };
+
+                        const onMsg = (cols: any[][]) => {
+                            cleanup();
+                            resolve(cols);
+                        };
+                        
+                        const onErr = (err: any) => {
+                            cleanup();
+                            reject(err);
+                        };
+
+                        w.once('message', onMsg);
+                        w.once('error', onErr);
+
+                        w.postMessage({
+                            lines,
+                            separator,
+                            validLength,
+                            colTypes,
+                            invalidLine,
+                            quoteChar
+                        });
+                    } else {
+                        setTimeout(getWorker, 2);
+                    }
+                };
+                getWorker();
+            });
+        };
+
+        const fullStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
+        const fullRl = readline.createInterface({ input: fullStream, crlfDelay: Infinity });
+
+        let isHeaderSkipped = false;
+        let chunk: string[] = [];
+        const chunkSize = 50000;
+
+        for await (const line of fullRl) {
+            if (!isHeaderSkipped) {
+                isHeaderSkipped = true;
+                continue;
+            }
+
+            chunk.push(line);
+
+            if (chunk.length === chunkSize) {
+                pendingPromisifiedChunks.push(dispatchChunk(chunk));
+                chunk = [];
+            }
+        }
+
+        if (chunk.length > 0) {
+            pendingPromisifiedChunks.push(dispatchChunk(chunk));
+        }
+
+        const results = await Promise.all(pendingPromisifiedChunks);
+
+        workers.forEach(w => w.terminate());
+
+        for (const workerCols of results) {
+            for (let c = 0; c < validLength; c++) {
+                tableData[c].push(...workerCols[c]);
+            }
+        }
+
+        const colInfos: ColInfo[] = labels.map((label, i) => ({ label, colType: colTypes[i] }));
+        return new Table(tableData, colInfos, true);
+
+    } catch (err) {
+        console.error('Error in multi-threaded CSV parsing:', err);
+        throw err;
+    }
+}

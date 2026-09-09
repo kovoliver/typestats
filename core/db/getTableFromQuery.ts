@@ -1,6 +1,6 @@
 import Table from '../dataStructures/Table.js';
 import { processJSONData } from '../io/ioutils.js';
-import { DbConnection } from '../types/types.js';
+import { DbConnection } from '../types/interfaces.js';
 
 export async function getTableFromQuery(
     conn: DbConnection,

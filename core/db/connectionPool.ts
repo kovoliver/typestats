@@ -1,4 +1,5 @@
-import { DbConfig, DbConnection, DbEngineType } from '../types/types.js';
+import { DbConnection } from '../types/interfaces.js';
+import { DbConfig, DbEngineType } from '../types/types.js';
 
 export async function createConnection(config: DbConfig): Promise<DbConnection> {
     switch (config.engine) {

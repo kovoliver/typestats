@@ -26,12 +26,6 @@ export const RegressionType = {
 
 export type RegressionType = (typeof RegressionType)[keyof typeof RegressionType];
 
-export interface Stratum {
-    label: string;
-    samples: number[];
-    stratumSize: number;
-}
-
 export type ConfidenceInterval = {
     lower: number;
     upper: number;
@@ -79,11 +73,6 @@ export type ColInfo = {
     type?: ColType;
 }
 
-export interface CleanResult<T> {
-    cleaned: T;
-    indices: number[];
-}
-
 export type RegressionModel = {
     b0: number;
     b1: number;
@@ -124,7 +113,9 @@ export const DbEngineType = {
 
 export type DbEngineType = (typeof DbEngineType)[keyof typeof DbEngineType];
 
-export interface DbConfig {
+export type NumericData = number[] | Float64Array;
+
+export type DbConfig = {
     engine: DbEngineType;
     host: string;
     port?: number;
@@ -134,11 +125,23 @@ export interface DbConfig {
     connectionLimit?: number;
 }
 
-export interface DbConnection {
-    engine: DbEngineType;
-    nativePool: any;
-    execQuery: (sql: string, params?: any[]) => Promise<Record<string, any>[]>;
-    close: () => Promise<void>;
+export type Stratum = {
+    label: string;
+    samples: number[];
+    stratumSize: number;
 }
 
-export type NumericData = number[] | Float64Array;
+export type ChunkResult = {
+    processedValues: any[][];
+    colTypes: ColType[];
+    chunkIndex: number;
+}
+
+export type WorkerData = {
+    lines: string[];
+    separator: string;
+    validLength: number;
+    colTypes: (ColType | undefined)[];
+    invalidLine: 'drop' | 'throw' | 'impute';
+    quoteChar?: string;
+}

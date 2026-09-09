@@ -1,12 +1,6 @@
-import { ColInfo, ColType } from '../types/types.js';
+import { ColInfo, ColType, ChunkResult } from '../types/types.js';
 import { toNumberArray, toBoolArray, toDateArray, toStringArray } from '../utils/utils.js';
 import { firstNTypeCheck, isBool, isNumeric, isDate } from '../utils/utils.js';
-
-export interface ChunkResult {
-    processedValues: any[][];
-    colTypes: ColType[];
-    chunkIndex: number;
-}
 
 export function getColType(col: any[], colType?: ColType): ColType {
     if (colType) return colType;
