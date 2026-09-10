@@ -292,7 +292,7 @@ export default class Table {
             }
         }
 
-        return new GroupedTable(groups);
+        return new GroupedTable(groups, labels);
     }
 
     private newTableByIndices(indices: Int32Array): Table {

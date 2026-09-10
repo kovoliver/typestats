@@ -3,11 +3,16 @@ import { getMax, getMin } from '../utils/utils.js';
 import Table from './Table.js';
 
 export default class GroupedTable {
+    private _groupByColumns: string[];
     private _groupKeys: string[];
     private _columnKeys: string[];
     private _values: Record<string, any[]>[];
 
-    constructor(groupObj: Record<string, Record<string, any[]>>) {
+    constructor(
+        groupObj: Record<string, Record<string, any[]>>,
+        groupByColumns: string[]
+    ) {
+        this._groupByColumns = groupByColumns;
         this._groupKeys = Object.keys(groupObj);
 
         if (!this._groupKeys || this._groupKeys.length === 0) {
@@ -53,12 +58,10 @@ export default class GroupedTable {
         const aggregatedValues = this._values.map(group => calcFn(group[targetColumn]));
 
         const resultMatrix = [...groupColumns, aggregatedValues];
-
-        const groupLabels = this._columnKeys.slice(0, groupColumns.length);
         const colLabel = alias ? alias : `${targetColumn}_${statName}`;
 
         const colInfos = [
-            ...groupLabels.map(label => ({ label, type: 'string' as const })),
+            ...this._groupByColumns.map(label => ({ label, type: 'string' as const })),
             { label: colLabel, type: 'number' as const }
         ];
 
@@ -108,17 +111,17 @@ export default class GroupedTable {
 
     public variance(column: string, alias?: string): Table {
         return this.createResultTable(
-            column, 'variance', 
-            (arr) => arr.length >= 2? variance(arr) 
-            : NaN, alias
+            column, 'variance',
+            (arr) => arr.length >= 2 ? variance(arr)
+                : NaN, alias
         );
     }
 
     public std(column: string, alias?: string): Table {
         return this.createResultTable(
-            column, 'std', 
-            (arr) => arr.length >= 2? std(arr) 
-            : NaN, alias
+            column, 'std',
+            (arr) => arr.length >= 2 ? std(arr)
+                : NaN, alias
         );
     }
 }
