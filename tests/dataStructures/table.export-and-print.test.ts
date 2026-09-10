@@ -76,4 +76,48 @@ describe('Table - Export & Console Printing', () => {
 
         spy.mockRestore();
     });
+
+    it('Should calculate covariance matrix correctly', () => {
+        const infos: ColInfo[] = [
+            { label: 'col_1', type: 'number' },
+            { label: 'col_2', type: 'number' },
+            { label: 'col_3', type: 'number' },
+            { label: 'col_4', type: 'number' },
+            { label: 'col_5', type: 'number' },
+            { label: 'col_6', type: 'number' },
+            { label: 'col_7', type: 'number' },
+            { label: 'col_8', type: 'number' },
+            { label: 'col_9', type: 'number' },
+            { label: 'col_10', type: 'number' }
+        ];
+
+        const data = [
+            [42.8, 17.3, 89.1, 5.4, 63.0],
+            [104.2, 88.6, 91.0, 112.5, 76.1],
+            [-3.2, 0.5, 12.8, -8.1, 4.3],
+            [550, 420, 680, 310, 590],
+            [0.12, 0.85, 0.43, 0.91, 0.27],
+            [15.8, 22.4, 19.1, 31.0, 27.5],
+            [1002, 998, 1015, 1007, 1011],
+            [7.4, 6.8, 8.1, 7.9, 6.5],
+            [144, 256, 312, 189, 405],
+            [3.14, 2.71, 1.41, 1.73, 0.57]
+        ];
+
+        table = new Table(data, infos);
+        const result = table.covariance(['col_1', 'col_2', 'col_3', 'col_4'], true);
+
+        const expectedCovariance = [
+            [1149.537, -264.102, 241.2885, 4815.5],
+            [-264.102, 200.927, -75.896, -1187.0],
+            [241.2885, -75.896, 62.623, 991.75],
+            [4815.5, -1187.0, 991.75, 21250.0]
+        ];
+
+        result.forEach((row: number[], i: number) => {
+            row.forEach((val: number, j: number) => {
+                expect(val).toBeCloseTo(expectedCovariance[i][j], 3);
+            });
+        });
+    });
 });

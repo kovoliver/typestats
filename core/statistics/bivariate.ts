@@ -8,7 +8,7 @@ import { getDegreesOfFreedom } from "../statistics/univariate.js";
  * @param table - 2D matrix representing the contingency table.
  * @throws {Error} If the table is null/empty or contains empty rows.
  */
-function validateContingencyTable(table: number[][]): void {
+function validateTable(table: number[][]): void {
     if (!table || table.length === 0) {
         throw new Error('The data table should contain at least one row!');
     }
@@ -26,7 +26,7 @@ function validateContingencyTable(table: number[][]): void {
  * @throws {Error} If the table structure is invalid.
  */
 export function totalCount(table: number[][]): number {
-    validateContingencyTable(table);
+    validateTable(table);
     return table.reduce(
         (acc, row) => acc + row.reduce((rSum, val) => rSum + val, 0),
         0
@@ -42,7 +42,7 @@ export function totalCount(table: number[][]): number {
  * @throws {Error} If the table structure is invalid or the column index is out of bounds.
  */
 export function getColumn(table: number[][], colNumber: number): number[] {
-    validateContingencyTable(table);
+    validateTable(table);
 
     if (colNumber >= table[0].length) {
         throw new Error('The given column does not exist!');
@@ -65,7 +65,7 @@ export function getColumn(table: number[][], colNumber: number): number[] {
  * @throws {Error} If the table structure is invalid.
  */
 export default function getColumns(table: number[][]): number[][] {
-    validateContingencyTable(table);
+    validateTable(table);
 
     const colsLength = table[0].length;
     const columns: number[][] = [];
@@ -85,7 +85,7 @@ export default function getColumns(table: number[][]): number[][] {
  * @throws {Error} If the table structure is invalid.
  */
 export function calcCombinationTable(table: number[][]): number[][] {
-    validateContingencyTable(table);
+    validateTable(table);
     const rows = table.length;
     const cols = table[0].length;
 
@@ -116,7 +116,7 @@ export function calcCombinationTable(table: number[][]): number[][] {
  * @throws {Error} If the table structure is invalid.
  */
 export function chiSquareDep(table: number[][], digits?: number): number {
-    validateContingencyTable(table);
+    validateTable(table);
     const combTable = calcCombinationTable(table);
     const total = totalCount(table);
     const rows = table.length;
@@ -145,7 +145,7 @@ export function chiSquareDep(table: number[][], digits?: number): number {
 }
 
 export function chiSquare(table: number[][], digits?: number): number {
-    validateContingencyTable(table);
+    validateTable(table);
     const combTable = calcCombinationTable(table);
     const total = totalCount(table);
     const rows = table.length;
@@ -196,7 +196,7 @@ export function chiSquare(table: number[][], digits?: number): number {
  * @throws {Error} If the table structure is invalid.
  */
 export function cramerV(table: number[][], digits?: number): number {
-    validateContingencyTable(table);
+    validateTable(table);
     const rows = table.length;
     const cols = table[0].length;
     const total = totalCount(table);
@@ -224,7 +224,7 @@ export function withinSSD(
     table: number[][],
     digits?: number
 ): number {
-    validateContingencyTable(table);
+    validateTable(table);
 
     let totalSsd = 0;
 
@@ -244,7 +244,7 @@ export function withinSSD(
  * @throws {Error} If the table structure is invalid.
  */
 export function totalSSD(table: number[][], digits?: number): number {
-    validateContingencyTable(table);
+    validateTable(table);
 
     const totalSsd = ssd(table.flat());
 
@@ -263,7 +263,7 @@ export function betweenSSDDep(
     table: number[][],
     digits?: number
 ): number {
-    validateContingencyTable(table);
+    validateTable(table);
 
     const totalMean = mean(table.flat());
     let totalSsd = 0;
@@ -282,7 +282,7 @@ export function betweenSSD(
     table: number[][],
     digits?: number
 ): number {
-    validateContingencyTable(table);
+    validateTable(table);
 
     let totalSum = 0;
     let totalCount = 0;

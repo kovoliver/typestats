@@ -3,9 +3,9 @@ import { mean, median, mode, q1, q3, std } from "../statistics/univariate.js";
 import { Boundaries, ImputeType, PercentMode, ScaleType } from "../types/types.js";
 import { orderAsc } from "../utils/numberUtils.js";
 import {
-    defaultValue, getMax, getMin,
+    getMax, getMin,
     getNonEmptyValues, isEmpty, isNumeric,
-    isOutlier, normalize, replaceOutlier,
+    isOutlier, normalize,
     standardize, toNumberArray
 }
     from "../utils/utils.js";

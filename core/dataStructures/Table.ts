@@ -1,5 +1,11 @@
-import { Boundaries, ColInfo, ColType, ColumnInfo, ImputeType, PercentMode } from '../types/types.js';
-import { displayDateString, firstNTypeCheck, hasEmptyValues, isBool, isEmpty, isNanNullUndefined, isNumeric, only01 } from '../utils/utils.js';
+import { Boundaries, ColInfo, ColType, ColumnInfo, ImputeType, PercentMode }
+    from '../types/types.js';
+import {
+    displayDateString, firstNTypeCheck,
+    hasEmptyValues, isBool,
+    isEmpty, isNanNullUndefined, isNumeric
+}
+    from '../utils/utils.js';
 import NumberColumn from './NumberColumn.js';
 import BoolColumn from './BoolColumn.js';
 import StringColumn from './StringColumn.js';
@@ -8,7 +14,9 @@ import DateColumn from './DateColumn.js';
 import { isDate } from '../utils/utils.js';
 import { toNumberArray, toBoolArray, toDateArray, toStringArray }
     from '../utils/utils.js';
-import { getIqrBoundaries, replaceEmptyValues, replaceOutliers } from '../dataPreparation/dataPreparation.js';
+import { getIqrBoundaries, replaceEmptyValues, replaceOutliers }
+    from '../dataPreparation/dataPreparation.js';
+import { correlation, covariance } from '../statistics/bivariate.js';
 
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
@@ -808,6 +816,71 @@ export default class Table {
 
         const newColInfo: ColInfo = { label: newLabel, type: 'string' };
         return this.addColumnAt(newValues, newColInfo, lastIndex + 1);
+    }
+
+    private createStatMatrix(
+        labels: string[],
+        fn: (val1: number[], val2: number[]) => number,
+        printed: boolean = false
+    ) {
+        const n = labels.length;
+
+        const matrix: number[][] = Array.from(
+            { length: n },
+            () => new Array(n)
+        );
+
+        for (let i = 0; i < n; i++) {
+            const col1 = this.getCol(labels[i]) as NumberColumn;
+
+            if (!(col1 instanceof NumberColumn)) {
+                throw new Error(`The following column is not numeric: ${labels[i]}`);
+            }
+
+            for (let j = i; j < n; j++) {
+                if (i === j) {
+                    matrix[i][i] = col1.variance();
+                    continue;
+                }
+
+                const col2 = this.getCol(labels[j]);
+
+                if (!(col2 instanceof NumberColumn)) {
+                    throw new Error(`The following column is not numeric: ${labels[i]}`);
+                }
+
+                const covar = fn(col1.getValidValues(), col2.getValidValues());
+
+                matrix[i][j] = covar;
+                matrix[j][i] = covar;
+            }
+        }
+
+        if (printed) {
+            const printObj: Record<string, Record<string, number>> = {};
+
+            for (let i = 0; i < n; i++) {
+                const rowLabel = labels[i];
+                printObj[rowLabel] = {};
+
+                for (let j = 0; j < n; j++) {
+                    const colLabel = labels[j];
+                    printObj[rowLabel][colLabel] = matrix[i][j];
+                }
+            }
+
+            console.table(printObj);
+        }
+
+        return matrix;
+    }
+
+    public covariance(labels: string[], printed: boolean = false): number[][] {
+        return this.createStatMatrix(labels, covariance, printed);
+    }
+
+    public correlation(labels: string[], printed: boolean = false): number[][] {
+        return this.createStatMatrix(labels, correlation, printed);
     }
 
     public describe(): void {

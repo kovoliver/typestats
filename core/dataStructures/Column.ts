@@ -21,7 +21,7 @@ export default abstract class Column<T extends number | boolean | string | Date>
     /**
      * Returns an array containing exclusively valid, non-missing values.
      */
-    protected getValidValues(): T[] {
+    public getValidValues(): T[] {
         const result: T[] = [];
 
         for (let i = 0; i < this._values.length; i++) {

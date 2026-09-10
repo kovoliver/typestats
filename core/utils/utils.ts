@@ -1,4 +1,4 @@
-import { ColType } from "../types";
+import { ColType } from "../types/types.js";
 
 /**
  * Checks if a given value is considered empty (`null`, `undefined`, empty string, or `NaN`).
