@@ -1,5 +1,5 @@
-import { getCSVFromClient, getJSONFromClient } from '../../core/io/clientIO';
-import { getCSVFromNode, getJSONFromNode } from '../../core/io/nodeIO';
+import { getTableFromCSVAPI, getTableFromJSONAPI } from '../../core/io/clientIO';
+import { getTableFromCSV, getTableFromJSON } from '../../core/io/nodeIO';
 
 async function runExamples() {
     console.log('🚀 === TypeStats I/O Usage Examples ===\n');
@@ -10,7 +10,7 @@ async function runExamples() {
         // ----------------------------------------------------
         console.log('--- 1. Client-Side CSV Loading ---');
         const clientCsvUrl = 'https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv';
-        const clientCsvTable = await getCSVFromClient(clientCsvUrl, ',');
+        const clientCsvTable = await getTableFromCSVAPI(clientCsvUrl, ',');
         
         console.log(`Loaded ${clientCsvTable.rowCount} rows from client CSV.`);
         clientCsvTable.print(0, 5); // Display first 5 rows
@@ -21,7 +21,7 @@ async function runExamples() {
         // ----------------------------------------------------
         console.log('\n--- 2. Client-Side JSON Loading ---');
         const clientJsonUrl = 'https://raw.githubusercontent.com/vega/vega-datasets/main/data/cars.json';
-        const clientJsonTable = await getJSONFromClient(clientJsonUrl);
+        const clientJsonTable = await getTableFromJSONAPI(clientJsonUrl);
         
         console.log(`Loaded ${clientJsonTable.rowCount} rows from client JSON.`);
         clientJsonTable.print(0, 5, 4); // Display first 5 rows, limit to 4 columns
@@ -32,7 +32,7 @@ async function runExamples() {
         // ----------------------------------------------------
         console.log('\n--- 3. Backend Node.js CSV Loading ---');
         const localCsvPath = './sampleData/users_dataset.csv';
-        const nodeCsvTable = await getCSVFromNode(localCsvPath, ';', 'impute');
+        const nodeCsvTable = await getTableFromCSV(localCsvPath, ';', 'impute');
         
         console.log(`Loaded ${nodeCsvTable.rowCount} rows from local CSV.`);
         nodeCsvTable.print(0, 5, 5); // Display first 5 rows, limit to 5 columns
@@ -43,7 +43,7 @@ async function runExamples() {
         // ----------------------------------------------------
         console.log('\n--- 4. Backend Node.js JSON Loading ---');
         const localJsonPath = './sampleData/products_dataset.json';
-        const nodeJsonTable = await getJSONFromNode(localJsonPath);
+        const nodeJsonTable = await getTableFromJSON(localJsonPath);
         
         console.log(`Loaded ${nodeJsonTable.rowCount} rows from local JSON.`);
         nodeJsonTable.print(0, 5, 6); // Display first 5 rows, limit to 6 columns

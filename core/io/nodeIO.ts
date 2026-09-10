@@ -1,11 +1,12 @@
 import fs from 'node:fs';
+import * as XLSX from 'xlsx';
 import readline from 'node:readline';
 import { readFile } from 'fs/promises';
 import Table from "../dataStructures/Table.js";
 import { processCSVData, processJSONDataChunk, readInChunks } from './ioutils.js';
 import { writeTableFile } from './ioutils.js';
 import { ColInfo, ColType } from '../types/types.js';
-import { getColType } from '../utils/utils.js';
+import { getColType, isEmpty, parseValue } from '../utils/utils.js';
 import {
     toNumberArray,
     toBoolArray,
@@ -30,7 +31,7 @@ import {
  *
  * @throws {@link Error} If the file reading fails, the file is empty, or a row structure is invalid (when `invalidLine` is set to `'throw'`).
  */
-export async function getCSVFromNode(
+export async function getTableFromCSV(
     filePath: string,
     separator: string = ';',
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
@@ -133,7 +134,7 @@ export async function getCSVFromNode(
  *
  * @throws {@link Error} If the file reading fails, JSON parsing fails, or the dataset is not a non-empty array of objects.
  */
-export async function getJSONFromNode(
+export async function getTableFromJSON(
     filePath: string,
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     chunkSize: number = 50_000
@@ -142,7 +143,7 @@ export async function getJSONFromNode(
         const isNDJSON = filePath.endsWith('.ndjson') || filePath.endsWith('.jsonl');
 
         if (isNDJSON) {
-            return await getNDJSONFromNode(filePath, invalidLine, chunkSize);
+            return await getTableFromNDJSON(filePath, invalidLine, chunkSize);
         }
 
         const fileContent = await readFile(filePath, { encoding: 'utf-8' });
@@ -185,7 +186,7 @@ export async function getJSONFromNode(
  *
  * @throws {@link Error} If the file reading fails, an NDJSON line is malformed, or the file is empty.
  */
-async function getNDJSONFromNode(
+async function getTableFromNDJSON(
     filePath: string,
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     chunkSize: number = 50_000
@@ -226,7 +227,7 @@ async function getNDJSONFromNode(
         processJSONDataChunk(jsonChunk, labels, cols, invalidLine);
     }
 
-    const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type:getColType(cols[i]) }));
+    const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type: getColType(cols[i]) }));
     return new Table(cols, colInfos);
 }
 
@@ -260,4 +261,84 @@ export async function tableToCSV(
     overWrite: boolean = true
 ): Promise<void> {
     await writeTableFile(path, table.toCSV(), overWrite);
+}
+
+export function readExcel(path: string, sheetIndex: number = 0)
+    : { headers: any[], rows: any[][] } {
+    if (!fs.existsSync(path)) {
+        throw new Error(`File not found at path: "${path}".`);
+    }
+
+    const workbook = XLSX.readFile(path, {
+        cellDates: true,
+        raw: false,
+    });
+
+    const sheetName = workbook.SheetNames[sheetIndex];
+
+    if (!sheetName) {
+        throw new Error(`Sheet at index ${sheetIndex} not found.`);
+    }
+
+    const worksheet = workbook.Sheets[sheetName];
+
+    const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+        blankrows: false,
+        defval: null
+    });
+
+    if (rawData.length === 0) {
+        return { headers: [], rows: [] };
+    }
+
+    const headers = rawData[0].filter(h => !isEmpty(h) ? String(h).trim() : false);
+    const rows: any[][] = rawData.slice(1);
+
+    return { headers, rows };
+}
+
+export function getTableFromXLS(
+    path: string,
+    sheetIndex: number = 0
+): Table {
+    const { headers, rows } = readExcel(path, sheetIndex);
+
+    if (!headers || headers.length === 0) {
+        throw new Error('Excel sheet contains no headers.');
+    }
+
+    if (!rows || rows.length === 0) {
+        throw new Error('Excel sheet contains no data rows.');
+    }
+
+    const validLength = headers.length;
+
+    const sampleSize = Math.min(rows.length, 51);
+    const sampleCols: any[][] = Array.from({ length: validLength }, () => []);
+
+    for (let r = 0; r < sampleSize; r++) {
+        const row = rows[r];
+        for (let c = 0; c < validLength; c++) {
+            sampleCols[c].push(row[c] ?? null);
+        }
+    }
+
+    const colInfo: ColInfo[] = headers.map((label, i) => ({
+        label,
+        type: getColType(sampleCols[i])
+    }));
+
+    const tableData: any[][] = Array.from({ length: validLength }, () => []);
+
+    for (let r = 0; r < rows.length; r++) {
+        const row = rows[r];
+
+        for (let c = 0; c < validLength; c++) {
+            const parsedValue = parseValue(row[c], colInfo[c].type);
+            tableData[c].push(parsedValue);
+        }
+    }
+
+    return new Table(tableData, colInfo, true);
 }

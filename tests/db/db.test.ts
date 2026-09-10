@@ -6,7 +6,7 @@ import Table from '../../core/dataStructures/Table';
 import dotenv from 'dotenv';
 import { DbConnection } from '../../core/types/interfaces';
 import { performance } from 'perf_hooks';
-import { getTableFromQueryParallel } from '../../core/db/getTableFromQueryParallel';
+import { getTableFromQueryP } from '../../core/db/getTableFromQueryParallel';
 
 dotenv.config();
 
@@ -124,7 +124,7 @@ describe('Database Integration Tests (Local RDBMS)', () => {
 
         const startMemory = process.memoryUsage().heapUsed / 1024 / 1024;
         const startTime = performance.now();
-        const table = await getTableFromQueryParallel(conn, 'SELECT * FROM mock_data');
+        const table = await getTableFromQueryP(conn, 'SELECT * FROM mock_data');
 
         const endTime = performance.now();
         const endMemory = process.memoryUsage().heapUsed / 1024 / 1024;

@@ -21,7 +21,7 @@ import { processCSVData, processJSONDataChunk, readClientChunks } from "./ioutil
  *
  * @throws {@link Error} If the HTTP request fails, the file is empty, or a row structure is invalid (when `invalidLine` is set to `'throw'`).
  */
-export async function getCSVFromClient(
+export async function getTableFromCSVAPI(
     url: string,
     separator: string = ';',
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
@@ -120,7 +120,7 @@ export async function getCSVFromClient(
  *
  * @throws {@link Error} If the HTTP response is not OK, or if the parsed JSON is not a non-empty array of objects.
  */
-export async function getJSONFromClient(
+export async function getTableFromJSONAPI(
     url: string,
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     chunkSize: number = 50000
@@ -190,7 +190,7 @@ export async function getJSONFromClient(
  *
  * @throws {@link Error} If the HTTP request fails, NDJSON parsing fails, or a line structure is invalid.
  */
-export async function getNDJSONFromClient(
+export async function getTableFromNDJSONAPI(
     url: string,
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     chunkSize: number = 50000

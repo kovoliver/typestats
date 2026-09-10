@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getCSVFromClient, getJSONFromClient } from '../../core/io/clientIO';
-import { getCSVFromNode, getJSONFromNode } from '../../core/io/nodeIO';
+import { getTableFromCSVAPI, getTableFromJSONAPI } from '../../core/io/clientIO';
+import { getTableFromCSV, getTableFromJSON, getTableFromXLS } from '../../core/io/nodeIO';
 
 describe('Client I/O (clientIO.ts)', () => {
     it('should fetch and parse a remote CSV file from a live Web URL', async () => {
         const csvUrl = 'https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv';
-        const table = await getCSVFromClient(csvUrl, ',');
+        const table = await getTableFromCSVAPI(csvUrl, ',');
 
         expect(table.rowCount).toBeGreaterThan(0);
         expect(table.getCol('sepal_length')).toBeDefined();
@@ -18,7 +18,7 @@ describe('Client I/O (clientIO.ts)', () => {
 
     it('should fetch and parse a remote JSON file from a live Web URL', async () => {
         const jsonUrl = 'https://raw.githubusercontent.com/vega/vega-datasets/main/data/cars.json';
-        const table = await getJSONFromClient(jsonUrl);
+        const table = await getTableFromJSONAPI(jsonUrl);
 
         expect(table.rowCount).toBeGreaterThan(0);
         expect(table.getCol('Miles_per_Gallon')).toBeDefined();
@@ -32,14 +32,14 @@ describe('Client I/O (clientIO.ts)', () => {
     it('should throw an error when fetching from an invalid URL', async () => {
         const invalidUrl = 'https://raw.githubusercontent.com/non_existent_file_12345.json';
 
-        await expect(getJSONFromClient(invalidUrl)).rejects.toThrow();
+        await expect(getTableFromJSONAPI(invalidUrl)).rejects.toThrow();
     });
 });
 
 describe('Node.js Backend I/O (nodeIO.ts)', () => {
     it('should read and parse local CSV file using sampleData/users_dataset.csv', async () => {
         const csvPath = './sampleData/users_dataset.csv';
-        const table = await getCSVFromNode(csvPath, ';', 'impute');
+        const table = await getTableFromCSV(csvPath, ';', 'impute');
 
         expect(table.rowCount).toBe(100);
         expect(table.getCol('first_name')).toBeDefined();
@@ -52,7 +52,7 @@ describe('Node.js Backend I/O (nodeIO.ts)', () => {
 
     it('should read and parse local JSON file using sampleData/products_dataset.json', async () => {
         const jsonPath = './sampleData/products_dataset.json';
-        const table = await getJSONFromNode(jsonPath);
+        const table = await getTableFromJSON(jsonPath);
 
         expect(table.rowCount).toBe(100);
         expect(table.getCol('product_name')).toBeDefined();
@@ -63,8 +63,27 @@ describe('Node.js Backend I/O (nodeIO.ts)', () => {
         table.describe();
     });
 
-    it('should throw an error when local file path is invalid', async () => {
-        const invalidPath = './sampleData/non_existent_file.json';
-        await expect(getJSONFromNode(invalidPath)).rejects.toThrow();
+    it('should read and parse local Excel file using sampleData/excel_dataset.xlsx', () => {
+        const excelPath = './sampleData/bank_churn_messy.xlsx';
+        const table = getTableFromXLS(excelPath);
+
+        expect(table.rowCount).toBeGreaterThan(0);
+        expect(table.getCol('CustomerId')).toBeDefined();
+        expect(table.getCol('Surname')).toBeDefined();
+        expect(table.getCol('CreditScore')).toBeDefined();
+        expect(table.getCol('Geography')).toBeDefined();
+        expect(table.getCol('Gender')).toBeDefined();
+        expect(table.getCol('Age')).toBeDefined();
+        expect(table.getCol('Tenure')).toBeDefined();
+        expect(table.getCol('EstimatedSalary')).toBeDefined();
+
+        console.log('\n--- 🖥️ NODE EXCEL TEST (bank_churn_messy.xlsx head) ---');
+        table.head(3);
+        table.describe();
+    });
+
+    it('should throw an error when local Excel file path is invalid', () => {
+        const invalidPath = './sampleData/non_existent_file.xlsx';
+        expect(() => getTableFromXLS(invalidPath)).toThrow();
     });
 });

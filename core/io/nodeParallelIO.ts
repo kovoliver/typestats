@@ -23,7 +23,7 @@ const WORKER_PATH_JSON = new URL('./jsonWorker.js', import.meta.url);
  *
  * @throws {@link Error} If file reading fails, worker thread initialization fails, or row structure is invalid.
  */
-export async function getCSVFromNodeParallel(
+export async function getTableFromCSVP(
     filePath: string,
     separator: string = ';',
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
@@ -169,7 +169,7 @@ export async function getCSVFromNodeParallel(
  *
  * @throws {@link Error} If file reading fails, worker thread execution fails, or line formatting is invalid.
  */
-export async function getNDJSONFromNodeParallel(
+export async function getTableFromNDJSONP(
     filePath: string,
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     poolSize: number = os.cpus().length,

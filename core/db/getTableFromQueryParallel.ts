@@ -22,7 +22,7 @@ const WORKER_PATH_DB = new URL('./dbWorker.js', import.meta.url);
  *
  * @throws {@link Error} If query execution fails, memory allocation limits are exceeded, or worker execution fails.
  */
-export async function getTableFromQueryParallel(
+export async function getTableFromQueryP(
     conn: DbConnection,
     sql: string,
     params?: any[],
