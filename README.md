@@ -218,6 +218,10 @@ A high-performance, strongly typed object-oriented layer built on an extensible 
     - Converting data back to raw 2D array matrices (`toMatrix`).
   - **Console Visualizations**: Formatted tabular rendering (`print`, `head`, `tail`) equipped with zero-based row slicing, dynamic column truncation (`maxCols`), and feedback logging to prevent console line wrapping.
 - **Grouped Table (`GroupedTable.ts`)**: Group-by abstraction supporting multi-column composite key grouping and aggregation operations (`count`, `sum`, `avg`, `min`, `max`, `std`) with customizable result column aliases.
+- **Data Matrix (`DataMatrix.ts`)**: Specialized matrix structure optimized for bivariate group comparisons, ANOVA variance decomposition, and cross-tabulation contingency analyses:
+  - **Matrix Aggregations & Variance Decomposition**: Overall grand mean computation (`mainMean`), total sum of squared deviations (`totalSSD`), within-group sum of squared deviations (`withinSSD`), between-group sum of squared deviations (`betweenSSD`), and effect size calculation via eta-squared (`etaSquared`).
+  - **Association & Contingency Metrics**: Pearson's Chi-Square ($\chi^2$) statistic computation (`chiSquare`) and Cramér's V nominal measure of association (`cramerV`).
+  - **Pretty Printing & Output**: Formatted console logging for standard numeric matrix tables (`printTable`) and row/column labeled contingency tables (`printContingencyTable`).
 
 ### 8. Integration & Offline Datasets (`sampleData/`)
 Directory containing offline, reproducible JSON and CSV datasets (`users_dataset.csv`, `products_dataset.json`) dedicated to integration testing and CI/CD pipelines.
