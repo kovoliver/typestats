@@ -63,9 +63,9 @@ describe('Node.js Backend I/O (nodeIO.ts)', () => {
         table.describe();
     });
 
-    it('should read and parse local Excel file using sampleData/excel_dataset.xlsx', () => {
+    it('should read and parse local Excel file using sampleData/excel_dataset.xlsx', async () => {
         const excelPath = './sampleData/bank_churn_messy.xlsx';
-        const table = getTableFromXLS(excelPath);
+        const table = await getTableFromXLS(excelPath);
 
         expect(table.rowCount).toBeGreaterThan(0);
         expect(table.getCol('CustomerId')).toBeDefined();
