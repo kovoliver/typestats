@@ -103,7 +103,9 @@
   "peerDependencies": {
     "mssql": "^10.0.0",
     "mysql2": "^3.0.0",
-    "pg": "^8.0.0"
+    "pg": "^8.0.0",
+    "pg-query-stream": "^4.17.0",
+    "xlsx": "^0.18.5"
   },
   "peerDependenciesMeta": {
     "mssql": {
@@ -117,11 +119,14 @@
     },
     "pg-query-stream": {
       "optional": true
+    },
+    "xlsx": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@types/mssql": "^9.1.11",
-    "@types/node": "^26.4.1",
+    "@types/node": "^20.11.0",
     "@types/pg": "^8.23.1",
     "@vitest/ui": "^4.1.11",
     "dotenv": "^17.4.2",

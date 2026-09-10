@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import * as XLSX from 'xlsx';
 import readline from 'node:readline';
 import { readFile } from 'fs/promises';
 import Table from "../dataStructures/Table.js";
@@ -263,8 +262,19 @@ export async function tableToCSV(
     await writeTableFile(path, table.toCSV(), overWrite);
 }
 
-export function readExcel(path: string, sheetIndex: number = 0)
-    : { headers: any[], rows: any[][] } {
+export async function readExcel(path: string, sheetIndex: number = 0)
+    : Promise<{ headers: any[], rows: any[][] }> {
+
+    let XLSX: typeof import('xlsx');
+
+    try {
+        XLSX = await import('xlsx');
+    } catch {
+        throw new Error(
+            'The "xlsx" package is required to read Excel files. Please install it using: npm i xlsx'
+        );
+    }
+
     if (!fs.existsSync(path)) {
         throw new Error(`File not found at path: "${path}".`);
     }
@@ -298,11 +308,11 @@ export function readExcel(path: string, sheetIndex: number = 0)
     return { headers, rows };
 }
 
-export function getTableFromXLS(
+export async function getTableFromXLS(
     path: string,
     sheetIndex: number = 0
-): Table {
-    const { headers, rows } = readExcel(path, sheetIndex);
+): Promise<Table> {
+    const { headers, rows } = await readExcel(path, sheetIndex);
 
     if (!headers || headers.length === 0) {
         throw new Error('Excel sheet contains no headers.');
