@@ -25,7 +25,7 @@ export default class StringColumn extends Column<string> {
      * @protected
      * @returns {string[]} An array containing only valid string values.
      */
-    protected getValidValues(): string[] {
+    public getValidValues(): string[] {
         return this._values.filter((v): v is string => typeof v === 'string');
     }
 
