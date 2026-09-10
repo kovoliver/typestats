@@ -82,8 +82,8 @@ describe('Node.js Backend I/O (nodeIO.ts)', () => {
         table.describe();
     });
 
-    it('should throw an error when local Excel file path is invalid', () => {
+    it('should throw an error when local Excel file path is invalid', async () => {
         const invalidPath = './sampleData/non_existent_file.xlsx';
-        expect(() => getTableFromXLS(invalidPath)).toThrow();
+        await expect(getTableFromXLS(invalidPath)).rejects.toThrow();
     });
 });
