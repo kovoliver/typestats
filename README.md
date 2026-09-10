@@ -6,7 +6,7 @@
 
 Before installing TypeStats, make sure you have the following installed on your system:
 
-- **Node.js** (v18 or later recommended) - TypeStats relies on native `node:fs/promises` for filesystem-based CSV/JSON ingestion (`getCSVFromNode`, `getJSONFromNode`), so a reasonably recent Node.js runtime is required.
+- **Node.js** (v18 or later recommended) - TypeStats relies on native `node:fs/promises` for filesystem-based CSV/JSON ingestion (`getTableFromCSV`, `getTableFromJSON`), so a reasonably recent Node.js runtime is required.
 - **npm** (bundled with Node.js) - used to install the package and manage dependencies.
 
 You can verify your installed versions with:
@@ -31,7 +31,7 @@ npm i typestats@beta
 Once installed, import the modules you need directly from the package:
 
 ```typescript
-import { getCSVFromNode, tableToCSV, tableToJSON } from "typestats/io";
+import { getTableFromCSV, tableToCSV, tableToJSON } from "typestats/io";
 import { round } from "typestats/utils";
 ```
 
@@ -50,12 +50,12 @@ npm i typestats@beta
 ```
 
 ```typescript
-import { getCSVFromNode, tableToCSV, tableToJSON } from "typestats/io";
+import { getTableFromCSV, tableToCSV, tableToJSON } from "typestats/io";
 import { round } from "typestats/utils";
 
 async function runPipeline() {
     try {
-        const table = await await getCSVFromNode('users_dataset.csv', ';');
+        const table = await await getTableFromCSV('users_dataset.csv', ';');
         table.describe();
 
         table.fillNaNumeric('annual_income', 'median')
@@ -112,13 +112,22 @@ TypeStats is a comprehensive, robust TypeScript-based statistical and mathematic
 The project is organized into the following core modules:
 
 ### 1. Data Ingestion & I/O (`core/io/`)
-Environment-aware, fail-fast data ingestion layer supporting cross-environment CSV and JSON parsing directly into `Table` instances:
+Environment-aware, fail-fast data ingestion layer supporting cross-environment CSV, JSON, NDJSON, and Excel parsing directly into `Table` instances with automatic type inference:
+
 - **Client-Side I/O (`clientIO.ts`)**:
-  - `getCSVFromClient(url, separator, invalidLine)`: Fetches and parses remote CSV files over HTTP/HTTPS using the standard Web `fetch` API. Supports row validation strategies (`impute`, `drop`, `throw`).
-  - `getJSONFromClient(url)`: Fetches and transforms remote JSON arrays of key-value objects into a `Table` structure.
+  - `getTableFromCSVAPI(url, separator, invalidLine)`: Fetches and parses remote CSV files over HTTP/HTTPS using the standard Web `fetch` API. Supports row validation strategies (`impute`, `drop`, `throw`).
+  - `getTableFromJSONAPI(url)`: Fetches and transforms remote JSON arrays of key-value objects into a structured `Table` instance.
+  - `getTableFromNDJSONAPI(url, invalidLine, chunkSize)`: Streams and parses remote newline-delimited JSON (NDJSON) over HTTP/HTTPS in chunks using async iterators.
+
 - **Node.js Backend I/O (`nodeIO.ts`)**:
-  - `getCSVFromNode(filePath, separator, invalidLine)`: Reads local CSV datasets directly from the filesystem using native `node:fs/promises`.
-  - `getJSONFromNode(filePath)`: Parses local JSON dataset files from the filesystem.
+  - `getTableFromCSV(filePath, separator, invalidLine)`: Reads local CSV datasets directly from the filesystem using native `node:fs/promises`.
+  - `getTableFromCSVP(filePath, separator, invalidLine)`: High-performance, worker-thread-accelerated parallel CSV reader for massive datasets.
+  - `getTableFromJSON(filePath)`: Reads and parses local JSON dataset files asynchronously from the filesystem.
+  - `getTableFromNDJSON(filePath)`: Reads and parses newline-delimited JSON (NDJSON) files line-by-line.
+  - `getTableFromNDJSONP(filePath)`: Parallel worker-thread parser for large-scale NDJSON files.
+  - `getTableFromXLS(filePath, sheetIndex)`: Reads local Microsoft Excel (`.xlsx` / `.xls`) spreadsheets asynchronously into a `Table`. Powered by dynamic imports via the optional `xlsx` dependency (`npm i xlsx`).
+  - `tableToJSON(table, filePath)`: Serializes a `Table` instance directly into a local JSON file.
+  - `tableToCSV(table, filePath, separator)`: Exports a `Table` instance directly into a formatted CSV file.
 
 ### 2. Descriptive Statistics (`core/statistics/`)
 - **Univariate Analysis (`univariate.ts`)**: Measures of central tendency and dispersion (mean, mode, median, quartiles, variance, standard deviation), along with shape metrics like skewness and kurtosis (based on central moments). Contains tools for frequency series and Lorenz curve data.
