@@ -94,7 +94,7 @@ export async function getCSVFromClient(
 
         const colInfos: ColInfo[] = labels.map((label, i) => ({
             label,
-            colType: colTypes[i]
+            type: colTypes[i]
         }));
 
         return new Table(tableData, colInfos, true);

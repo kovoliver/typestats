@@ -59,7 +59,7 @@ export async function getCSVFromNodeParallel(
             for (let c = 0; c < validLength; c++) sampleCols[c].push(row[c] ?? '');
         }
 
-        const colTypes: ColType[] = sampleCols.map(c => getColType(c) ?? 'string');
+        const colTypes: ColType[] = sampleCols.map(c => getColType(c));
 
         const workers: Worker[] = [];
         const idleWorkers: Worker[] = [];
@@ -101,7 +101,7 @@ export async function getCSVFromNodeParallel(
                             lines,
                             separator,
                             validLength,
-                            colTypes,
+                            colTypes: [...colTypes],
                             invalidLine,
                             quoteChar
                         });
@@ -148,9 +148,8 @@ export async function getCSVFromNodeParallel(
             }
         }
 
-        const colInfos: ColInfo[] = labels.map((label, i) => ({ label, colType: colTypes[i] }));
+        const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type: colTypes[i] }));
         return new Table(tableData, colInfos, true);
-
     } catch (err) {
         console.error('Error in multi-threaded CSV parsing:', err);
         throw err;
@@ -272,9 +271,8 @@ export async function getNDJSONFromNodeParallel(
             }
         }
 
-        const colInfos: ColInfo[] = labels.map(label => ({ label }));
+        const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type:getColType(tableData[i]) }));
         return new Table(tableData, colInfos, true);
-
     } catch (err) {
         console.error('Error in multi-threaded NDJSON parsing:', err);
         throw err;

@@ -114,6 +114,9 @@
     },
     "pg": {
       "optional": true
+    },
+    "pg-query-stream": {
+      "optional": true
     }
   },
   "devDependencies": {

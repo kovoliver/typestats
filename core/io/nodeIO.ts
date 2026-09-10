@@ -107,7 +107,7 @@ export async function getCSVFromNode(
 
         const colInfos: ColInfo[] = labels.map((label, i) => ({
             label,
-            colType: colTypes[i]
+            type: colTypes[i]
         }));
 
         return new Table(tableData, colInfos, true);
@@ -226,7 +226,7 @@ async function getNDJSONFromNode(
         processJSONDataChunk(jsonChunk, labels, cols, invalidLine);
     }
 
-    const colInfos: ColInfo[] = labels.map(label => ({ label }));
+    const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type:getColType(cols[i]) }));
     return new Table(cols, colInfos);
 }
 

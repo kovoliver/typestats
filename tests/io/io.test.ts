@@ -13,6 +13,7 @@ describe('Client I/O (clientIO.ts)', () => {
 
         console.log('\n--- 🌐 CLIENT CSV TEST (Iris dataset head) ---');
         table.head(3);
+        table.describe();
     });
 
     it('should fetch and parse a remote JSON file from a live Web URL', async () => {
@@ -25,6 +26,7 @@ describe('Client I/O (clientIO.ts)', () => {
 
         console.log('\n--- 🌐 CLIENT JSON TEST (Cars dataset head) ---');
         table.head(3);
+        table.describe();
     });
 
     it('should throw an error when fetching from an invalid URL', async () => {
@@ -45,6 +47,7 @@ describe('Node.js Backend I/O (nodeIO.ts)', () => {
 
         console.log('\n--- 🖥️ NODE CSV TEST (users_dataset.csv head) ---');
         table.head(3);
+        table.describe();
     });
 
     it('should read and parse local JSON file using sampleData/products_dataset.json', async () => {
@@ -57,6 +60,7 @@ describe('Node.js Backend I/O (nodeIO.ts)', () => {
 
         console.log('\n--- 🖥️ NODE JSON TEST (products_dataset.json head) ---');
         table.head(3);
+        table.describe();
     });
 
     it('should throw an error when local file path is invalid', async () => {
