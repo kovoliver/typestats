@@ -1,6 +1,6 @@
 # TypeStats
 
-> **note:** TypeStats achieves the theoretical accuracy limits of 64-bit IEEE 754 floating-point arithmetic across all NIST StRD ANOVA benchmark difficulty levels (lower, average, and higher). The results demonstrate numerical stability under severe cancellation and extreme scale shifts, with benchmark data ranging from 10⁰ to 10⁹. This validation marks TypeStats as a mature, dependable statistical library rather than merely a learning project. It is designed for small- to medium-sized datasets in business intelligence, higher education, and scientific applications where standard 64-bit floating-point precision is sufficient. **1.0 release is coming soon!** 🚀
+> **Note:** TypeStats achieves the theoretical accuracy limits of 64-bit IEEE 754 floating-point arithmetic across all NIST StRD ANOVA benchmark difficulty levels (lower, average, and higher). The results demonstrate numerical stability under severe cancellation and extreme scale shifts, with benchmark data ranging from 10⁰ to 10⁹. This validation marks TypeStats as a mature, dependable statistical library rather than merely a learning project. It is designed for small- to medium-sized datasets in business intelligence, higher education, and scientific applications where standard 64-bit floating-point precision is sufficient. **1.0 release is coming soon!** 🚀
 
 ## Prerequisites
 
