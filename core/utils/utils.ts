@@ -209,27 +209,23 @@ export function only01(values: (number | string | null | undefined)[]): boolean 
 }
 
 export function firstNValuesAreBool(
-    values: (number | string | null | undefined)[],
+    values: (number | string | boolean | null | undefined)[],
     limit: number
 ) {
     if (!values || values.length === 0) return false;
 
     let n = 0;
-    let allBool = true;
 
     for (const val of values) {
         if (isEmpty(val)) continue;
+
+        if (!isBool(val)) return false;
+
         n++;
-
-        if (!isBool(val)) {
-            allBool = false;
-            break;
-        }
-
         if (n === limit) break;
     }
 
-    return n > 0 && allBool;
+    return n > 0;
 }
 
 export function firstNTypeCheck(
@@ -628,10 +624,8 @@ export function parseValue(val: unknown, type: ColType | undefined): any {
     }
 }
 
-export function getColType(col: any[], colType?: ColType): ColType {
-    if (colType) return colType;
-
-    if (firstNTypeCheck(col, 10, isBool)) return 'bool';
+export function getColType(col: any[]): ColType {
+    if (firstNValuesAreBool(col, 10)) return 'bool';
     if (firstNTypeCheck(col, 10, isNumeric)) return 'number';
     if (firstNTypeCheck(col, 10, isDate)) return 'date';
 
