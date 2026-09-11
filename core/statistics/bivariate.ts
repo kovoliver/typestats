@@ -278,44 +278,39 @@ export function betweenSSDDep(
     return round(totalSsd, digits);
 }
 
-export function betweenSSD(
-    table: number[][],
-    digits?: number
-): number {
+export function betweenSSD(table: number[][], digits?: number): number {
     validateTable(table);
 
-    let totalSum = 0;
-    let totalCount = 0;
-
-    const groupMeans: number[] = [];
-    const groupSizes: number[] = [];
-
+    const groups: { n: number; mean: number }[] = [];
     for (let i = 0; i < table.length; i++) {
         const group = table[i];
         if (!group || group.length === 0) continue;
+        groups.push({ n: group.length, mean: mean(group) });
+    }
+    if (groups.length === 0) return 0;
 
-        const gMean = mean(group);
-        const gSize = group.length;
+    let combined = groups[0];
+    for (let i = 1; i < groups.length; i++) {
+        const g = groups[i];
+        const n = combined.n + g.n;
+        const delta = g.mean - combined.mean;
+        combined = { n, mean: combined.mean + delta * (g.n / n) };
+    }
+    const grandMean = combined.mean;
 
-        groupMeans.push(gMean);
-        groupSizes.push(gSize);
+    let totalSsd = 0, compensation = 0;
 
-        totalSum += gMean * gSize;
-        totalCount += gSize;
+    for (const g of groups) {
+        const diff = g.mean - grandMean;
+        const term = g.n * diff * diff;
+        const t = totalSsd + term;
+        compensation += Math.abs(totalSsd) >= Math.abs(term)
+            ? (totalSsd - t) + term
+            : (term - t) + totalSsd;
+        totalSsd = t;
     }
 
-    if (totalCount === 0) return 0;
-
-    const grandMean = totalSum / totalCount;
-
-    let totalSsd = 0;
-
-    for (let i = 0; i < groupMeans.length; i++) {
-        const diff = groupMeans[i] - grandMean;
-        totalSsd += groupSizes[i] * (diff * diff);
-    }
-
-    return round(Math.max(0, totalSsd), digits);
+    return round(Math.max(0, totalSsd + compensation), digits);
 }
 
 /**

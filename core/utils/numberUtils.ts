@@ -1,4 +1,4 @@
-export function round(value: number, decimals?:number): number {
+export function round(value: number, decimals?: number): number {
     if (decimals === undefined) return value;
 
     const factor = Math.pow(10, decimals);
@@ -87,4 +87,16 @@ export function clamp01(value: number, digits: number): number {
  */
 export function clampSymmetric(value: number, digits: number): number {
     return clamp(value, -1, 1, digits);
+}
+
+export function lre(computed: number, certified: number): number {
+    if (certified === 0) {
+        if (computed === 0) return Infinity;
+        return -Math.log10(Math.abs(computed));
+    }
+
+    const relError = Math.abs(computed - certified) / Math.abs(certified);
+    
+    if (relError === 0) return Infinity;
+    return Math.min(-Math.log10(relError), 15);
 }
