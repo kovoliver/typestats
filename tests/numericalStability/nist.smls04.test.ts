@@ -42,7 +42,7 @@ describe('DataMatrix - NIST SmLs04 Numerical Stability Test (Medium Difficulty)'
         totalSSD: 3.48,
         withinSSD: 1.80,
         betweenSSD: 1.68,
-        etaSquared: 1.68 / 3.48,
+        etaSquared: 0.482758620689655,
         betweenMS: 0.21,
         withinMS: 0.01,
         fStat: 21.0,
