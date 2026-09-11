@@ -70,27 +70,27 @@ describe('DataMatrix - NIST SmLs01 Numerical Stability Test (Low Difficulty)', (
         expect(lre(computed, CERTIFIED.mainMean)).toBeGreaterThanOrEqual(MIN_LRE_THRESHOLD);
     });
 
-    test('should maintain maximum precision (LRE >= 14.0) for Total Sum of Squared Deviations (SSD)', () => {
+    test('should maintain maximum precision (LRE >= 15.0) for Total Sum of Squared Deviations (SSD)', () => {
         const computed = matrix.totalSSD();
         expect(lre(computed, CERTIFIED.totalSSD)).toBeGreaterThanOrEqual(MIN_LRE_THRESHOLD);
     });
 
-    test('should maintain maximum precision (LRE >= 14.0) for Within-treatment SSD', () => {
+    test('should maintain maximum precision (LRE >= 15.0) for Within-treatment SSD', () => {
         const computed = matrix.withinSSD();
         expect(lre(computed, CERTIFIED.withinSSD)).toBeGreaterThanOrEqual(MIN_LRE_THRESHOLD);
     });
 
-    test('should maintain maximum precision (LRE >= 14.0) for Between-treatment SSD', () => {
+    test('should maintain maximum precision (LRE >= 15.0) for Between-treatment SSD', () => {
         const computed = matrix.betweenSSD();
         expect(lre(computed, CERTIFIED.betweenSSD)).toBeGreaterThanOrEqual(MIN_LRE_THRESHOLD);
     });
 
-    test('should maintain maximum precision (LRE >= 14.0) for Eta Squared', () => {
+    test('should maintain maximum precision (LRE >= 15.0) for Eta Squared', () => {
         const computed = matrix.etaSquared();
         expect(lre(computed, CERTIFIED.etaSquared)).toBeGreaterThanOrEqual(MIN_LRE_THRESHOLD);
     });
 
-    test('should maintain maximum precision (LRE >= 14.0) for ANOVA statistics (MS, F-ratio, Residual SD)', () => {
+    test('should maintain maximum precision (LRE >= 15.0) for ANOVA statistics (MS, F-ratio, Residual SD)', () => {
         const betweenDF = matrix.rows - 1;
         const totalN = matrix.rows * matrix.cols;
         const withinDF = totalN - matrix.rows;
