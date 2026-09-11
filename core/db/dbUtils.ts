@@ -1,5 +1,4 @@
 import { DbConnection } from "../types/interfaces.js";
-import QueryStream from 'pg-query-stream';
 
 export async function getDbStream(
     sql: string,
@@ -16,6 +15,7 @@ export async function getDbStream(
             return stream;
         }
         case 'postgresql': {
+            const { default: QueryStream } = await import('pg-query-stream');
             const client = await conn.nativePool.connect();
             const queryStream = new QueryStream(sql, params);
             const stream = client.query(queryStream);
