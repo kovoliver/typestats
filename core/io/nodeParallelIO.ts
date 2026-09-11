@@ -5,6 +5,7 @@ import { Worker } from 'node:worker_threads';
 import Table from '../dataStructures/Table.js';
 import { ColInfo, ColType } from '../types/types.js';
 import { getColType } from '../utils/utils.js';
+import { readInChunks } from './ioutils.js';
 
 const WORKER_PATH_CSV = new URL('./csvWorker.js', import.meta.url);
 const WORKER_PATH_JSON = new URL('./jsonWorker.js', import.meta.url);
@@ -31,35 +32,9 @@ export async function getTableFromCSVP(
     poolSize: number = os.cpus().length
 ): Promise<Table> {
     try {
-        const fileStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
-        const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
-
-        const firstChunk: string[] = [];
-
-        for await (const line of rl) {
-            if (line.trim().length > 0) firstChunk.push(line);
-
-            if (firstChunk.length >= 51) {
-                rl.close();
-                fileStream.destroy();
-                break;
-            }
-        }
-
-        if (firstChunk.length === 0) throw new Error('CSV file is empty');
-
-        const headerLine = firstChunk.shift()!;
-        const labels = headerLine.split(separator).map(l => l.trim());
-        const validLength = labels.length;
-
-        const sampleCols: string[][] = Array.from({ length: validLength }, () => []);
-
-        for (const line of firstChunk) {
-            const row = line.split(separator);
-            for (let c = 0; c < validLength; c++) sampleCols[c].push(row[c] ?? '');
-        }
-
-        const colTypes: ColType[] = sampleCols.map(c => getColType(c));
+        let labels: string[] | null = null;
+        let validLength = 0;
+        let colTypes: ColType[] = [];
 
         const workers: Worker[] = [];
         const idleWorkers: Worker[] = [];
@@ -70,7 +45,6 @@ export async function getTableFromCSVP(
             idleWorkers.push(w);
         }
 
-        const tableData: any[][] = Array.from({ length: validLength }, () => []);
         const pendingPromisifiedChunks: Promise<any[][]>[] = [];
 
         const dispatchChunk = (lines: string[]): Promise<any[][]> => {
@@ -106,41 +80,55 @@ export async function getTableFromCSVP(
                             quoteChar
                         });
                     } else {
-                        setTimeout(getWorker, 2);
+                        setTimeout(getWorker);
                     }
                 };
                 getWorker();
             });
         };
 
-        const fullStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
-        const fullRl = readline.createInterface({ input: fullStream, crlfDelay: Infinity });
+        for await (let lines of readInChunks(filePath, 50000, 51)) {
+            if (lines.length === 0) continue;
 
-        let isHeaderSkipped = false;
-        let chunk: string[] = [];
-        const chunkSize = 50000;
+            if (labels === null) {
+                const headerLine = lines.shift();
+                if (!headerLine) continue;
 
-        for await (const line of fullRl) {
-            if (!isHeaderSkipped) {
-                isHeaderSkipped = true;
-                continue;
+                labels = headerLine.split(separator).map(l => l.trim());
+                if (labels.length === 0) {
+                    throw new Error('CSV file is empty or header is invalid');
+                }
+                validLength = labels.length;
             }
 
-            chunk.push(line);
+            if (colTypes.length === 0 && lines.length > 0) {
+                const sampleCols: string[][] = Array.from({ length: validLength }, () => []);
 
-            if (chunk.length === chunkSize) {
-                pendingPromisifiedChunks.push(dispatchChunk(chunk));
-                chunk = [];
+                for (const line of lines) {
+                    if (line.trim().length === 0) continue;
+                    const row = line.split(separator);
+                    for (let c = 0; c < validLength; c++) {
+                        sampleCols[c].push(row[c] ?? '');
+                    }
+                }
+
+                colTypes = sampleCols.map(c => getColType(c));
+            }
+
+            if (lines.length > 0) {
+                pendingPromisifiedChunks.push(dispatchChunk(lines));
             }
         }
 
-        if (chunk.length > 0) {
-            pendingPromisifiedChunks.push(dispatchChunk(chunk));
+        if (labels === null) {
+            throw new Error('CSV file is empty');
         }
 
         const results = await Promise.all(pendingPromisifiedChunks);
 
         workers.forEach(w => w.terminate());
+
+        const tableData: any[][] = Array.from({ length: validLength }, () => []);
 
         for (const workerCols of results) {
             for (let c = 0; c < validLength; c++) {
@@ -150,6 +138,7 @@ export async function getTableFromCSVP(
 
         const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type: colTypes[i] }));
         return new Table(tableData, colInfos, true);
+
     } catch (err) {
         console.error('Error in multi-threaded CSV parsing:', err);
         throw err;
@@ -271,7 +260,7 @@ export async function getTableFromNDJSONP(
             }
         }
 
-        const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type:getColType(tableData[i]) }));
+        const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type: getColType(tableData[i]) }));
         return new Table(tableData, colInfos, true);
     } catch (err) {
         console.error('Error in multi-threaded NDJSON parsing:', err);
