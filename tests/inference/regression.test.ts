@@ -43,8 +43,7 @@ describe('Regression Class', () => {
         it('should throw error if independent variable has zero variance in linear regression', () => {
             const reg = new Regression([3, 3, 3], [2, 4, 6]);
             expect(() => reg.linear()).toThrowError(
-                'Regression could not be calculated because the \
-                independent variable has zero variance!'
+                'Regression could not be calculated because the independent variable has zero variance!'
             );
         });
     });
@@ -71,8 +70,7 @@ describe('Regression Class', () => {
         it('should throw error if dependent variable contains non-positive values', () => {
             const reg = new Regression([1, 2, 3], [2, 0, -1]);
             expect(() => reg.exponential()).toThrowError(
-                'Exponential regression could not be calculated because of \
-                non-positive values in the dependent variable!'
+                'Exponential regression could not be calculated because of non-positive values in the dependent variable!'
             );
         });
     });
@@ -99,14 +97,12 @@ describe('Regression Class', () => {
         it('should throw error if x or y contains non-positive values in power regression', () => {
             const regNegativeX = new Regression([0, 1, 2], [1, 2, 3]);
             expect(() => regNegativeX.power()).toThrowError(
-                'Power regression could not be calculated because of \
-                non-positive values in either the independent or dependent variable!'
+                'Power regression could not be calculated because of non-positive values in either the independent or dependent variable!'
             );
 
             const regNegativeY = new Regression([1, 2, 3], [-1, 2, 3]);
             expect(() => regNegativeY.power()).toThrowError(
-                'Power regression could not be calculated because of \
-                non-positive values in either the independent or dependent variable!'
+                'Power regression could not be calculated because of non-positive values in either the independent or dependent variable!'
             );
         });
     });

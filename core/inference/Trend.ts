@@ -1,7 +1,10 @@
 import type { TrendType } from "../types/types.js";
+import { Cache } from "../abstractions/abstractClasses.js";
 import Matrix from "../math/Matrix.js";
+import { neumaierSum, neumaierSumPow, neumaierSumDotProduct } 
+from "../utils/numberUtils.js";
 
-export default class Trend {
+export default class Trend extends Cache {
     private _y: number[];
     private _lnY: number[] = [];
     private _xSum: number = 0;
@@ -11,14 +14,7 @@ export default class Trend {
     private _lnySum: number = 0;
     private _lnxySum: number = 0;
     private _n: number;
-    private _a: number | null = null;
-    private _b: number | null = null;
-    private _expA: number | null = null;
-    private _expB: number | null = null;
-    private _logA:number|null = null;
-    private _logB:number|null = null;
     private _hasNonPositive: boolean = false;
-    private _polyCache: Map<number, Record<string, number>> = new Map();
 
     /**
      * Initialises the trend calculator with an array of observations.
@@ -27,6 +23,8 @@ export default class Trend {
      * @throws {Error} If the input array contains fewer than 2 elements.
      */
     constructor(values: number[]) {
+        super();
+
         if (values.length < 2) {
             throw new Error('You should give at least two values!');
         }
@@ -34,21 +32,17 @@ export default class Trend {
         this._y = values;
         this._n = this._y.length;
         this._hasNonPositive = values.some(v => v <= 0);
+        const xValues = Array.from({ length: this._n }, (_, i) => i);
 
-        for (let x = 0; x < this._n; x++) {
-            const y = this._y[x];
+        this._xSum = neumaierSum(xValues);
+        this._xSquaresSum = neumaierSumPow(xValues, 2);
+        this._ySum = neumaierSum(this._y);
+        this._xySum = neumaierSumDotProduct(xValues, this._y);
 
-            this._xSum += x;
-            this._xSquaresSum += x * x;
-            this._ySum += y;
-            this._xySum += x * y;
-
-            if (!this._hasNonPositive) {
-                const lny = Math.log(y);
-                this._lnY.push(lny);
-                this._lnySum += lny;
-                this._lnxySum += x * lny;
-            }
+        if (!this._hasNonPositive) {
+            this._lnY = this._y.map(v => Math.log(v));
+            this._lnySum = neumaierSum(this._lnY);
+            this._lnxySum = neumaierSumDotProduct(xValues, this._lnY);
         }
     }
 
@@ -57,7 +51,7 @@ export default class Trend {
      * 
      * @returns The count of observations (N).
      */
-    public get N() {
+    public get N(): number {
         return this._n;
     }
 
@@ -84,21 +78,14 @@ export default class Trend {
      * @returns An object containing slope (`a`) and y-intercept (`b`).
      */
     public linear(): { a: number, b: number } {
-        if (this._a !== null && this._b !== null) {
-            return { a: this._a, b: this._b };
-        }
-
-        const funcObj = this.trend(
-            this._xSum,
-            this._ySum,
-            this._xySum,
-            this._xSquaresSum
-        );
-
-        this._a = funcObj.a;
-        this._b = funcObj.b;
-
-        return funcObj;
+        return this.getCached('linear', () => {
+            return this.trend(
+                this._xSum,
+                this._ySum,
+                this._xySum,
+                this._xSquaresSum
+            );
+        });
     }
 
     /**
@@ -113,24 +100,19 @@ export default class Trend {
             throw new Error('Exponential trend cannot be calculated for zero or negative values.');
         }
 
-        if (this._expA !== null && this._expB !== null) {
-            return { a: this._expA, b: this._expB };
-        }
+        return this.getCached('exponential', () => {
+            const funcObj = this.trend(
+                this._xSum,
+                this._lnySum,
+                this._lnxySum,
+                this._xSquaresSum
+            );
 
-        const funcObj = this.trend(
-            this._xSum,
-            this._lnySum,
-            this._lnxySum,
-            this._xSquaresSum
-        );
-
-        this._expA = Math.exp(funcObj.b);
-        this._expB = Math.exp(funcObj.a);
-
-        return {
-            a: this._expA,
-            b: this._expB,
-        };
+            return {
+                a: Math.exp(funcObj.b),
+                b: Math.exp(funcObj.a),
+            };
+        });
     }
 
     /**
@@ -146,54 +128,43 @@ export default class Trend {
             throw new Error(`Invalid polynomial degree: ${degree}. Degree must be an integer between 2 and 5.`);
         }
 
-        if (this._polyCache.has(degree)) {
-            return this._polyCache.get(degree)!;
-        }
+        return this.getCached(`polynomial_${degree}`, () => {
+            const eqComps: number[] = [];
+            const resultComps: number[] = [];
+            const xValues = Array.from({ length: this._n }, (_, i) => i);
 
-        const eqComps:number[] = [];
-        const resultComps:number[] = [];
-        const ySums = this._y.reduce((total, val) => total + val, 0);
-        resultComps.push(ySums);
-        const equation:number[][] = [];
+            resultComps.push(this._ySum);
+            const equation: number[][] = [];
 
-        for (let deg = 0; deg <= degree * 2; deg++) {
-            const compX = deg !== 0 ?
-                this._y.reduce((total, _, x) => total + Math.pow(x, deg), 0)
-                : this._y.length;
+            for (let deg = 0; deg <= degree * 2; deg++) {
+                const compX = deg !== 0 ? neumaierSumPow(xValues, deg) : this._n;
+                eqComps.push(compX);
 
-            eqComps.push(compX);
-
-            if (deg <= degree && deg !== 0) {
-                const compRes = this._y.reduce(
-                    (total, val, x) => total + Math.pow(x, deg) * val, 0
-                );
-
-                resultComps.push(compRes);
-            }
-        }
-
-        for (let i = 0; i <= degree; i++) {
-            const eqLine:number[] = [];
-
-            for (let j = i; j < degree + i + 1; j++) {
-                eqLine.push(eqComps[j]);
+                if (deg <= degree && deg !== 0) {
+                    const xPowers = xValues.map(x => Math.pow(x, deg));
+                    const compRes = neumaierSumDotProduct(xPowers, this._y);
+                    resultComps.push(compRes);
+                }
             }
 
-            equation.push(eqLine);
-        }
+            for (let i = 0; i <= degree; i++) {
+                const eqLine: number[] = [];
 
-        const m: Matrix = new Matrix(equation);
+                for (let j = i; j < degree + i + 1; j++) {
+                    eqLine.push(eqComps[j]);
+                }
 
-        const solved: number[] = m.solve(resultComps);
+                equation.push(eqLine);
+            }
 
-        const coeffs = solved.reduce<Record<string, number>>((acc, val, i) => {
-            acc[`a${i}`] = val;
-            return acc;
-        }, {});
+            const m: Matrix = new Matrix(equation);
+            const solved: number[] = m.solve(resultComps);
 
-        this._polyCache.set(degree, coeffs);
-
-        return coeffs;
+            return solved.reduce<Record<string, number>>((acc, val, i) => {
+                acc[`a${i}`] = val;
+                return acc;
+            }, {});
+        });
     }
 
     /**
@@ -203,50 +174,44 @@ export default class Trend {
      * @returns An object containing slope coefficient (`a`) and constant term (`b`).
      * @throws {Error} If there is zero variance in x values or N < 2.
      */
-    public logarithmic() {
-        if(this._logA !== null && this._logB !== null) {
-            return {
-                a:this._logA,
-                b:this._logB,
+    public logarithmic(): { a: number, b: number } {
+        return this.getCached('logarithmic', () => {
+            const zValues = Array.from({ length: this._n }, (_, x) => Math.log(x + 1));
+
+            const zSum = neumaierSum(zValues);
+            const zSquaresSum = neumaierSumPow(zValues, 2);
+            const ziyi = neumaierSumDotProduct(zValues, this._y);
+
+            const zAvg = zSum / this.N;
+            const yMean = this._ySum / this.N;
+
+            const numerator = this.N * ziyi - zSum * this._ySum;
+            const denominator = this.N * zSquaresSum - Math.pow(zSum, 2);
+
+            if (denominator === 0) {
+                throw new Error('Cannot fit logarithmic trend: Zero variance in x values (all x values are identical or N < 2).');
             }
-        }
 
-        let zAvg = this._y.reduce((total, _, x)=> total + Math.log(x + 1), 0)/this.N;
-        let yMean = this._ySum/this.N;
+            const a = numerator / denominator;
+            const b = yMean - a * zAvg;
 
-        const ziyi = this._y.reduce((total, y, x)=> total + y * Math.log(x + 1), 0);
-        const zSum = this._y.reduce((total, _, x)=> total + Math.log(x + 1), 0);
-        const zSquaresSum = this._y.reduce((total, _, x)=> total + Math.log(x + 1) ** 2, 0);
-
-        const numerator = this.N * ziyi - zSum * this._ySum;
-        const denominator = this.N * zSquaresSum - zSum ** 2;
-
-        if(denominator === 0) {
-            throw new Error('Cannot fit logarithmic trend: Zero variance in x values (all x values are identical or N < 2).');
-        }
-
-        const a = numerator / denominator;
-        const b = yMean - a * zAvg;
-
-        this._logA = a;
-        this._logB = b;
-
-        return {a, b};
+            return { a, b };
+        });
     }
 
-    private getYHatLinear(a: number, b: number, x: number,) {
+    private getYHatLinear(a: number, b: number, x: number): number {
         return a * x + b;
     }
 
-    private getYHatExponential(a: number, b: number, x: number) {
+    private getYHatExponential(a: number, b: number, x: number): number {
         return a * Math.pow(b, x);
     }
 
-    private getYHatPolynomial(variables: number[], x: number) {
+    private getYHatPolynomial(variables: number[], x: number): number {
         return variables.reduce((total, val, exp) => total + val * Math.pow(x, exp), 0);
     }
 
-    private getYHatLogarithmic(a: number, b: number, x: number) {
+    private getYHatLogarithmic(a: number, b: number, x: number): number {
         return a * Math.log(x + 1) + b;
     }
 
@@ -255,14 +220,15 @@ export default class Trend {
      * 
      * @returns The average of squared residuals for the linear model.
      */
-    public MSELinear() {
+    public MSELinear(): number {
         const funcObj = this.linear();
 
-        return this._y.reduce((total, val, i) => {
-            let yHat = this.getYHatLinear(funcObj.a, funcObj.b, i);
+        const sqErrors = this._y.map((val, i) => {
+            const yHat = this.getYHatLinear(funcObj.a, funcObj.b, i);
+            return Math.pow(val - yHat, 2);
+        });
 
-            return total + Math.pow(val - yHat, 2);
-        }, 0) / this._n;
+        return neumaierSum(sqErrors) / this._n;
     }
 
     /**
@@ -270,14 +236,15 @@ export default class Trend {
      * 
      * @returns The average of squared residuals for the exponential model.
      */
-    public MSEExponential() {
+    public MSEExponential(): number {
         const funcObj = this.exponential();
 
-        return this._y.reduce((total, val, i) => {
-            let yHat = this.getYHatExponential(funcObj.a, funcObj.b, i);
+        const sqErrors = this._y.map((val, i) => {
+            const yHat = this.getYHatExponential(funcObj.a, funcObj.b, i);
+            return Math.pow(val - yHat, 2);
+        });
 
-            return total + Math.pow(val - yHat, 2);
-        }, 0) / this._n;
+        return neumaierSum(sqErrors) / this._n;
     }
 
     /**
@@ -286,44 +253,48 @@ export default class Trend {
      * @param degree The polynomial degree (integer between 2 and 5).
      * @returns The average of squared residuals for the polynomial model.
      */
-    public MSEPolynomial(degree: number) {
+    public MSEPolynomial(degree: number): number {
         const coeffsObj = this.polynomial(degree);
         const coeffs = Object.values(coeffsObj);
 
-        return this._y.reduce((total, val, i) => {
-            let yHat = this.getYHatPolynomial(coeffs, i);
-            return total + Math.pow(val - yHat, 2);
-        }, 0) / this._n;
+        const sqErrors = this._y.map((val, i) => {
+            const yHat = this.getYHatPolynomial(coeffs, i);
+            return Math.pow(val - yHat, 2);
+        });
+
+        return neumaierSum(sqErrors) / this._n;
     }
-    
+
     /**
      * Calculates the Mean Squared Error (MSE) for the fitted logarithmic trend model.
      * 
      * @returns The average of squared residuals for the logarithmic model.
      */
-    public MSELogarithmic() {
+    public MSELogarithmic(): number {
         const funcObj = this.logarithmic();
 
-        return this._y.reduce((total, val, i) => {
+        const sqErrors = this._y.map((val, i) => {
             const yHat = this.getYHatLogarithmic(funcObj.a, funcObj.b, i);
-            return total + Math.pow(val - yHat, 2);
-        }, 0) / this._n;
+            return Math.pow(val - yHat, 2);
+        });
+
+        return neumaierSum(sqErrors) / this._n;
     }
 
     /**
      * Unified method to compute the Mean Squared Error (MSE) for any supported trend type.
      * 
-     * @param trendType The target trend model ('LINEAR' | 'EXPONENTIAL' | 'POLYNOMIAL' | 'LOGARITHMIC').
-     * @param degree Required only when trendType is 'POLYNOMIAL'. Integer between 2 and 5.
+     * @param trendType The target trend model ('linear' | 'exponential' | 'polynomial' | 'logarithmic').
+     * @param degree Required only when trendType is 'polynomial'. Integer between 2 and 5.
      * @returns The Mean Squared Error of the specified trend model.
-     * @throws {Error} If trendType is 'POLYNOMIAL' but degree is not provided, or if trendType is unknown.
+     * @throws {Error} If trendType is 'polynomial' but degree is not provided, or if trendType is unknown.
      */
-    public MSE(trendType:TrendType, degree?:number) {
-        if(trendType === 'polynomial' && !degree) {
+    public MSE(trendType: TrendType, degree?: number): number {
+        if (trendType === 'polynomial' && !degree) {
             throw new Error('Degree is required for polynomial trend calculation.');
         }
 
-        switch(trendType) {
+        switch (trendType) {
             case 'linear':
                 return this.MSELinear();
             case 'exponential':

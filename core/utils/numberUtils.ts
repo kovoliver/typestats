@@ -96,7 +96,111 @@ export function lre(computed: number, certified: number): number {
     }
 
     const relError = Math.abs(computed - certified) / Math.abs(certified);
-    
+
     if (relError === 0) return Infinity;
     return Math.min(-Math.log10(relError), 15);
+}
+
+export function kahanSum(numbers: number[]): number {
+    let sum = 0.0;
+    let c = 0.0;
+
+    for (let i = 0; i < numbers.length; i++) {
+        const y = numbers[i] - c;
+        const t = sum + y;
+        c = (t - sum) - y;
+        sum = t;
+    }
+
+    return sum;
+}
+
+export function kahanSumDotProduct(x: number[], y: number[]): number {
+    let sum = 0.0;
+    let c = 0.0;
+
+    for (let i = 0; i < x.length; i++) {
+        const product = x[i] * y[i];
+        const yCorr = product - c;
+        const t = sum + yCorr;
+        c = (t - sum) - yCorr;
+        sum = t;
+    }
+
+    return sum;
+}
+
+export function kahanSumPow(x: number[], pow: number): number {
+    let sum = 0.0;
+    let c = 0.0;
+
+    for (let i = 0; i < x.length; i++) {
+        const square = Math.pow(x[i], pow);
+        const yCorr = square - c;
+        const t = sum + yCorr;
+        c = (t - sum) - yCorr;
+        sum = t;
+    }
+
+    return sum;
+}
+
+export function neumaierSum(numbers: number[]): number {
+    let sum = 0.0;
+    let c = 0.0;
+
+    for (let i = 0; i < numbers.length; i++) {
+        const x = numbers[i];
+        const t = sum + x;
+
+        if (Math.abs(sum) >= Math.abs(x)) {
+            c += (sum - t) + x;
+        } else {
+            c += (x - t) + sum;
+        }
+
+        sum = t;
+    }
+
+    return sum + c;
+}
+
+export function neumaierSumDotProduct(x: number[], y: number[]): number {
+    let sum = 0.0;
+    let c = 0.0;
+
+    for (let i = 0; i < x.length; i++) {
+        const product = x[i] * y[i];
+        const t = sum + product;
+
+        if (Math.abs(sum) >= Math.abs(product)) {
+            c += (sum - t) + product;
+        } else {
+            c += (product - t) + sum;
+        }
+
+        sum = t;
+    }
+
+    return sum + c;
+}
+
+export function neumaierSumPow(x: number[], pow: number): number {
+    let sum = 0.0;
+    let c = 0.0;
+
+    for (let i = 0; i < x.length; i++) {
+        const value = Math.pow(x[i], pow);
+        const t = sum + value;
+
+        if (Math.abs(sum) >= Math.abs(value)) {
+            c += (sum - t) + value;
+        } else {
+            c += (value - t) + sum;
+        }
+
+        sum = t;
+    }
+
+    return sum + c;
 }

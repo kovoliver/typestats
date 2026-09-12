@@ -1,12 +1,14 @@
 import { RegressionType } from "../types/types.js";
 import { covariance } from "../statistics/bivariate.js";
 import { mean, variance } from "../statistics/univariate.js";
+import { Cache } from "../abstractions/abstractClasses.js";
+import { neumaierSumDotProduct, neumaierSumPow } from "../utils/numberUtils.js";
 
 /**
  * Represents a statistical tool for calculating linear, exponential, and power regression models.
  * Calculates and caches the coefficients based on the provided independent and dependent variables.
  */
-export default class Regression {
+export default class Regression extends Cache {
     private _x: number[];
     private _y: number[];
     private _lnY: number[];
@@ -15,15 +17,8 @@ export default class Regression {
     private _yMean: number;
     private _lnxMean: number | null = null;
     private _lnyMean: number | null = null;
-    private _b0: number | null = null;
-    private _b1: number | null = null;
-    private _b0Exp: number | null = null;
-    private _b1Exp: number | null = null;
-    private _b0Pow: number | null = null;
-    private _b1Pow: number | null = null;
     private _xHasNonPositive: boolean = false;
     private _yHasNonPositive: boolean = false;
-    private _rsds: Map<string, number> = new Map();
 
     /**
      * Initializes the regression model with independent and dependent variable datasets.
@@ -34,6 +29,8 @@ export default class Regression {
      * @throws {Error} If the lengths of the `x` and `y` arrays do not match.
      */
     constructor(x: number[], y: number[]) {
+        super();
+
         if (x.length < 2 || y.length < 2) {
             throw new Error(
                 'You must provide at least two dependent and independent variable values!'
@@ -85,8 +82,7 @@ export default class Regression {
 
         if (xVar === 0) {
             throw new Error(
-                'Regression could not be calculated because the \
-                independent variable has zero variance!'
+                'Regression could not be calculated because the independent variable has zero variance!'
             );
         }
 
@@ -102,6 +98,45 @@ export default class Regression {
         };
     }
 
+    private calculateNoIntercept(
+        x: number[],
+        y: number[]
+    ) {
+        const xySum = neumaierSumDotProduct(x, y);
+        const xSum = neumaierSumPow(x, 2);
+        return xySum / xSum;
+    }
+
+    public linearNoItcpt(): number {
+        return this.getCached('linear_no_itcpt', () => {
+            return this.calculateNoIntercept(this._x, this._y);
+        });
+    }
+
+    public exponentialNoItcpt(): number {
+        if (this._yHasNonPositive) {
+            throw new Error(
+                'Exponential regression could not be calculated because of non-positive values in the dependent variable!'
+            );
+        }
+
+        return this.getCached('exponential_no_itcpt', () => {
+            return Math.exp(this.calculateNoIntercept(this._x, this._lnY));
+        });
+    }
+
+    public powerNoItcpt(): number {
+        if (this._xHasNonPositive || this._yHasNonPositive) {
+            throw new Error(
+                'Power regression could not be calculated because of non-positive values in either the independent or dependent variable!'
+            );
+        }
+
+        return this.getCached('power_no_itcpt', () => {
+            return this.calculateNoIntercept(this._lnX, this._lnY);
+        });
+    }
+
     /**
      * Calculates the linear regression parameters for the equation: y = b0 + b1 * x.
      * The result is cached after the first calculation.
@@ -109,24 +144,9 @@ export default class Regression {
      * @returns {{ b0: number, b1: number }} An object containing the y-intercept (b0) and the slope (b1).
      */
     public linear(): { b0: number, b1: number } {
-        if (this._b0 !== null && this._b1 !== null) {
-            return {
-                b0: this._b0,
-                b1: this._b1
-            };
-        }
-
-        const funcObj = this.calculate(
-            this._x, this._y, 'linear'
-        );
-
-        this._b0 = funcObj.b0;
-        this._b1 = funcObj.b1;
-
-        return {
-            b0: this._b0,
-            b1: this._b1
-        };
+        return this.getCached('linear', () => {
+            return this.calculate(this._x, this._y, 'linear');
+        });
     }
 
     /**
@@ -139,29 +159,17 @@ export default class Regression {
     public exponential(): { b0: number, b1: number } {
         if (this._yHasNonPositive) {
             throw new Error(
-                'Exponential regression could not be calculated because of \
-                non-positive values in the dependent variable!'
+                'Exponential regression could not be calculated because of non-positive values in the dependent variable!'
             );
         }
 
-        if (this._b0Exp !== null && this._b1Exp !== null) {
+        return this.getCached('exponential', () => {
+            const funcObj = this.calculate(this._x, this._lnY, 'exponential');
             return {
-                b0: this._b0Exp,
-                b1: this._b1Exp
+                b0: Math.exp(funcObj.b0),
+                b1: Math.exp(funcObj.b1)
             };
-        }
-
-        const funcObj = this.calculate(
-            this._x, this._lnY, 'exponential'
-        );
-
-        this._b0Exp = Math.exp(funcObj.b0);
-        this._b1Exp = Math.exp(funcObj.b1);
-
-        return {
-            b0: this._b0Exp,
-            b1: this._b1Exp
-        };
+        });
     }
 
     /**
@@ -174,29 +182,17 @@ export default class Regression {
     public power(): { b0: number, b1: number } {
         if (this._xHasNonPositive || this._yHasNonPositive) {
             throw new Error(
-                'Power regression could not be calculated because of \
-                non-positive values in either the independent or dependent variable!'
+                'Power regression could not be calculated because of non-positive values in either the independent or dependent variable!'
             );
         }
 
-        if (this._b0Pow !== null && this._b1Pow !== null) {
+        return this.getCached('power', () => {
+            const funcObj = this.calculate(this._lnX, this._lnY, 'power');
             return {
-                b0: this._b0Pow,
-                b1: this._b1Pow
+                b0: Math.exp(funcObj.b0),
+                b1: funcObj.b1
             };
-        }
-
-        const funcObj = this.calculate(
-            this._lnX, this._lnY, 'power'
-        );
-
-        this._b0Pow = Math.exp(funcObj.b0);
-        this._b1Pow = funcObj.b1;
-
-        return {
-            b0: this._b0Pow,
-            b1: this._b1Pow
-        };
+        });
     }
 
     public linearFunc(b0: number, b1: number, x: number): number {
@@ -214,57 +210,42 @@ export default class Regression {
     public RSD(regression: 'linear' | 'exponential' | 'power'): number {
         const rsdKey = `rsd_${regression}`;
 
-        if (this._rsds.has(rsdKey)) {
-            return this._rsds.get(rsdKey)!;
-        }
-
-        let b0: number | null = null;
-        let b1: number | null = null;
-
-        switch (regression) {
-            case 'linear':
-                b0 = this._b0;
-                b1 = this._b1;
-                break;
-            case 'power':
-                b0 = this._b0Pow;
-                b1 = this._b1Pow;
-                break;
-            case 'exponential':
-                b0 = this._b0Exp;
-                b1 = this._b1Exp;
-                break;
-        }
-
-        if (b0 === null || b1 === null) {
-            throw new Error(
-                `Cannot calculate RSD for '${regression}' regression because the model coefficients have not been calculated yet. Call .${regression}() first!`
-            );
-        }
-
-        const SSE = this._y.reduce((total, y, i) => {
-            const x = this._x[i];
-            let yHat = 0;
-
-            switch (regression) {
-                case 'linear':
-                    yHat = this.linearFunc(b0!, b1!, x);
-                    break;
-                case 'power':
-                    yHat = this.powerFunc(b0!, b1!, x);
-                    break;
-                case 'exponential':
-                    yHat = this.exponentialFunc(b0!, b1!, x);
-                    break;
+        return this.getCached(rsdKey, () => {
+            if (!this.containsCache(regression)) {
+                throw new Error(
+                    `Cannot calculate RSD for '${regression}' regression because the model coefficients have not been calculated yet. Call .${regression}() first!`
+                );
             }
 
-            return total + Math.pow(y - yHat, 2);
-        }, 0);
+            const { b0, b1 } = this.getCached<{ b0: number; b1: number }>(
+                regression,
+                () => { throw new Error('Unreachable code'); }
+            );
 
-        const rsd = Math.sqrt(SSE / (this._y.length - 2));
-        this._rsds.set(rsdKey, rsd);
+            const residuals = this._y.map((y, i) => {
+                const x = this._x[i];
+                let yHat = 0;
 
-        return rsd;
+                switch (regression) {
+                    case 'linear':
+                        yHat = this.linearFunc(b0, b1, x);
+                        break;
+                    case 'power':
+                        yHat = this.powerFunc(b0, b1, x);
+                        break;
+                    case 'exponential':
+                        yHat = this.exponentialFunc(b0, b1, x);
+                        break;
+                }
+
+                return y - yHat;
+            });
+
+            const sse = neumaierSumPow(residuals, 2);
+            const df = this._y.length - 2;
+
+            return Math.sqrt(sse / df);
+        });
     }
 
     public RSDLinear() {
@@ -277,5 +258,60 @@ export default class Regression {
 
     public RSDPower() {
         return this.RSD('power');
+    }
+
+    public RSDNoItcpt(
+        regression: 'linear_no_itcpt' | 'exponential_no_itcpt' | 'power_no_itcpt'
+    ): number {
+        const rsdKey = `rsd_no_itcpt_${regression}`;
+
+        return this.getCached(rsdKey, () => {
+            if (!this.containsCache(regression)) {
+                throw new Error(
+                    `Cannot calculate RSD for '${regression}' regression because the model coefficients have not been calculated yet. Call the corresponding method first!`
+                );
+            }
+
+            const slope = this.getCached<number>(
+                regression,
+                () => { throw new Error('Unreachable code'); }
+            );
+
+            const residuals = this._y.map((y, i) => {
+                const x = this._x[i];
+                let yHat = 0;
+
+                switch (regression) {
+                    case 'linear_no_itcpt':
+                        yHat = this.linearFunc(0, slope, x);
+                        break;
+                    case 'exponential_no_itcpt':
+                        yHat = this.exponentialFunc(1, slope, x);
+                        break;
+                    case 'power_no_itcpt':
+                        yHat = this.powerFunc(1, slope, x);
+                        break;
+                }
+
+                return y - yHat;
+            });
+
+            const sse = neumaierSumPow(residuals, 2);
+            const df = this._y.length - 1;
+
+            return Math.sqrt(sse / df);
+        });
+    }
+
+    public RSDLinearNoItcpt() {
+        return this.RSDNoItcpt('linear_no_itcpt');
+    }
+
+    public RSDExponentialNoItcpt() {
+        return this.RSDNoItcpt('exponential_no_itcpt');
+    }
+
+    public RSDPowerNoItcpt() {
+        return this.RSDNoItcpt('power_no_itcpt');
     }
 }
