@@ -3,7 +3,6 @@ import { writeFile } from 'fs/promises';
 import fs from 'node:fs';
 import readline from 'node:readline';
 import { getColType, isEmpty, parseValue } from "../utils/utils.js";
-import Table from "../dataStructures/Table.js";
 
 export function processCSVData(
     lines: string[],

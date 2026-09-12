@@ -1,6 +1,6 @@
 import { parentPort } from 'node:worker_threads';
 import type { JSONWorkerPayload } from '../types/types.js';
-import { processNDJSONLines } from '../io/ioutils.js';
+import { processNDJSONLines } from './ioutils.js';
 
 parentPort?.on('message', (data: JSONWorkerPayload) => {
     const { lines, labels, colTypes, invalidLine } = data;

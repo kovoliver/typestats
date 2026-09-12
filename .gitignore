@@ -33,3 +33,6 @@ ideas
 core/db/dbWorker.js
 core/io/jsonWorker.js
 core/io/csvWorker.js
+core/io/ioUtils.js
+core/utils/utils.js
+core/types/types.js

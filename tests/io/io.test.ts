@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getTableFromCSVAPI, getTableFromJSONAPI } from '../../core/io/clientIO';
 import { getTableFromCSV, getTableFromJSON, getTableFromXLS } from '../../core/io/nodeIO';
+import { getTableFromCSVP } from '../../core/io';
 
 describe('Client I/O (clientIO.ts)', () => {
     it('should fetch and parse a remote CSV file from a live Web URL', async () => {
@@ -81,6 +82,32 @@ describe('Node.js Backend I/O (nodeIO.ts)', () => {
     it('should exclude specified headers when reading a local CSV file with skippedHeaders', async () => {
         const csvPath = './sampleData/users_dataset.csv';
         const table = await getTableFromCSV(csvPath, ';', ['annual_income', 'purchase_score'], 'impute');
+
+        expect(table.rowCount).toBe(100);
+
+        expect(() => table.getCol('annual_income')).toThrow();
+        expect(() => table.getCol('purchase_score')).toThrow();
+
+        expect(table.getCol('first_name')).toBeDefined();
+        expect(table.getCol('last_name')).toBeDefined();
+    });
+
+    it('should asynchronously parse local CSV file into Table using multi-threading worker pool', async () => {
+        const csvPath = './sampleData/users_dataset.csv';
+        const table = await getTableFromCSVP(csvPath, ';', [], 'impute');
+
+        expect(table.rowCount).toBe(100);
+        expect(table.getCol('first_name')).toBeDefined();
+        expect(table.getCol('annual_income')).toBeDefined();
+
+        console.log('\n--- 🖥️ NODE CSV TEST (users_dataset.csv head) ---');
+        table.head(3);
+        table.describe();
+    });
+
+    it('should correctly skip specified headers during parallel CSV stream processing', async () => {
+        const csvPath = './sampleData/users_dataset.csv';
+        const table = await getTableFromCSVP(csvPath, ';', ['annual_income', 'purchase_score'], 'impute');
 
         expect(table.rowCount).toBe(100);
 

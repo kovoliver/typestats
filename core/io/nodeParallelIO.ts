@@ -5,7 +5,7 @@ import { Worker } from 'node:worker_threads';
 import Table from '../dataStructures/Table.js';
 import { ColInfo, ColType } from '../types/types.js';
 import { getColType } from '../utils/utils.js';
-import { readInChunks } from './ioutils.js';
+import { processCSVData, readInChunks } from './ioutils.js';
 
 const WORKER_PATH_CSV = new URL('./csvWorker.js', import.meta.url);
 const WORKER_PATH_JSON = new URL('./jsonWorker.js', import.meta.url);
@@ -27,15 +27,18 @@ const WORKER_PATH_JSON = new URL('./jsonWorker.js', import.meta.url);
 export async function getTableFromCSVP(
     filePath: string,
     separator: string = ';',
+    skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     quoteChar?: string,
     poolSize: number = os.cpus().length
 ): Promise<Table> {
     try {
         let labels: string[] | null = null;
-        let validLength = 0;
+        let filteredLabels: string[] = [];
+        let skippedHeaderIndices: number[] = [];
         let colTypes: ColType[] = [];
 
+        const skipSet = new Set(skippedHeaders.map(h => h.trim()));
         const workers: Worker[] = [];
         const idleWorkers: Worker[] = [];
 
@@ -74,8 +77,10 @@ export async function getTableFromCSVP(
                         w.postMessage({
                             lines,
                             separator,
-                            validLength,
+                            validLength: filteredLabels.length,
+                            totalRawCols: labels!.length,
                             colTypes: [...colTypes],
+                            skippedHeaderIndices,
                             invalidLine,
                             quoteChar
                         });
@@ -91,33 +96,44 @@ export async function getTableFromCSVP(
             if (lines.length === 0) continue;
 
             if (labels === null) {
-                const headerLine = lines.shift();
+                let headerLine = lines.shift();
                 if (!headerLine) continue;
 
-                labels = headerLine.split(separator).map(l => l.trim());
-                if (labels.length === 0) {
-                    throw new Error('CSV file is empty or header is invalid');
-                }
-                validLength = labels.length;
-            }
-
-            if (colTypes.length === 0 && lines.length > 0) {
-                const sampleCols: string[][] = Array.from({ length: validLength }, () => []);
-
-                for (const line of lines) {
-                    if (line.trim().length === 0) continue;
-                    const row = line.split(separator);
-                    for (let c = 0; c < validLength; c++) {
-                        sampleCols[c].push(row[c] ?? '');
-                    }
+                if (quoteChar) {
+                    if (headerLine.startsWith(quoteChar)) headerLine = headerLine.substring(1);
+                    if (headerLine.endsWith(quoteChar)) headerLine = headerLine.substring(0, headerLine.length - 1);
                 }
 
-                colTypes = sampleCols.map(c => getColType(c));
+                labels = headerLine.split(separator).map(l => l.trim().replace(/^["']|["']$/g, ''));
+                filteredLabels = labels.filter(l => !skipSet.has(l));
+
+                skippedHeaderIndices = labels
+                    .map((label, i) => (skipSet.has(label) ? i : -1))
+                    .filter(index => index !== -1);
+
+                if (filteredLabels.length === 0) {
+                    throw new Error('No valid headers remaining after applying skippedHeaders filter!');
+                }
             }
 
-            if (lines.length > 0) {
-                pendingPromisifiedChunks.push(dispatchChunk(lines));
+            if (lines.length === 0) continue;
+
+            if (colTypes.length === 0) {
+                const rawSampleCols = processCSVData(
+                    lines,
+                    separator,
+                    filteredLabels.length,
+                    labels.length,
+                    [],
+                    skippedHeaderIndices,
+                    invalidLine,
+                    quoteChar
+                );
+
+                colTypes = rawSampleCols.map(c => getColType(c) ?? 'string');
             }
+
+            pendingPromisifiedChunks.push(dispatchChunk(lines));
         }
 
         if (labels === null) {
@@ -125,9 +141,9 @@ export async function getTableFromCSVP(
         }
 
         const results = await Promise.all(pendingPromisifiedChunks);
-
         workers.forEach(w => w.terminate());
 
+        const validLength = filteredLabels.length;
         const tableData: any[][] = Array.from({ length: validLength }, () => []);
 
         for (const workerCols of results) {
@@ -136,9 +152,12 @@ export async function getTableFromCSVP(
             }
         }
 
-        const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type: colTypes[i] }));
-        return new Table(tableData, colInfos, true);
+        const colInfos: ColInfo[] = filteredLabels.map((label, i) => ({
+            label,
+            type: colTypes[i]
+        }));
 
+        return new Table(tableData, colInfos, true);
     } catch (err) {
         console.error('Error in multi-threaded CSV parsing:', err);
         throw err;
@@ -191,7 +210,7 @@ export async function getTableFromNDJSONP(
                     }
                 }
             } catch {
-                
+
             }
         }
 

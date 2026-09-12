@@ -141,8 +141,10 @@ export type WorkerData = {
     lines: string[];
     separator: string;
     validLength: number;
-    colTypes: (ColType | undefined)[];
-    invalidLine: 'drop' | 'throw' | 'impute';
+    totalRawCols: number;
+    colTypes: ColType[];
+    skippedHeaderIndices: number[];
+    invalidLine?: 'drop' | 'throw' | 'impute';
     quoteChar?: string;
 }
 
