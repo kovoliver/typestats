@@ -14,7 +14,9 @@ export async function createConnection(config: DbConfig): Promise<DbConnection> 
     switch (config.engine) {
         case DbEngineType.mysql: {
             try {
-                const mysql = await import('mysql2/promise');
+                const mysqlModule = await import('mysql2/promise');
+                const mysql = mysqlModule.default || mysqlModule;
+
                 const pool = mysql.createPool({
                     host: config.host,
                     port: config.port ?? 3306,
@@ -38,7 +40,7 @@ export async function createConnection(config: DbConfig): Promise<DbConnection> 
             } catch (err: any) {
                 if (err.code === 'ERR_MODULE_NOT_FOUND' || err.message?.includes('Cannot find module')) {
                     throw new Error(
-                        'To use the MySQL database engine, you must install the `mysql2` package. Installation: `npm i mysql2` lower'
+                        'To use the MySQL database engine, you must install the `mysql2` package. Installation: `npm i mysql2`'
                     );
                 }
                 throw err;
@@ -47,7 +49,9 @@ export async function createConnection(config: DbConfig): Promise<DbConnection> 
 
         case DbEngineType.postgresql: {
             try {
-                const pg = await import('pg');
+                const pgModule = await import('pg');
+                const pg = pgModule.default || pgModule;
+
                 const pool = new pg.Pool({
                     host: config.host,
                     port: config.port ?? 5432,

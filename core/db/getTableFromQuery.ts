@@ -1,7 +1,7 @@
 import Table from '../dataStructures/Table.js';
 import { DbConnection } from '../types/interfaces.js';
-import { ColInfo, ColType } from '../types/types.js';
-import { getColType } from '../utils/utils.js';
+import { ColInfo } from '../types/types.js';
+import { parseValue } from '../utils/utils.js';
 import { getDbStream, makeDBChunk } from './dbUtils.js';
 
 /**
@@ -22,29 +22,26 @@ export async function getTableFromQuery(
     params?: any[]
 ): Promise<Table> {
     try {
-        const stream = await getDbStream(sql, conn, params);
+        const { stream, colInfosPromise } = await getDbStream(sql, conn, params);
+
         const cols: any[][] = [];
-        const colInfos: ColInfo[] = [];
+        let colInfos: ColInfo[] = [];
         let labels: string[] = [];
         let labelCount = 0;
         let firstRow = true;
 
-        for await (const chunk of makeDBChunk(stream!)) {
+        for await (const chunk of makeDBChunk(stream)) {
             const chunkSize = chunk.length;
             if (chunkSize === 0) continue;
 
             if (firstRow) {
-                labels = Object.keys(chunk[0]);
+                colInfos = await colInfosPromise;
+
+                labels = colInfos.map((c) => c.label);
                 labelCount = labels.length;
 
                 for (let i = 0; i < labelCount; i++) {
                     cols.push([]);
-                    const label = labels[i];
-                    const sampleValues = chunk.slice(0, 50).map(row => row[label]);
-
-                    let type: ColType = getColType(sampleValues);
-
-                    colInfos.push({ label, type });
                 }
 
                 firstRow = false;
@@ -55,14 +52,14 @@ export async function getTableFromQuery(
                 const targetCol = cols[c];
 
                 for (let r = 0; r < chunkSize; r++) {
-                    targetCol.push(chunk[r][label]);
+                    targetCol.push(parseValue(chunk[r][label], colInfos[c].type));
                 }
             }
         }
 
         return new Table(cols, colInfos, true);
     } catch (err) {
-        console.error('Error executing query or parsing Table:', err);
+        console.error('Error executing query or parsing Table in parallel:', err);
         throw err;
     }
 }

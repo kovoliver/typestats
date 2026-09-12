@@ -169,14 +169,13 @@ export async function tableToCSV(
 export async function readExcel(path: string, sheetIndex: number = 0)
     : Promise<{ headers: any[], rows: any[][] }> {
 
-    let XLSX: typeof import('xlsx');
+    let XLSX;
 
     try {
-        XLSX = await import('xlsx');
+        const xlsxModule = await import('xlsx');
+        XLSX = xlsxModule.default || xlsxModule;
     } catch {
-        throw new Error(
-            'The "xlsx" package is required to read Excel files. Please install it using: npm i xlsx'
-        );
+        throw new Error('The "xlsx" package is required to read Excel files. Please install it using: npm i xlsx');
     }
 
     if (!fs.existsSync(path)) {
@@ -239,7 +238,6 @@ export async function getTableFromXLS(
         throw new Error('Excel sheet contains no data rows.');
     }
 
-    // FIX: Fejlécek megtisztítása a szóközöktől és idézőjelektől
     const headers = rawHeaders.map(h => String(h).trim().replace(/^["']|["']$/g, ''));
     const skipSet = new Set(skippedHeaders.map(h => h.trim()));
 

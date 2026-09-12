@@ -6,7 +6,6 @@ import Table from '../../core/dataStructures/Table';
 import dotenv from 'dotenv';
 import { DbConnection } from '../../core/types/interfaces';
 import { performance } from 'perf_hooks';
-import { getTableFromQueryP } from '../../core/db/getTableFromQueryParallel';
 
 dotenv.config();
 
@@ -109,42 +108,7 @@ describe('Database Integration Tests (Local RDBMS)', () => {
 
         expect(table).toBeInstanceOf(Table);
         expect(table.rowCount).toBeGreaterThan(0);
-    }, 60_000);
 
-    it('PERFORMANCE TEST: Large dataset streaming benchmark PARALLEL (MySQL - mock_data)', async () => {
-        const conn = await createConnection({
-            engine: DbEngineType.mysql,
-            host: process.env.MYSQL_HOST ?? 'localhost',
-            port: parseInt(process.env.MYSQL_PORT ?? '3306', 10),
-            user: process.env.MYSQL_USER ?? 'root',
-            password: process.env.MYSQL_PASSWORD ?? '',
-            database: 'typestats_test',
-        });
-        connections.push(conn);
-
-        const startMemory = process.memoryUsage().heapUsed / 1024 / 1024;
-        const startTime = performance.now();
-        const table = await getTableFromQueryP(conn, 'SELECT * FROM mock_data');
-
-        const endTime = performance.now();
-        const endMemory = process.memoryUsage().heapUsed / 1024 / 1024;
-
-        const durationInSeconds = (endTime - startTime) / 1000;
-        const rowsPerSecond = Math.round(table.rowCount / durationInSeconds);
-        const memoryDiffMB = (endMemory - startMemory).toFixed(2);
-
-        console.log('\n==================================================');
-        console.log('⚡ MYSQL PARALLEL PERFORMANCE BENCHMARK RESULTS');
-        console.log('==================================================');
-        console.log(`📊 Tábla:             mock_data`);
-        console.log(`🔢 Beolvasott sorok:  ${table.rowCount.toLocaleString()} db`);
-        console.log(`📐 Oszlopok száma:    ${table.colCount} db`);
-        console.log(`⏱️  Feldolgozási idő:  ${durationInSeconds.toFixed(3)} másodperc`);
-        console.log(`⚡ Sebesség:          ${rowsPerSecond.toLocaleString()} sor/másodperc`);
-        console.log(`🧠 Memória változás:  +${memoryDiffMB} MB`);
-        console.log('==================================================\n');
-
-        expect(table).toBeInstanceOf(Table);
-        expect(table.rowCount).toBeGreaterThan(0);
+        table.describe();
     }, 60_000);
 });

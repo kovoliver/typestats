@@ -160,3 +160,12 @@ export type JSONWorkerPayload = {
     colTypes: ColType[];
     invalidLine: 'drop' | 'throw' | 'impute';
 }
+
+export type DBFieldMeta = {
+    name: string;
+    type: ColType;
+}
+export type DbStreamResult = {
+    stream: AsyncIterable<any>;
+    colInfosPromise: Promise<ColInfo[]>;
+}

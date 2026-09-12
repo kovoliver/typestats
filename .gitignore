@@ -30,6 +30,7 @@ yarn-error.log*
 ideas
 
 *.tgz
+*.zip
 core/db/dbWorker.js
 core/io/jsonWorker.js
 core/io/csvWorker.js
