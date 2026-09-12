@@ -160,28 +160,53 @@ export async function getTableFromCSVP(
  */
 export async function getTableFromNDJSONP(
     filePath: string,
+    skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     poolSize: number = os.cpus().length,
     chunkSize: number = 50_000
 ): Promise<Table> {
     try {
-        const fileStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
-        const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+        const skipSet = new Set(skippedHeaders.map(h => h.trim()));
+        const sampleStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
+        const sampleRl = readline.createInterface({ input: sampleStream, crlfDelay: Infinity });
 
-        let labels: string[] = [];
-        for await (const line of rl) {
+        const sampleRows: any[] = [];
+        let rawLabels: string[] = [];
+
+        for await (const line of sampleRl) {
             const trimmed = line.trim();
-            if (trimmed.length > 0) {
-                const firstObj = JSON.parse(trimmed);
-                labels = Object.keys(firstObj);
-                rl.close();
-                fileStream.destroy();
-                break;
+            if (trimmed.length === 0) continue;
+
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    if (rawLabels.length === 0) {
+                        rawLabels = Object.keys(parsed);
+                    }
+                    sampleRows.push(parsed);
+                    if (sampleRows.length >= 200) {
+                        sampleRl.close();
+                        sampleStream.destroy();
+                        break;
+                    }
+                }
+            } catch {
+                
             }
         }
 
-        if (labels.length === 0) throw new Error('NDJSON file is empty or invalid');
-        const validLength = labels.length;
+        const filteredLabels = rawLabels.filter(l => !skipSet.has(l.trim()));
+
+        if (filteredLabels.length === 0) {
+            throw new Error('NDJSON file is empty, invalid, or all headers were skipped!');
+        }
+
+        const validLength = filteredLabels.length;
+
+        const colTypes: ColType[] = filteredLabels.map(label => {
+            const values = sampleRows.map(row => row[label]);
+            return getColType(values) ?? 'string';
+        });
 
         const workers: Worker[] = [];
         const idleWorkers: Worker[] = [];
@@ -219,7 +244,8 @@ export async function getTableFromNDJSONP(
 
                         w.postMessage({
                             lines,
-                            labels,
+                            labels: filteredLabels,
+                            colTypes,
                             invalidLine
                         });
                     } else {
@@ -260,7 +286,11 @@ export async function getTableFromNDJSONP(
             }
         }
 
-        const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type: getColType(tableData[i]) }));
+        const colInfos: ColInfo[] = filteredLabels.map((label, i) => ({
+            label,
+            type: colTypes[i]
+        }));
+
         return new Table(tableData, colInfos, true);
     } catch (err) {
         console.error('Error in multi-threaded NDJSON parsing:', err);

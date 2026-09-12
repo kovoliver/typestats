@@ -151,3 +151,10 @@ export type JSONWorkerData = {
     labels: string[];
     invalidLine: 'drop' | 'throw' | 'impute';
 }
+
+export type JSONWorkerPayload = {
+    lines: string[];
+    labels: string[];
+    colTypes: ColType[];
+    invalidLine: 'drop' | 'throw' | 'impute';
+}

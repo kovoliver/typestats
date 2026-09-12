@@ -192,7 +192,7 @@ export default class Table {
         return this._values.length;
     }
 
-    public print(from?: number, to?: number, maxCols: number = 7): void {
+    public print(from?: number, to?: number, maxCols: number = 8): void {
         const totalRows = this.rowCount;
         const totalCols = this._values.length;
         const hasMoreCols = totalCols > maxCols;

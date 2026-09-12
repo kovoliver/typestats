@@ -1,7 +1,11 @@
 import Table from "../dataStructures/Table.js";
 import { ColInfo, ColType } from "../types/types.js";
 import { getColType } from "../utils/utils.js";
-import { processCSVData, processJSONDataChunk, readClientChunks } from "./ioutils.js";
+import { 
+    processCSVStreamLines, processNDJSONLines, 
+    processNDJSONStreamLines, 
+    processParsedJSONData, readClientChunks 
+} from "./ioutils.js";
 
 /**
  * Asynchronously fetches and parses a CSV dataset from a web URL or HTTP endpoint
@@ -9,6 +13,7 @@ import { processCSVData, processJSONDataChunk, readClientChunks } from "./ioutil
  *
  * @param url - The HTTP/HTTPS URL or endpoint of the CSV file to fetch.
  * @param separator - The column delimiter character (e.g., `,`, `;`, `\t`). Defaults to `;`.
+ * @param skippedHeaders Optional array of column names/headers to exclude from processing. Defaults to an empty array.
  * @param invalidLine - Strategy for handling rows with missing columns relative to the header:
  *   - `'impute'`: Appends `null` values to pad incomplete rows to match the header length.
  *   - `'drop'`: Skips incomplete rows entirely.
@@ -24,78 +29,20 @@ import { processCSVData, processJSONDataChunk, readClientChunks } from "./ioutil
 export async function getTableFromCSVAPI(
     url: string,
     separator: string = ';',
+    skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     quoteChar?: string,
     chunkSize: number = 50_000
 ): Promise<Table> {
     try {
-        const tableData: any[][] = [];
-        let labels: string[] | null = null;
-        let colTypes: ColType[] = [];
-        let isTypeDetermined = false;
-
-        for await (let lines of readClientChunks(url, chunkSize, 50)) {
-            if (lines.length === 0) continue;
-
-            if (labels === null) {
-                const headerLine: string | undefined = lines.shift();
-                if (!headerLine) continue;
-
-                labels = headerLine.split(separator).map(l => l.trim());
-
-                if (labels.length === 0) {
-                    throw new Error('Invalid header line!');
-                }
-
-                for (let c = 0; c < labels.length; c++) {
-                    tableData.push([]);
-                }
-            }
-
-            if (lines.length === 0) continue;
-
-            const unprocessed = processCSVData(
-                lines,
-                separator,
-                labels.length,
-                colTypes,
-                invalidLine,
-                quoteChar
-            );
-
-            if (!isTypeDetermined) {
-                for (let i = 0; i < unprocessed.length; i++) {
-                    colTypes[i] = getColType(unprocessed[i]) ?? 'string';
-                }
-                isTypeDetermined = true;
-
-                const typedFirstChunk = processCSVData(
-                    lines,
-                    separator,
-                    labels.length,
-                    colTypes,
-                    invalidLine,
-                    quoteChar
-                );
-
-                for (let i = 0; i < typedFirstChunk.length; i++) {
-                    tableData[i].push(...typedFirstChunk[i]);
-                }
-            } else {
-                for (let i = 0; i < unprocessed.length; i++) {
-                    tableData[i].push(...unprocessed[i]);
-                }
-            }
-        }
-
-        if (labels === null) {
-            throw new Error('The provided file is empty!');
-        }
-
-        const colInfos: ColInfo[] = labels.map((label, i) => ({
-            label,
-            type: colTypes[i]
-        }));
+        const stream = readClientChunks(url, chunkSize, 50);
+        const { tableData, colInfos } = await processCSVStreamLines(
+            stream,
+            separator,
+            skippedHeaders,
+            invalidLine,
+            quoteChar
+        );
 
         return new Table(tableData, colInfos, true);
     } catch (err) {
@@ -109,6 +56,7 @@ export async function getTableFromCSVAPI(
  * into a {@link Table} instance in client-side / browser environments.
  *
  * @param url - The HTTP/HTTPS URL or endpoint returning a JSON array of objects.
+ * @param skippedHeaders Optional array of column names/headers to exclude from processing. Defaults to an empty array.
  * @param invalidLine - Strategy for handling rows with missing columns relative to the header:
  *   - `'impute'`: Appends `null` values to pad incomplete rows to match the header length.
  *   - `'drop'`: Skips incomplete rows entirely.
@@ -122,8 +70,9 @@ export async function getTableFromCSVAPI(
  */
 export async function getTableFromJSONAPI(
     url: string,
+    skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
-    chunkSize: number = 50000
+    chunkSize: number = 50_000
 ): Promise<Table> {
     try {
         const response = await fetch(url);
@@ -133,41 +82,9 @@ export async function getTableFromJSONAPI(
         }
 
         const rawData: any = await response.json();
+        const { cols, colInfos } = processParsedJSONData(rawData, skippedHeaders, invalidLine, chunkSize);
 
-        console.log('API Response structure:', {
-            isArr: Array.isArray(rawData),
-            type: typeof rawData,
-            keys: rawData && typeof rawData === 'object' ? Object.keys(rawData) : null
-        });
-
-        let data: any[] = [];
-
-        if (Array.isArray(rawData)) {
-            data = rawData;
-        } else if (rawData && typeof rawData === 'object') {
-            for (const key of Object.keys(rawData)) {
-                if (Array.isArray(rawData[key])) {
-                    data = rawData[key];
-                    break;
-                }
-            }
-        }
-
-        if (!Array.isArray(data) || data.length === 0) {
-            throw new Error(`The JSON data must be a non-empty array of objects! Received type: ${typeof rawData}`);
-        }
-
-        const labels = Object.keys(data[0]);
-        const cols: any[][] = Array.from({ length: labels.length }, () => []);
-
-        for (let i = 0; i < data.length; i += chunkSize) {
-            const chunk = data.slice(i, i + chunkSize);
-            processJSONDataChunk(chunk, labels, cols, invalidLine);
-        }
-
-        const colInfos: ColInfo[] = labels.map(label => ({ label }));
-        return new Table(cols, colInfos);
-
+        return new Table(cols, colInfos, true);
     } catch (err) {
         console.error('Error fetching JSON on client:', err);
         throw err;
@@ -179,6 +96,7 @@ export async function getTableFromJSONAPI(
  * into a {@link Table} instance in client-side / browser environments.
  *
  * @param url - The HTTP/HTTPS URL or endpoint of the NDJSON stream/file.
+ * @param skippedHeaders Optional array of column names/headers to exclude from processing. Defaults to an empty array.
  * @param invalidLine - Strategy for handling rows with missing columns relative to the header:
  *   - `'impute'`: Appends `null` values to pad incomplete rows to match the header length.
  *   - `'drop'`: Skips incomplete rows entirely.
@@ -192,37 +110,21 @@ export async function getTableFromJSONAPI(
  */
 export async function getTableFromNDJSONAPI(
     url: string,
+    skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
-    chunkSize: number = 50000
+    chunkSize: number = 50_000
 ): Promise<Table> {
-    const cols: any[][] = [];
-    let labels: string[] = [];
-    let isInitialized = false;
+    try {
+        const stream = readClientChunks(url, chunkSize, 50);
+        const { tableData, colInfos } = await processNDJSONStreamLines(
+            stream,
+            skippedHeaders,
+            invalidLine
+        );
 
-    for await (const rawLines of readClientChunks(url, chunkSize, 50)) {
-        const jsonChunk: any[] = [];
-
-        for (let i = 0; i < rawLines.length; i++) {
-            if (rawLines[i].trim().length > 0) {
-                jsonChunk.push(JSON.parse(rawLines[i]));
-            }
-        }
-
-        if (jsonChunk.length === 0) continue;
-
-        if (!isInitialized) {
-            labels = Object.keys(jsonChunk[0]);
-
-            for (let i = 0; i < labels.length; i++) {
-                cols.push([]);
-            }
-
-            isInitialized = true;
-        }
-
-        processJSONDataChunk(jsonChunk, labels, cols, invalidLine);
+        return new Table(tableData, colInfos, true);
+    } catch (err) {
+        console.error('Error fetching NDJSON on client:', err);
+        throw err;
     }
-
-    const colInfos: ColInfo[] = labels.map(label => ({ label }));
-    return new Table(cols, colInfos);
 }

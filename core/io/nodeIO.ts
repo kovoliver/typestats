@@ -2,16 +2,14 @@ import fs from 'node:fs';
 import readline from 'node:readline';
 import { readFile } from 'fs/promises';
 import Table from "../dataStructures/Table.js";
-import { processCSVData, processJSONDataChunk, readInChunks } from './ioutils.js';
-import { writeTableFile } from './ioutils.js';
-import { ColInfo, ColType } from '../types/types.js';
-import { getColType, isEmpty, parseValue } from '../utils/utils.js';
 import {
-    toNumberArray,
-    toBoolArray,
-    toDateArray,
-    toStringArray
-} from '../utils/utils.js';
+    processCSVStreamLines,
+    processNDJSONStreamLines,
+    processParsedJSONData, readInChunks
+} from './ioutils.js';
+import { writeTableFile } from './ioutils.js';
+import { ColInfo } from '../types/types.js';
+import { getColType, isEmpty, parseValue } from '../utils/utils.js';
 
 /**
  * Asynchronously reads and parses a local CSV file directly from the filesystem
@@ -19,6 +17,7 @@ import {
  *
  * @param filePath - The absolute or relative path to the local CSV file on the filesystem.
  * @param separator - The column delimiter character (e.g., `,`, `;`, `\t`). Defaults to `;`.
+ * @param skippedHeaders Optional array of column names/headers to exclude from processing. Defaults to an empty array.
  * @param invalidLine - Strategy for handling rows with missing columns relative to the header:
  *   - `'impute'`: Appends `null` values to pad incomplete rows to match the header length.
  *   - `'drop'`: Skips incomplete rows entirely.
@@ -33,82 +32,21 @@ import {
 export async function getTableFromCSV(
     filePath: string,
     separator: string = ';',
+    skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
-    quoteChar?: string
+    quoteChar?: string,
+    chunkSize: number = 50_000
 ): Promise<Table> {
     try {
-        const tableData: any[][] = [];
-        let labels: string[] | null = null;
-        let colTypes: ColType[] = [];
-        let isTypeDetermined = false;
+        const stream = readInChunks(filePath, chunkSize, 50);
 
-        for await (let lines of readInChunks(filePath, 50000, 50)) {
-            if (lines.length === 0) continue;
-
-            if (labels === null) {
-                const headerLine: string | undefined = lines.shift();
-                if (!headerLine) continue;
-
-                labels = headerLine.split(separator).map(l => l.trim());
-
-                if (labels.length === 0) {
-                    throw new Error('Invalid header line!');
-                }
-
-                for (let c = 0; c < labels.length; c++) {
-                    tableData.push([]);
-                }
-            }
-
-            if (lines.length === 0) continue;
-
-            const unprocessed = processCSVData(
-                lines,
-                separator,
-                labels.length,
-                colTypes,
-                invalidLine,
-                quoteChar
-            );
-
-            if (!isTypeDetermined) {
-                for (let i = 0; i < unprocessed.length; i++) {
-                    const rawCol = unprocessed[i];
-                    colTypes[i] = getColType(rawCol);
-
-                    let processedCol: any[] = [];
-                    switch (colTypes[i]) {
-                        case 'number':
-                            processedCol = toNumberArray(rawCol);
-                            break;
-                        case 'bool':
-                            processedCol = toBoolArray(rawCol);
-                            break;
-                        case 'date':
-                            processedCol = toDateArray(rawCol);
-                            break;
-                        default:
-                            processedCol = toStringArray(rawCol);
-                            break;
-                    }
-                    tableData[i].push(...processedCol);
-                }
-                isTypeDetermined = true;
-            } else {
-                for (let i = 0; i < unprocessed.length; i++) {
-                    tableData[i].push(...unprocessed[i]);
-                }
-            }
-        }
-
-        if (labels === null) {
-            throw new Error('The provided file is empty!');
-        }
-
-        const colInfos: ColInfo[] = labels.map((label, i) => ({
-            label,
-            type: colTypes[i]
-        }));
+        const { tableData, colInfos } = await processCSVStreamLines(
+            stream,
+            separator,
+            skippedHeaders,
+            invalidLine,
+            quoteChar
+        );
 
         return new Table(tableData, colInfos, true);
     } catch (err) {
@@ -122,6 +60,7 @@ export async function getTableFromCSV(
  * containing an array of key-value objects into a {@link Table} instance in Node.js backend environments.
  *
  * @param filePath - The absolute or relative path to the local JSON file on the filesystem.
+ * @param skippedHeaders Optional array of column names/headers to exclude from processing. Defaults to an empty array.
  * @param invalidLine - Strategy for handling rows with missing columns relative to the header:
  *   - `'impute'`: Appends `null` values to pad incomplete rows to match the header length.
  *   - `'drop'`: Skips incomplete rows entirely.
@@ -135,6 +74,7 @@ export async function getTableFromCSV(
  */
 export async function getTableFromJSON(
     filePath: string,
+    skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     chunkSize: number = 50_000
 ): Promise<Table> {
@@ -142,27 +82,14 @@ export async function getTableFromJSON(
         const isNDJSON = filePath.endsWith('.ndjson') || filePath.endsWith('.jsonl');
 
         if (isNDJSON) {
-            return await getTableFromNDJSON(filePath, invalidLine, chunkSize);
+            return await getTableFromNDJSON(filePath, skippedHeaders, invalidLine, chunkSize);
         }
 
         const fileContent = await readFile(filePath, { encoding: 'utf-8' });
-        const data: any[] = JSON.parse(fileContent);
+        const rawData: any = JSON.parse(fileContent);
+        const { cols, colInfos } = processParsedJSONData(rawData, skippedHeaders, invalidLine, chunkSize);
 
-        if (!Array.isArray(data) || data.length === 0) {
-            throw new Error('The JSON file must contain a non-empty array of objects!');
-        }
-
-        const labels = Object.keys(data[0]);
-        const cols: any[][] = Array.from({ length: labels.length }, () => []);
-
-        for (let i = 0; i < data.length; i += chunkSize) {
-            const chunk = data.slice(i, i + chunkSize);
-            processJSONDataChunk(chunk, labels, cols, invalidLine);
-        }
-
-        const colInfos: ColInfo[] = labels.map(label => ({ label }));
-        return new Table(cols, colInfos);
-
+        return new Table(cols, colInfos, true);
     } catch (err) {
         console.error('Error reading JSON in Node:', err);
         throw err;
@@ -174,6 +101,7 @@ export async function getTableFromJSON(
  * into a {@link Table} instance in Node.js backend environments.
  *
  * @param filePath - The absolute or relative path to the local NDJSON file on the filesystem.
+ * @param skippedHeaders Optional array of column names/headers to exclude from processing. Defaults to an empty array.
  * @param invalidLine - Strategy for handling rows with missing columns relative to the header:
  *   - `'impute'`: Appends `null` values to pad incomplete rows to match the header length.
  *   - `'drop'`: Skips incomplete rows entirely.
@@ -185,49 +113,25 @@ export async function getTableFromJSON(
  *
  * @throws {@link Error} If the file reading fails, an NDJSON line is malformed, or the file is empty.
  */
-async function getTableFromNDJSON(
+export async function getTableFromNDJSON(
     filePath: string,
+    skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     chunkSize: number = 50_000
 ): Promise<Table> {
-    const fileStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 * 1024 });
-    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+    try {
+        const stream = readInChunks(filePath, chunkSize, 50);
+        const { tableData, colInfos } = await processNDJSONStreamLines(
+            stream,
+            skippedHeaders,
+            invalidLine
+        );
 
-    const cols: any[][] = [];
-    let labels: string[] = [];
-    let isInitialized = false;
-    let jsonChunk: any[] = [];
-
-    for await (const line of rl) {
-        const trimmed = line.trim();
-        if (trimmed.length === 0) continue;
-
-        jsonChunk.push(JSON.parse(trimmed));
-
-        if (jsonChunk.length === chunkSize) {
-            if (!isInitialized) {
-                labels = Object.keys(jsonChunk[0]);
-                for (let i = 0; i < labels.length; i++) cols.push([]);
-                isInitialized = true;
-            }
-
-            processJSONDataChunk(jsonChunk, labels, cols, invalidLine);
-            jsonChunk = [];
-        }
+        return new Table(tableData, colInfos, true);
+    } catch (err) {
+        console.error('Error reading NDJSON in Node:', err);
+        throw err;
     }
-
-    if (jsonChunk.length > 0) {
-        if (!isInitialized) {
-            labels = Object.keys(jsonChunk[0]);
-            for (let i = 0; i < labels.length; i++) cols.push([]);
-            isInitialized = true;
-        }
-
-        processJSONDataChunk(jsonChunk, labels, cols, invalidLine);
-    }
-
-    const colInfos: ColInfo[] = labels.map((label, i) => ({ label, type: getColType(cols[i]) }));
-    return new Table(cols, colInfos);
 }
 
 /**
@@ -308,13 +212,26 @@ export async function readExcel(path: string, sheetIndex: number = 0)
     return { headers, rows };
 }
 
+/**
+ * Reads an Excel (.xls / .xlsx) sheet and converts it into a `Table` instance.
+ * 
+ * Automatically detects column data types using a small row sample and converts cell values 
+ * using `parseValue`. Supports excluding specified column headers from the resulting dataset.
+ * 
+ * @param path File system path or URL to the Excel file.
+ * @param sheetIndex Zero-based index of the target sheet to read. Defaults to `0`.
+ * @param skippedHeaders Optional array of column names/headers to exclude from processing. Defaults to an empty array.
+ * @returns A Promise resolving to a fully initialized and type-determined `Table` instance.
+ * @throws {Error} If the specified Excel sheet is empty, missing headers, or contains no data rows.
+ */
 export async function getTableFromXLS(
     path: string,
-    sheetIndex: number = 0
+    sheetIndex: number = 0,
+    skippedHeaders: string[] = []
 ): Promise<Table> {
-    const { headers, rows } = await readExcel(path, sheetIndex);
+    const { headers: rawHeaders, rows } = await readExcel(path, sheetIndex);
 
-    if (!headers || headers.length === 0) {
+    if (!rawHeaders || rawHeaders.length === 0) {
         throw new Error('Excel sheet contains no headers.');
     }
 
@@ -322,21 +239,41 @@ export async function getTableFromXLS(
         throw new Error('Excel sheet contains no data rows.');
     }
 
-    const validLength = headers.length;
+    // FIX: Fejlécek megtisztítása a szóközöktől és idézőjelektől
+    const headers = rawHeaders.map(h => String(h).trim().replace(/^["']|["']$/g, ''));
+    const skipSet = new Set(skippedHeaders.map(h => h.trim()));
 
-    const sampleSize = Math.min(rows.length, 51);
+    const validHeaderIndices: number[] = [];
+    const filteredHeaders: string[] = [];
+
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        if (!skipSet.has(header)) {
+            validHeaderIndices.push(i);
+            filteredHeaders.push(header);
+        }
+    }
+
+    const validLength = filteredHeaders.length;
+
+    if (validLength === 0) {
+        throw new Error('No valid headers remaining after applying skippedHeaders filter!');
+    }
+
+    const sampleSize = Math.min(rows.length, 50);
     const sampleCols: any[][] = Array.from({ length: validLength }, () => []);
 
     for (let r = 0; r < sampleSize; r++) {
         const row = rows[r];
-        for (let c = 0; c < validLength; c++) {
-            sampleCols[c].push(row[c] ?? null);
+        for (let targetIdx = 0; targetIdx < validLength; targetIdx++) {
+            const srcIdx = validHeaderIndices[targetIdx];
+            sampleCols[targetIdx].push(row[srcIdx] ?? null);
         }
     }
 
-    const colInfo: ColInfo[] = headers.map((label, i) => ({
+    const colInfo: ColInfo[] = filteredHeaders.map((label, i) => ({
         label,
-        type: getColType(sampleCols[i])
+        type: getColType(sampleCols[i]) ?? 'string'
     }));
 
     const tableData: any[][] = Array.from({ length: validLength }, () => []);
@@ -344,9 +281,11 @@ export async function getTableFromXLS(
     for (let r = 0; r < rows.length; r++) {
         const row = rows[r];
 
-        for (let c = 0; c < validLength; c++) {
-            const parsedValue = parseValue(row[c], colInfo[c].type);
-            tableData[c].push(parsedValue);
+        for (let targetIdx = 0; targetIdx < validLength; targetIdx++) {
+            const srcIdx = validHeaderIndices[targetIdx];
+            const rawVal = row[srcIdx] ?? null;
+            const parsedValue = parseValue(rawVal, colInfo[targetIdx].type);
+            tableData[targetIdx].push(parsedValue);
         }
     }
 
