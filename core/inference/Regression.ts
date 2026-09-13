@@ -107,32 +107,32 @@ export default class Regression extends Cache {
         return xySum / xSum;
     }
 
-    public linearNoItcpt(): number {
-        return this.getCached('linear_no_itcpt', () => {
+    public linearNoIntercept(): number {
+        return this.getCached('linear_no_intercept', () => {
             return this.calculateNoIntercept(this._x, this._y);
         });
     }
 
-    public exponentialNoItcpt(): number {
+    public exponentialNoIntercept(): number {
         if (this._yHasNonPositive) {
             throw new Error(
                 'Exponential regression could not be calculated because of non-positive values in the dependent variable!'
             );
         }
 
-        return this.getCached('exponential_no_itcpt', () => {
+        return this.getCached('exponential_no_intercept', () => {
             return Math.exp(this.calculateNoIntercept(this._x, this._lnY));
         });
     }
 
-    public powerNoItcpt(): number {
+    public powerNoIntercept(): number {
         if (this._xHasNonPositive || this._yHasNonPositive) {
             throw new Error(
                 'Power regression could not be calculated because of non-positive values in either the independent or dependent variable!'
             );
         }
 
-        return this.getCached('power_no_itcpt', () => {
+        return this.getCached('power_no_intercept', () => {
             return this.calculateNoIntercept(this._lnX, this._lnY);
         });
     }
@@ -260,8 +260,8 @@ export default class Regression extends Cache {
         return this.RSD('power');
     }
 
-    public RSDNoItcpt(
-        regression: 'linear_no_itcpt' | 'exponential_no_itcpt' | 'power_no_itcpt'
+    public RSDNoIntercept(
+        regression: 'linear_no_intercept' | 'exponential_no_intercept' | 'power_no_intercept'
     ): number {
         const rsdKey = `rsd_no_itcpt_${regression}`;
 
@@ -282,13 +282,13 @@ export default class Regression extends Cache {
                 let yHat = 0;
 
                 switch (regression) {
-                    case 'linear_no_itcpt':
+                    case 'linear_no_intercept':
                         yHat = this.linearFunc(0, slope, x);
                         break;
-                    case 'exponential_no_itcpt':
+                    case 'exponential_no_intercept':
                         yHat = this.exponentialFunc(1, slope, x);
                         break;
-                    case 'power_no_itcpt':
+                    case 'power_no_intercept':
                         yHat = this.powerFunc(1, slope, x);
                         break;
                 }
@@ -303,15 +303,15 @@ export default class Regression extends Cache {
         });
     }
 
-    public RSDLinearNoItcpt() {
-        return this.RSDNoItcpt('linear_no_itcpt');
+    public RSDLinearNoIntercept() {
+        return this.RSDNoIntercept('linear_no_intercept');
     }
 
-    public RSDExponentialNoItcpt() {
-        return this.RSDNoItcpt('exponential_no_itcpt');
+    public RSDExponentialNoIntercept() {
+        return this.RSDNoIntercept('exponential_no_intercept');
     }
 
-    public RSDPowerNoItcpt() {
-        return this.RSDNoItcpt('power_no_itcpt');
+    public RSDPowerNoIntercept() {
+        return this.RSDNoIntercept('power_no_intercept');
     }
 }

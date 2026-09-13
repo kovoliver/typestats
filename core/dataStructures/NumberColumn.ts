@@ -371,22 +371,33 @@ export default class NumberColumn extends Column<number> {
      * and a target column (dependent variable Y).
      *
      * @param {NumberColumn} column - The target dependent column (Y).
+     * @param intercept Determines whether to calculate the intercept (b0). 
+     * If set to `false`, forces the regression model through the origin (b0 = 0).
+     * @default true
      * @returns {{ b0: number, b1: number }} An object containing the y-intercept (`b0`) and slope (`b1`).
      * @throws {Error} Throws if array lengths do not match or if missing/non-positive values violate model assumptions.
      */
-    public linearRegression(column: NumberColumn): RegressionModel {
+    public linearRegression(column: NumberColumn, intercept: boolean = true): RegressionModel {
         if (!(column instanceof NumberColumn)) {
             throw new Error('You must provide a numeric column (NumberColumn) instance!');
         }
 
-        this.regression = new Regression(
+        const calc = new Regression(
             this._values as number[],
             column.values as number[]
         );
 
+        const model = intercept
+            ? calc.linear()
+            : { b0: 0, b1: calc.linearNoIntercept() };
+
+        const rsd = intercept
+            ? calc.RSDLinear()
+            : calc.RSDLinearNoIntercept();
+
         return {
-            ...this.regression.linear(),
-            rsd: this.regression.RSDLinear()
+            ...model,
+            rsd
         };
     }
 
@@ -394,25 +405,36 @@ export default class NumberColumn extends Column<number> {
      * Fits an exponential regression model ($y = b_0 \cdot e^{b_1 \cdot x}$) between this column (X) and a target column (Y).
      *
      * @param {NumberColumn} column - The target dependent column (Y).
+     * @param intercept Determines whether to calculate the intercept (b0). 
+     * If set to `false`, forces the regression model through the origin (b0 = 0).
+     * @default true
      * @returns {{ b0: number; b1: number; rsd: number }} An object containing:
      *  - `b0`: The initial value or scale factor (intercept).
      *  - `b1`: The exponential growth rate constant.
      *  - `rsd`: The Residual Standard Deviation, measuring the standard error of the regression model fit.
      * @throws {Error} Throws if dependent values contain non-positive numbers.
      */
-    public exponentialRegression(column: NumberColumn): RegressionModel {
+    public exponentialRegression(column: NumberColumn, intercept: boolean = true): RegressionModel {
         if (!(column instanceof NumberColumn)) {
             throw new Error('You must provide a numeric column (NumberColumn) instance!');
         }
 
-        this.regression = new Regression(
+        const calc = new Regression(
             this._values as number[],
             column.values as number[]
         );
 
+        const model = intercept
+            ? calc.exponential()
+            : { b0: 0, b1: calc.exponentialNoIntercept() };
+
+        const rsd = intercept
+            ? calc.RSDExponential()
+            : calc.RSDExponentialNoIntercept();
+
         return {
-            ...this.regression.exponential(),
-            rsd: this.regression.RSDExponential()
+            ...model,
+            rsd
         };
     }
 
@@ -420,25 +442,36 @@ export default class NumberColumn extends Column<number> {
      * Fits a power regression model ($y = b_0 \cdot x^{b_1}$) between this column (X) and a target column (Y).
      *
      * @param {NumberColumn} column - The target dependent column (Y).
+     * @param intercept Determines whether to calculate the intercept (b0). 
+     * If set to `false`, forces the regression model through the origin (b0 = 0).
+     * @default true
      * @returns {{ b0: number; b1: number; rsd: number }} An object containing:
      *  - `b0`: The proportionality constant (intercept factor).
      *  - `b1`: The power exponent.
      *  - `rsd`: The Residual Standard Deviation, indicating the standard error of the regression estimate.
      * @throws {Error} Throws if independent or dependent values contain non-positive numbers.
      */
-    public powerRegression(column: NumberColumn): RegressionModel {
+    public powerRegression(column: NumberColumn, intercept: boolean = true): RegressionModel {
         if (!(column instanceof NumberColumn)) {
             throw new Error('You must provide a numeric column (NumberColumn) instance!');
         }
 
-        this.regression = new Regression(
+        const calc = new Regression(
             this._values as number[],
             column.values as number[]
         );
 
+        const model = intercept
+            ? calc.power()
+            : { b0: 0, b1: calc.powerNoIntercept() };
+
+        const rsd = intercept
+            ? calc.RSDPower()
+            : calc.RSDPowerNoIntercept();
+
         return {
-            ...this.regression.power(),
-            rsd: this.regression.RSDPower()
+            ...model,
+            rsd
         };
     }
 
@@ -1085,7 +1118,7 @@ export default class NumberColumn extends Column<number> {
         const sortedValues = orderAsc(validValues);
 
         return {
-            label:this._label,
+            label: this._label,
             missing,
             valid: validCount,
             mean: mean(sortedValues),

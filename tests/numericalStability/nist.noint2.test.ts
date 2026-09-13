@@ -23,7 +23,7 @@ describe('Regression Class - Comprehensive Test Suite', () => {
     describe('NIST NoInt2 Benchmark - NoIntercept Models (b0 = 0 / b0 = 1)', () => {
         it('calculates linearNoItcpt (b1) matching NIST certified value (LRE >= 15)', () => {
             const regression = new Regression(xValues, yValues);
-            const b1 = regression.linearNoItcpt();
+            const b1 = regression.linearNoIntercept();
 
             const b1Lre = lre(b1, CERTIFIED_NO_INTERCEPT.b1);
             expect(b1Lre).toBeGreaterThanOrEqual(15);
@@ -31,9 +31,9 @@ describe('Regression Class - Comprehensive Test Suite', () => {
 
         it('calculates RSDLinearNoItcpt matching NIST certified RSD value (LRE >= 15)', () => {
             const regression = new Regression(xValues, yValues);
-            regression.linearNoItcpt();
+            regression.linearNoIntercept();
 
-            const rsd = regression.RSDLinearNoItcpt();
+            const rsd = regression.RSDLinearNoIntercept();
             const rsdLre = lre(rsd, CERTIFIED_NO_INTERCEPT.rsd);
 
             expect(rsdLre).toBeGreaterThanOrEqual(15);

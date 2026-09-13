@@ -73,7 +73,7 @@ export type ColInfo = {
     type?: ColType;
 }
 
-export type RegressionModel = {
+export interface RegressionModel {
     b0: number;
     b1: number;
     rsd: number;
