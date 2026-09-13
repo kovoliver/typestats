@@ -550,6 +550,33 @@ export default class Table {
         return this.newTableByIndices(validIndices);
     }
 
+    public countOutliers(
+        label:string|number,
+        boundaries:Boundaries
+    ) {
+        const col = this.getCol(label);
+
+        if (!(col instanceof NumberColumn)) {
+            throw new Error('Outlier counting is only supported for numeric columns!');
+        }
+
+        return col.countOutliers(boundaries);
+    }
+
+    public countOutliersIqr(
+        label:string|number,
+        multiplier: number = 1.5,
+        percentMode: PercentMode = 'interpolated'
+    ) {
+        const col = this.getCol(label);
+
+        if (!(col instanceof NumberColumn)) {
+            throw new Error('Outlier counting is only supported for numeric columns!');
+        }
+
+        return col.countOutliersIqr(multiplier, percentMode);
+    }
+
     public fillNaNumeric(label: string | number, type: ImputeType): Table {
         const targetCol = this.getCol(label) as NumberColumn;
 

@@ -1,5 +1,5 @@
 import Column from "./Column.js";
-import { getMax, getMin, toNumberArray } from '../utils/utils.js';
+import { getMax, getMin, isEmpty, toNumberArray } from '../utils/utils.js';
 import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, median, q3, iqr, std }
     from '../statistics/univariate.js';
 import { standardizeValues, normalizeValues, replaceOutliers, replaceEmptyValues, isInvalidValue }
@@ -272,6 +272,32 @@ export default class NumberColumn extends Column<number> {
     ): NumberColumn {
         const boundaries: Boundaries = this.getIqrBoundaries(multiplier, percentMode);
         return this.replaceOutliers(type, boundaries);
+    }
+
+    public countOutliers(boundaries: Boundaries) {
+        if (isEmpty(boundaries.min) && isEmpty(boundaries.max)) {
+            throw new Error('You must define at least the minimum or maximum value of the boundaries!');
+        }
+
+        boundaries.min = !isEmpty(boundaries.min) ? boundaries.min : Number.NEGATIVE_INFINITY;
+        boundaries.max = !isEmpty(boundaries.max) ? boundaries.max : Number.POSITIVE_INFINITY;
+
+        return this.getValidValues().reduce(
+            (total, val) => val < boundaries.min!
+            || val > boundaries.max! ? total + 1 : total, 0
+        );
+    }
+
+    public countOutliersIqr(
+        multiplier: number = 1.5,
+        percentMode: PercentMode = 'interpolated'
+    ) {
+        const boundaries: Boundaries = this.getIqrBoundaries(multiplier, percentMode);
+
+        return this.getValidValues().reduce(
+            (total, val) => val < boundaries.min!
+                || val > boundaries.max! ? total + 1 : total, 0
+        );
     }
 
     /**
