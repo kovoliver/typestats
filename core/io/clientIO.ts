@@ -1,6 +1,4 @@
 import Table from "../dataStructures/Table.js";
-import { ColInfo, ColType } from "../types/types.js";
-import { getColType } from "../utils/utils.js";
 import { 
     processCSVStreamLines, processNDJSONLines, 
     processNDJSONStreamLines, 

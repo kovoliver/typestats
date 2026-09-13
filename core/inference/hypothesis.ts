@@ -257,7 +257,6 @@ export function chi2FitTest(
 
     let chi2 = 0;
 
-    // Calculate the Chi-squared test statistic
     for (let i = 0; i < observed.length; i++) {
         const obs = observed[i];
         const exp = expected[i];

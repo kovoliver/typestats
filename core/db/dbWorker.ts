@@ -1,9 +1,5 @@
 import { parentPort } from 'node:worker_threads';
-
-export interface DBWorkerData {
-    chunk: Record<string, any>[];
-    labels: string[];
-}
+import { DBWorkerData } from '../types/types.js';
 
 parentPort?.on('message', (data: DBWorkerData) => {
     const { chunk, labels } = data;

@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import readline from 'node:readline';
 import { readFile } from 'fs/promises';
 import Table from "../dataStructures/Table.js";
 import {

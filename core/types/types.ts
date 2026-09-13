@@ -169,3 +169,8 @@ export type DbStreamResult = {
     stream: AsyncIterable<any>;
     colInfosPromise: Promise<ColInfo[]>;
 }
+
+export type DBWorkerData = {
+    chunk: Record<string, any>[];
+    labels: string[];
+}
