@@ -274,6 +274,13 @@ export default class NumberColumn extends Column<number> {
         return this.replaceOutliers(type, boundaries);
     }
 
+    /**
+     * Counts the number of values that fall strictly outside the specified minimum and maximum boundaries.
+     *
+     * @param boundaries - The upper and lower bounds for outlier detection. At least one bound (`min` or `max`) must be defined.
+     * @returns The total count of values outside the specified boundaries.
+     * @throws {Error} Throws an error if both `boundaries.min` and `boundaries.max` are empty.
+     */
     public countOutliers(boundaries: Boundaries) {
         if (isEmpty(boundaries.min) && isEmpty(boundaries.max)) {
             throw new Error('You must define at least the minimum or maximum value of the boundaries!');
@@ -288,6 +295,15 @@ export default class NumberColumn extends Column<number> {
         );
     }
 
+    /**
+     * Counts the number of outliers based on the Interquartile Range (IQR) method.
+     *
+     * Outliers are values falling below `Q1 - multiplier * IQR` or above `Q3 + multiplier * IQR`.
+     *
+     * @param multiplier - The IQR multiplier used to define the outlier threshold. Defaults to `1.5` (standard Tukey fence).
+     * @param percentMode - The interpolation method used when calculating percentiles/quartiles. Defaults to `'interpolated'`.
+     * @returns The total count of values identified as outliers.
+     */
     public countOutliersIqr(
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'

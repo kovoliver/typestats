@@ -1,9 +1,9 @@
-import { Boundaries, ColInfo, ColType, ColumnInfo, ImputeType, PercentMode }
+import { Boundaries, ColInfo, ColumnInfo, ImputeType, PercentMode }
     from '../types/types.js';
 import {
-    displayDateString, firstNTypeCheck,
-    hasEmptyValues, isBool, getColType,
-    isEmpty, isNanNullUndefined, isNumeric
+    displayDateString,
+    hasEmptyValues, getColType,
+    isEmpty, isNanNullUndefined,
 }
     from '../utils/utils.js';
 import NumberColumn from './NumberColumn.js';
@@ -550,6 +550,14 @@ export default class Table {
         return this.newTableByIndices(validIndices);
     }
 
+    /**
+     * Counts the number of values that fall strictly outside the specified minimum and maximum boundaries in a numeric column.
+     *
+     * @param label - The identifier (column name or index) of the target column.
+     * @param boundaries - The upper and lower bounds for outlier detection. At least one bound (`min` or `max`) must be defined.
+     * @returns The total count of outlier values in the specified column.
+     * @throws {Error} Throws an error if the specified column is not a `NumberColumn`, or if both boundaries are empty.
+     */
     public countOutliers(
         label:string|number,
         boundaries:Boundaries
@@ -563,6 +571,17 @@ export default class Table {
         return col.countOutliers(boundaries);
     }
 
+    /**
+     * Counts the number of outliers in a numeric column based on the Interquartile Range (IQR) method.
+     *
+     * Outliers are values falling below `Q1 - multiplier * IQR` or above `Q3 + multiplier * IQR`.
+     *
+     * @param label - The identifier (column name or index) of the target column.
+     * @param multiplier - The IQR multiplier used to define the outlier threshold. Defaults to `1.5` (standard Tukey fence).
+     * @param percentMode - The interpolation method used when calculating percentiles/quartiles. Defaults to `'interpolated'`.
+     * @returns The total count of outlier values identified in the specified column.
+     * @throws {Error} Throws an error if the specified column is not a `NumberColumn`.
+     */
     public countOutliersIqr(
         label:string|number,
         multiplier: number = 1.5,
