@@ -151,30 +151,26 @@ export function isNumeric(value: any): boolean {
     return Number.isFinite(num);
 }
 
+const BOOLISH_VALUES = new Set([
+    'true', 'false',
+    'yes', 'no',
+    'y', 'n',
+    'on', 'off',
+    'enabled', 'disabled',
+    'active', 'inactive'
+]);
+
 /**
  * Determines whether a value is boolean or a boolean-like (boolish) value.
  * @param {any} value The provided value.
  */
-export function isBool(value: any): boolean {
+export function isBool(value: unknown): boolean {
     if (value === null || value === undefined) return false;
     if (typeof value === 'boolean') return true;
-    if (value === 1 || value === 0) return true;
 
-    if (typeof value === 'string' || typeof value === 'number') {
-        const str = value.toString().trim().toLowerCase();
-
-        const boolishStrings = [
-            'true', 'false',
-            '1', '0',
-            'yes', 'no',
-            'y', 'n',
-            'i', 'n',
-            'on', 'off',
-            'enabled', 'disabled',
-            'active', 'inactive'
-        ];
-
-        return boolishStrings.includes(str);
+    if (typeof value === 'string') {
+        const str = String(value).trim().toLowerCase();
+        return BOOLISH_VALUES.has(str);
     }
 
     return false;
@@ -610,7 +606,7 @@ export function parseDate(val: unknown): Date | null {
         const d = new Date(val);
         return isNaN(d.getTime()) ? null : d;
     }
-    
+
     return null;
 }
 
