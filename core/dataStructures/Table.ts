@@ -821,7 +821,8 @@ export default class Table {
     private createStatMatrix(
         labels: string[],
         fn: (val1: number[], val2: number[]) => number,
-        printed: boolean = false
+        calculation: 'covariance' | 'correlation',
+        printed: boolean = false,
     ) {
         const n = labels.length;
 
@@ -839,7 +840,7 @@ export default class Table {
 
             for (let j = i; j < n; j++) {
                 if (i === j) {
-                    matrix[i][i] = col1.variance();
+                    matrix[i][i] = calculation === 'covariance' ? col1.variance() : 1;
                     continue;
                 }
 
@@ -876,11 +877,11 @@ export default class Table {
     }
 
     public covariance(labels: string[], printed: boolean = false): number[][] {
-        return this.createStatMatrix(labels, covariance, printed);
+        return this.createStatMatrix(labels, covariance, 'covariance', printed);
     }
 
     public correlation(labels: string[], printed: boolean = false): number[][] {
-        return this.createStatMatrix(labels, correlation, printed);
+        return this.createStatMatrix(labels, correlation, 'correlation', printed);
     }
 
     public describe(): void {
