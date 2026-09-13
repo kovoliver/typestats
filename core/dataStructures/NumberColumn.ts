@@ -530,7 +530,7 @@ export default class NumberColumn extends Column<number> {
             this.trend = new Trend(this.getValidValues());
         }
 
-        return this.getCached('exponential_trend', () => {
+        return this.getCached('logarithmic_trend', () => {
             return {
                 ...this.trend?.logarithmic(),
                 mse: this.trend?.MSELogarithmic()
