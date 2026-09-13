@@ -9,13 +9,13 @@ describe('Regression Class', () => {
         });
 
         it('should throw error if fewer than 2 values are provided', () => {
-            expect(() => new Regression([1], [2])).toThrowError(
+            expect(() => new Regression([1], [2])).toThrow(
                 'You must provide at least two dependent and independent variable values!'
             );
         });
 
         it('should throw error if array lengths do not match', () => {
-            expect(() => new Regression([1, 2, 3], [2, 4])).toThrowError(
+            expect(() => new Regression([1, 2, 3], [2, 4])).toThrow(
                 'You must add the same number of independent and dependent values!'
             );
         });
@@ -42,7 +42,7 @@ describe('Regression Class', () => {
 
         it('should throw error if independent variable has zero variance in linear regression', () => {
             const reg = new Regression([3, 3, 3], [2, 4, 6]);
-            expect(() => reg.linear()).toThrowError(
+            expect(() => reg.linear()).toThrow(
                 'Regression could not be calculated because the independent variable has zero variance!'
             );
         });
@@ -69,7 +69,7 @@ describe('Regression Class', () => {
 
         it('should throw error if dependent variable contains non-positive values', () => {
             const reg = new Regression([1, 2, 3], [2, 0, -1]);
-            expect(() => reg.exponential()).toThrowError(
+            expect(() => reg.exponential()).toThrow(
                 'Exponential regression could not be calculated because of non-positive values in the dependent variable!'
             );
         });
@@ -96,12 +96,12 @@ describe('Regression Class', () => {
 
         it('should throw error if x or y contains non-positive values in power regression', () => {
             const regNegativeX = new Regression([0, 1, 2], [1, 2, 3]);
-            expect(() => regNegativeX.power()).toThrowError(
+            expect(() => regNegativeX.power()).toThrow(
                 'Power regression could not be calculated because of non-positive values in either the independent or dependent variable!'
             );
 
             const regNegativeY = new Regression([1, 2, 3], [-1, 2, 3]);
-            expect(() => regNegativeY.power()).toThrowError(
+            expect(() => regNegativeY.power()).toThrow(
                 'Power regression could not be calculated because of non-positive values in either the independent or dependent variable!'
             );
         });
@@ -111,15 +111,15 @@ describe('Regression Class', () => {
         it('should throw error if regression model has not been calculated before RSD call', () => {
             const reg = new Regression([1, 2, 3, 4, 5], [2, 4, 5, 4, 5]);
 
-            expect(() => reg.RSD('linear')).toThrowError(
+            expect(() => reg.RSD('linear')).toThrow(
                 "Cannot calculate RSD for 'linear' regression because the model coefficients have not been calculated yet. Call .linear() first!"
             );
 
-            expect(() => reg.RSD('exponential')).toThrowError(
+            expect(() => reg.RSD('exponential')).toThrow(
                 "Cannot calculate RSD for 'exponential' regression because the model coefficients have not been calculated yet. Call .exponential() first!"
             );
 
-            expect(() => reg.RSD('power')).toThrowError(
+            expect(() => reg.RSD('power')).toThrow(
                 "Cannot calculate RSD for 'power' regression because the model coefficients have not been calculated yet. Call .power() first!"
             );
         });

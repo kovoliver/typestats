@@ -126,7 +126,7 @@ export type DbConfig = {
 }
 
 export type Stratum = {
-    label: string;
+    label?: string;
     samples: number[];
     stratumSize: number;
 }

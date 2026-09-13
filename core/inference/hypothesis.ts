@@ -80,6 +80,7 @@ export function zTest(
  *   - `T`: The critical t-value boundary for df = n - 1.
  *   - `passed`: `true` if H0 is retained (accepted), `false` if H0 is rejected.
  * @throws {Error} Throws an error if the sample size is less than 2 or if the sample standard deviation is zero.
+ * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda352.htm NIST e-Handbook: One-Sample t-Test}
  */
 export function tTest(
     sample: number[],
@@ -131,6 +132,7 @@ export function tTest(
  * @throws {Error} If `pPopulation` is not strictly between 0 and 1.
  * @throws {Error} If `pSample` is not between 0 and 1 inclusive.
  * @throws {Error} If the sample size `n` is less than or equal to 0.
+ * @see {@link https://cran.r-project.org/web/packages/distributions3/vignettes/one-sample-z-test-for-proportion.html CRAN R-Project: One-Sample Z-Test for Proportion}
  */
 export function zTestProportion(
     pPopulation: number,
@@ -180,6 +182,7 @@ export function zTestProportion(
  *                      (fail to reject the null hypothesis), `false` otherwise.
  * 
  * @throws {Error} If `hypotheticalVar` is less than or equal to 0.
+ * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda358.htm NIST e-Handbook: Chi-Square Test for Variance}
  */
 export function chi2Test(
     sample: number[],
@@ -240,6 +243,7 @@ export function chi2Test(
  * @throws {Error} If any observed frequency is less than 0.
  * @throws {Error} If any expected frequency is less than or equal to 0.
  * @throws {Error} If the resulting degrees of freedom are less than or equal to 0.
+ * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda35f.htm NIST e-handbook: Chi-Square Goodness-of-Fit Test }
  */
 export function chi2FitTest(
     observed: number[],
@@ -310,6 +314,7 @@ export function chi2FitTest(
  * @throws {Error} If any observed frequency is negative.
  * @throws {Error} If the total sum of the table is 0.
  * @throws {Error} If any calculated expected frequency is less than or equal to 0.
+ * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda35e.htm NIST e-Handbook: Chi-Square Two-Sample Test / Contingency Table}
  */
 export function chiSquaredIndependenceTest(
     contingencyTable: number[][],
@@ -335,9 +340,11 @@ export function chiSquaredIndependenceTest(
         }
         for (let j = 0; j < numCols; j++) {
             const val = contingencyTable[i][j];
+
             if (val < 0) {
                 throw new Error("Observed frequencies cannot be negative.");
             }
+
             rowTotals[i] += val;
             colTotals[j] += val;
             grandTotal += val;
@@ -458,6 +465,7 @@ export function zTestTwoSamples(
  * 
  * @throws {Error} If either sample contains fewer than 2 elements.
  * @throws {Error} If the standard error is zero (e.g., both samples have zero variance).
+ * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda353.htm NIST e-Handbook: Two-Sample t-Test}
  */
 export function tTestTwoSamples(
     sample1: number[],
@@ -593,6 +601,7 @@ export function twoSampleAsymptoticZMeanTest(
  * @throws {Error} If either sample proportion is not between 0 and 1 (inclusive).
  * @throws {Error} If either sample size is less than or equal to 0.
  * @throws {Error} If the standard error is zero.
+ * @see {@link https://www.statisticshowto.com/probability-and-statistics/hypothesis-testing/z-test/ Two-sample Z-test for proportion }
  */
 export function zTestProportionTwoSamples(
     pSample1: number,
@@ -658,6 +667,7 @@ export function zTestProportionTwoSamples(
  * 
  * @throws {Error} If either sample contains fewer than 2 elements.
  * @throws {Error} If the variance of the second sample is zero (leads to division by zero).
+ * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda359.htm NIST: F-Test for Equality of Two Variances }
  */
 export function fTestTwoSamples(
     sample1: number[],

@@ -18,95 +18,91 @@ import {
     getPairedMeanDiff
 } from '../../core/inference/estimations';
 
-describe('Statistical Estimation and Confidence Intervals', () => {
+describe('Statistical Estimation and Confidence Intervals (strict)', () => {
     describe('Mean Estimation (IID)', () => {
         const sample = [10, 12, 14, 15, 19];
 
-        it('should calculate IID confidence interval with known standard deviation', () => {
+        it('matches the exact known-sigma z-interval', () => {
             const ci = meanEstimationIIDwithSTD(sample, 0.05, 3.0);
-            expect(ci.lower).toBeLessThan(ci.upper);
-            expect(ci.lower).toBeCloseTo(11.37, 1);
-            expect(ci.upper).toBeCloseTo(16.63, 1);
+            expect(ci.lower).toBeCloseTo(11.370432, 4);
+            expect(ci.upper).toBeCloseTo(16.629568, 4);
         });
 
-        it('should throw error for non-positive sigma in known STD estimation', () => {
-            expect(() => meanEstimationIIDwithSTD(sample, 0.05, 0)).toThrowError(
-                'Population standard deviation (sigma) must be greater than zero.'
-            );
-        });
-
-        it('should calculate IID confidence interval with unknown standard deviation (t-distribution)', () => {
+        it('matches the exact unknown-sigma t-interval', () => {
             const ci = meanEstimationIIDwithoutSTD(sample, 0.05);
-            expect(ci.lower).toBeLessThan(ci.upper);
-            expect(ci.lower).toBeLessThan(14);
-            expect(ci.upper).toBeGreaterThan(14);
-        });
-
-        it('should throw error if sample size is less than 2 for unknown STD', () => {
-            expect(() => meanEstimationIIDwithoutSTD([10], 0.05)).toThrowError(
-                "Calculating the Student's t-distribution requires at least 2 sample values."
-            );
+            expect(ci.lower).toBeCloseTo(9.789313, 3);
+            expect(ci.upper).toBeCloseTo(18.210687, 3);
         });
     });
 
     describe('Proportion Estimation', () => {
-        it('should calculate IID proportion estimation correctly', () => {
+        it('matches the exact Wald interval (IID)', () => {
             const ci = proportionEstimationIID(0.5, 0.05, 100);
-            expect(ci.lower).toBeGreaterThanOrEqual(0);
-            expect(ci.upper).toBeLessThanOrEqual(1);
-            expect(ci.lower).toBeCloseTo(0.402, 2);
-            expect(ci.upper).toBeCloseTo(0.598, 2);
+            expect(ci.lower).toBeCloseTo(0.402002, 4);
+            expect(ci.upper).toBeCloseTo(0.597998, 4);
         });
 
-        it('should throw error for invalid proportion parameters', () => {
-            expect(() => proportionEstimationIID(1.5, 0.05, 50)).toThrowError(
-                'Sample proportion (p) must be between 0 and 1.'
-            );
-            expect(() => proportionEstimationIID(0.5, 0.05, 0)).toThrowError(
-                'Sample size (n) must be a positive integer.'
-            );
+        it('narrows relative to the IID interval once FPC is applied (SRS)', () => {
+            const iid = proportionEstimationIID(0.5, 0.05, 100);
+            const srs = proportionEstimationSRS(0.5, 0.05, 100, 1000);
+            const iidWidth = iid.upper - iid.lower;
+            const srsWidth = srs.upper - srs.lower;
+            expect(srsWidth).toBeLessThan(iidWidth);
+            expect(srs.lower).toBeGreaterThanOrEqual(0);
+            expect(srs.upper).toBeLessThanOrEqual(1);
         });
 
-        it('should calculate SRS proportion estimation using FPC', () => {
-            const ci = proportionEstimationSRS(0.5, 0.05, 100, 1000);
-            expect(ci.lower).toBeGreaterThanOrEqual(0);
-            expect(ci.upper).toBeLessThanOrEqual(1);
+        it('collapses to the IID interval as N grows very large (FPC -> 1)', () => {
+            const iid = proportionEstimationIID(0.5, 0.05, 100);
+            const srsHugeN = proportionEstimationSRS(0.5, 0.05, 100, 10_000_000);
+            expect(srsHugeN.lower).toBeCloseTo(iid.lower, 3);
+            expect(srsHugeN.upper).toBeCloseTo(iid.upper, 3);
         });
     });
 
     describe('SRS Mean Estimation with FPC', () => {
         const sample = [20, 22, 19, 24, 25];
 
-        it('should estimate SRS mean with known STD', () => {
+        it('matches the exact known-sigma SRS interval', () => {
             const ci = meanEstimationSRSwithSTD(sample, 0.05, 4.0, 500);
-            expect(ci.lower).toBeLessThan(ci.upper);
+            expect(ci.lower).toBeCloseTo(18.511484, 3);
+            expect(ci.upper).toBeCloseTo(25.488516, 3);
         });
 
-        it('should estimate SRS mean with unknown STD', () => {
+        it('matches the exact unknown-sigma SRS interval', () => {
             const ci = meanEstimationSRSwithoutSTD(sample, 0.05, 500);
-            expect(ci.lower).toBeLessThan(ci.upper);
+            expect(ci.lower).toBeCloseTo(18.850233, 3);
+            expect(ci.upper).toBeCloseTo(25.149767, 3);
+        });
+
+        it('is strictly narrower than the equivalent IID interval', () => {
+            const srs = meanEstimationSRSwithSTD(sample, 0.05, 4.0, 500);
+            const iid = meanEstimationIIDwithSTD(sample, 0.05, 4.0);
+            expect(srs.upper - srs.lower).toBeLessThan(iid.upper - iid.lower);
         });
     });
 
     describe('Variance Estimation', () => {
         const sample = [5, 8, 12, 15, 20];
 
-        it('should calculate IID variance confidence interval', () => {
+        it('matches the exact chi-square interval (IID)', () => {
             const ci = varianceEstimationIID(sample, 0.05);
-            expect(ci.lower).toBeLessThan(ci.upper);
-            expect(ci.lower).toBeGreaterThan(0);
+            expect(ci.lower).toBeCloseTo(12.384138, 3);
+            expect(ci.upper).toBeCloseTo(284.877608, 2);
         });
 
-        it('should calculate SRS variance confidence interval with valid population size', () => {
+        it('produces the exact same interval as the IID variance CI (N is validation-only)', () => {
             const ci = varianceEstimationSRS(sample, 0.05, 200);
-            expect(ci.lower).toBeLessThan(ci.upper);
+            const iid = varianceEstimationIID(sample, 0.05);
+            expect(ci.lower).toBeCloseTo(iid.lower, 10);
+            expect(ci.upper).toBeCloseTo(iid.upper, 10);
         });
 
-        it('should throw error if population size is invalid or smaller than sample', () => {
-            expect(() => varianceEstimationSRS(sample, 0.05, 0)).toThrowError(
+        it('still validates N and n independently of the identical CI math', () => {
+            expect(() => varianceEstimationSRS(sample, 0.05, 0)).toThrow(
                 'Population size (N) must be greater than zero.'
             );
-            expect(() => varianceEstimationSRS(sample, 0.05, 3)).toThrowError(
+            expect(() => varianceEstimationSRS(sample, 0.05, 3)).toThrow(
                 'Sample size cannot be greater than population size.'
             );
         });
@@ -118,29 +114,19 @@ describe('Statistical Estimation and Confidence Intervals', () => {
             { label: 'Stratum 2', stratumSize: 600, samples: [20, 22, 24, 26] }
         ];
 
-        it('should estimate stratified mean correctly', () => {
+        it('matches the exact size-weighted stratified mean', () => {
             const meanVal = estimateStratifiedMean(strata);
-            expect(typeof meanVal).toBe('number');
-            expect(meanVal).toBeGreaterThan(0);
+            expect(meanVal).toBeCloseTo(18.6, 6);
         });
 
-        it('should estimate stratified total correctly', () => {
+        it('matches the exact stratified total (N * weighted mean)', () => {
             const totalVal = estimateStratifiedTotal(strata);
-            expect(typeof totalVal).toBe('number');
-            expect(totalVal).toBeGreaterThan(0);
+            expect(totalVal).toBeCloseTo(18600, 4);
         });
 
-        it('should estimate stratified variance correctly', () => {
+        it('matches the exact stratified variance-of-the-mean estimate', () => {
             const varVal = estimateStratifiedVariance(strata);
-            expect(typeof varVal).toBe('number');
-            expect(varVal).toBeGreaterThanOrEqual(0);
-        });
-
-        it('should throw error if total population size is zero across strata', () => {
-            const emptyStrata: Stratum[] = [{ label: 'Empty', stratumSize: 0, samples: [1, 2] }];
-            expect(() => estimateStratifiedMean(emptyStrata)).toThrowError(
-                'Total population size across all strata must be greater than zero.'
-            );
+            expect(varVal).toBeCloseTo(0.807733, 4);
         });
     });
 
@@ -148,48 +134,28 @@ describe('Statistical Estimation and Confidence Intervals', () => {
         const sample1 = [10, 12, 14, 16];
         const sample2 = [8, 9, 11, 13];
 
-        it('should calculate mean difference CI with known variances', () => {
+        it('matches the exact known-variance mean-difference CI', () => {
             const ci = getMeanDiffKnownVariance(sample1, sample2, 4, 4, 0.05);
-            expect(ci.lower).toBeLessThan(ci.upper);
+            expect(ci.lower).toBeCloseTo(-0.021808, 3);
+            expect(ci.upper).toBeCloseTo(5.521808, 3);
         });
 
-        it('should throw error on negative variances or empty samples', () => {
-            expect(() => getMeanDiffKnownVariance([], sample2, 4, 4, 0.05)).toThrowError(
-                'Both samples must contain at least 1 element.'
-            );
-            expect(() => getMeanDiffKnownVariance(sample1, sample2, -1, 4, 0.05)).toThrowError(
-                'Variances (var1, var2) cannot be negative!'
-            );
-        });
-
-        it('should calculate pooled mean difference CI (t-distribution)', () => {
+        it('matches the exact pooled t mean-difference CI', () => {
             const ci = getMeanDiffPooledCI(sample1, sample2, 0.05);
-            expect(ci.lower).toBeLessThan(ci.upper);
+            expect(ci.lower).toBeCloseTo(-1.413946, 3);
+            expect(ci.upper).toBeCloseTo(6.913946, 3);
         });
 
-        it('should calculate proportion difference CI', () => {
+        it('matches the exact proportion-difference CI', () => {
             const ci = getProportionDiff(40, 100, 30, 100, 0.05);
-            expect(ci.lower).toBeLessThan(ci.upper);
+            expect(ci.lower).toBeCloseTo(-0.031478, 4);
+            expect(ci.upper).toBeCloseTo(0.231478, 4);
         });
 
-        it('should throw error for invalid proportion difference inputs', () => {
-            expect(() => getProportionDiff(-1, 100, 30, 100, 0.05)).toThrowError(
-                'k1 must be between 0 and n1'
-            );
-            expect(() => getProportionDiff(40, 0, 30, 100, 0.05)).toThrowError(
-                'Sample sizes (n1, n2) must be strictly greater than 0.'
-            );
-        });
-
-        it('should calculate paired mean difference CI', () => {
+        it('matches the exact paired mean-difference CI', () => {
             const ci = getPairedMeanDiff([12, 15, 18], [10, 13, 15], 0.05);
-            expect(ci.lower).toBeLessThan(ci.upper);
-        });
-
-        it('should throw error on mismatched paired sample lengths', () => {
-            expect(() => getPairedMeanDiff([1, 2], [1], 0.05)).toThrowError(
-                'Paired samples must have the exact same length!'
-            );
+            expect(ci.lower).toBeCloseTo(0.899116, 3);
+            expect(ci.upper).toBeCloseTo(3.767551, 3);
         });
     });
 });

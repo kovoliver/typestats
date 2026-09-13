@@ -5,8 +5,8 @@ import type { TrendType } from '../../core/types/types';
 describe('Trend', () => {
     describe('Constructor and basic properties', () => {
         it('throws an error if instantiated with fewer than 2 values', () => {
-            expect(() => new Trend([])).toThrowError();
-            expect(() => new Trend([1])).toThrowError();
+            expect(() => new Trend([])).toThrow();
+            expect(() => new Trend([1])).toThrow();
         });
 
         it('correctly sets the sample size N', () => {
@@ -36,8 +36,8 @@ describe('Trend', () => {
         const exponentialData = [3, 6, 12, 24, 48];
 
         it('throws an error if data contains zero or negative values', () => {
-            expect(() => new Trend([0, 2, 4]).exponential()).toThrowError();
-            expect(() => new Trend([5, -1, 3]).exponential()).toThrowError();
+            expect(() => new Trend([0, 2, 4]).exponential()).toThrow();
+            expect(() => new Trend([5, -1, 3]).exponential()).toThrow();
         });
 
         it('calculates exponential trend parameters correctly', () => {
@@ -60,9 +60,9 @@ describe('Trend', () => {
         it('throws an error for invalid degrees', () => {
             const trend = new Trend(polynomialData);
             
-            expect(() => trend.polynomial(1)).toThrowError();
-            expect(() => trend.polynomial(6)).toThrowError();
-            expect(() => trend.polynomial(2.5)).toThrowError();
+            expect(() => trend.polynomial(1)).toThrow();
+            expect(() => trend.polynomial(6)).toThrow();
+            expect(() => trend.polynomial(2.5)).toThrow();
         });
 
         it('calculates polynomial trend parameters correctly', () => {
@@ -127,7 +127,7 @@ describe('Trend', () => {
         });
 
         it('throws an error if POLYNOMIAL is called without a degree', () => {
-            expect(() => trend.MSE('polynomial')).toThrowError();
+            expect(() => trend.MSE('polynomial')).toThrow();
         });
 
         it('routes to MSEPolynomial correctly when degree is provided', () => {
@@ -135,7 +135,7 @@ describe('Trend', () => {
         });
 
         it('throws an error for unknown trend types', () => {
-            expect(() => trend.MSE('UNKNOWN_TYPE' as TrendType)).toThrowError();
+            expect(() => trend.MSE('UNKNOWN_TYPE' as TrendType)).toThrow();
         });
     });
 });
