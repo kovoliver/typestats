@@ -2,7 +2,7 @@ import { Boundaries, ColInfo, ColType, ColumnInfo, ImputeType, PercentMode }
     from '../types/types.js';
 import {
     displayDateString, firstNTypeCheck,
-    hasEmptyValues, isBool,
+    hasEmptyValues, isBool, getColType,
     isEmpty, isNanNullUndefined, isNumeric
 }
     from '../utils/utils.js';
@@ -62,7 +62,7 @@ export default class Table {
 
         for (let i = 0; i < colCount; i++) {
             const rawCol = values[i];
-            const type = colInfos[i]?.type ?? this.getColType(rawCol);
+            const type = colInfos[i]?.type ?? getColType(rawCol);
             if (colInfos[i]) colInfos[i].type = type;
 
             switch (type) {
@@ -86,7 +86,7 @@ export default class Table {
     }
 
     private createColumnFromData(values: any[], colInfo: ColInfo): AnyColumn {
-        const type = colInfo.type ?? this.getColType(values);
+        const type = colInfo.type ?? getColType(values);
 
         switch (type) {
             case 'number':
@@ -171,16 +171,6 @@ export default class Table {
         }
 
         return index;
-    }
-
-    private getColType(col: any[], colType?: ColType): ColType {
-        if (colType) return colType;
-
-        if (firstNTypeCheck(col, 10, isBool)) return 'bool';
-        if (firstNTypeCheck(col, 10, isNumeric)) return 'number';
-        if (firstNTypeCheck(col, 10, isDate)) return 'date';
-
-        return 'string';
     }
 
     public get rowCount(): number {
@@ -517,7 +507,7 @@ export default class Table {
 
         const info = { ...colInfo };
         if (!info.type) {
-            info.type = this.getColType(values);
+            info.type = getColType(values);
         }
 
         const newValues = this._values.map(c => [...c]);
@@ -676,7 +666,7 @@ export default class Table {
             throw new Error(`The transformation function failed on column "${this._colInfos[colIndex].label}"!`);
         }
 
-        const newType = this.getColType(newValues);
+        const newType = getColType(newValues);
         const newColInfo: ColInfo = { label: newLabel, type: newType };
 
         return this.addColumnAt(newValues, newColInfo, colIndex + 1);
@@ -702,7 +692,7 @@ export default class Table {
 
         const nonNullValues = newValues.filter(v => !isNanNullUndefined(v));
         const newType = nonNullValues.length > 0
-            ? this.getColType(nonNullValues)
+            ? getColType(nonNullValues)
             : this._colInfos[index].type;
 
         this._values[index] = newValues;
