@@ -106,7 +106,8 @@ describe('Bivariate and Matrix Statistical Functions', () => {
 
         it('should calculate Pearson correlation coefficient', () => {
             expect(correlation(x, y)).toBe(1);
-            expect(correlation([5, 5, 5], [1, 2, 3])).toBe(0); // Zero std dev edge case
+            expect(correlation([5, 5, 5], [1, 2, 3])).toBe(0);
+            expect(correlation([5,7,9,11,12,23], [1,4,6,7,9,10])).toBeCloseTo(0.8465, 4);
         });
     });
 

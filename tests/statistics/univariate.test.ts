@@ -10,7 +10,6 @@ import {
     percentile,
     median,
     q1,
-    q2,
     q3,
     q4,
     mode,
@@ -23,7 +22,8 @@ import {
     range,
     iqr,
     rsd,
-    mse
+    mse,
+    naiveCentralDeviationsSum
 } from "../../core/statistics/univariate";
 
 describe('Statisztikai Függvények Tesztelése', () => {
@@ -46,7 +46,7 @@ describe('Statisztikai Függvények Tesztelése', () => {
         });
 
         it('should throw error on empty array', () => {
-            expect(() => mean([])).toThrowError('You should give at least one number!');
+            expect(() => mean([])).toThrow('You should give at least one number!');
         });
     });
 
@@ -56,7 +56,7 @@ describe('Statisztikai Függvények Tesztelése', () => {
         });
 
         it('should throw error on non-positive values', () => {
-            expect(() => geometricMean([0, 2, 4])).toThrowError('Geometric mean requires strictly positive numbers!');
+            expect(() => geometricMean([0, 2, 4])).toThrow('Geometric mean requires strictly positive numbers!');
         });
     });
 
@@ -66,8 +66,8 @@ describe('Statisztikai Függvények Tesztelése', () => {
         });
 
         it('should throw error if lengths mismatch or weights sum to zero', () => {
-            expect(() => weightedMean([1, 2], [1])).toThrowError('The number of weights should be the same as the number of values!');
-            expect(() => weightedMean([1, 2], [1, -1])).toThrowError('The sum of weights cannot be zero!');
+            expect(() => weightedMean([1, 2], [1])).toThrow('The number of weights should be the same as the number of values!');
+            expect(() => weightedMean([1, 2], [1, -1])).toThrow('The sum of weights cannot be zero!');
         });
     });
 
@@ -77,8 +77,8 @@ describe('Statisztikai Függvények Tesztelése', () => {
         });
 
         it('should throw error on non-positive values or weights', () => {
-            expect(() => harmonicMean([0, 2], [1, 1])).toThrowError('Harmonic mean requires strictly positive values!');
-            expect(() => harmonicMean([1, 2], [0, 1])).toThrowError('Harmonic mean requires strictly positive weights!');
+            expect(() => harmonicMean([0, 2], [1, 1])).toThrow('Harmonic mean requires strictly positive values!');
+            expect(() => harmonicMean([1, 2], [0, 1])).toThrow('Harmonic mean requires strictly positive weights!');
         });
     });
 
@@ -94,7 +94,7 @@ describe('Statisztikai Függvények Tesztelése', () => {
 
         it('should calculate standard deviation correctly', () => {
             expect(std([1, 2, 3, 4, 5], false)).toBeCloseTo(Math.sqrt(2), 5);
-            expect(() => std([5], true)).toThrowError('Sample statistics require at least two numbers!');
+            expect(() => std([5], true)).toThrow('Sample statistics require at least two numbers!');
         });
     });
 
@@ -110,7 +110,7 @@ describe('Statisztikai Függvények Tesztelése', () => {
         });
 
         it('should throw error on invalid percent bounds', () => {
-            expect(() => percentile(data, 1.5)).toThrowError('The given percentage should be between 0 and 1!');
+            expect(() => percentile(data, 1.5)).toThrow('The given percentage should be between 0 and 1!');
         });
     });
 
@@ -127,6 +127,7 @@ describe('Statisztikai Függvények Tesztelése', () => {
 
     describe('Skewness and Kurtosis', () => {
         const skewedData = [1, 2, 2, 3, 10];
+        const skewedData2 = [1, 5, 7, 10, 23, 44];
 
         it('should calculate Pearson, Bowley, and Kelly skewness accurately', () => {
             expect(pearsonMeSkewness(skewedData, false)).toBeCloseTo(1.4715, 4);
@@ -135,15 +136,22 @@ describe('Statisztikai Függvények Tesztelése', () => {
         });
 
         it('should calculate central moments, skewness, and excess kurtosis accurately', () => {
-            expect(centralMoment(skewedData, 2, false)).toBeCloseTo(10.64, 2);
-            expect(typeof centralMoment(skewedData, 2)).toBe('number');
-            expect(typeof skewness(skewedData)).toBe('number');
-            expect(typeof excessKurtosis(skewedData)).toBe('number');
+            // 1. Terribery vs Naive internal accumulator verification
+            expect(centralMoment(skewedData, 2)).toBeCloseTo(naiveCentralDeviationsSum(skewedData, 2), 5);
+            expect(centralMoment(skewedData, 3)).toBeCloseTo(naiveCentralDeviationsSum(skewedData, 3), 5);
+            expect(centralMoment(skewedData, 4)).toBeCloseTo(naiveCentralDeviationsSum(skewedData, 4), 5);
+
+            // 2. SPSS Type-2 sample shape parameters verification
+            expect(skewness(skewedData)).toBeCloseTo(2.029, 2);
+            expect(excessKurtosis(skewedData)).toBeCloseTo(4.272, 2);
+
+            expect(skewness(skewedData2)).toBeCloseTo(1.485, 2);
+            expect(excessKurtosis(skewedData2)).toBeCloseTo(1.790, 2);
         });
 
         it('should throw error for zero-variance dataset in skewness/kurtosis', () => {
-            expect(() => skewness([5, 5, 5])).toThrowError('Cannot calculate skewness for constant or zero-variance dataset.');
-            expect(() => excessKurtosis([5, 5, 5])).toThrowError('Cannot calculate excess kurtosis for constant or zero-variance dataset.');
+            expect(() => skewness([5, 5, 5])).toThrow('Cannot calculate skewness for constant or zero-variance dataset.');
+            expect(() => excessKurtosis([5, 5, 5])).toThrow('Cannot calculate excess kurtosis for constant or zero-variance dataset.');
         });
     });
 
@@ -155,13 +163,13 @@ describe('Statisztikai Függvények Tesztelése', () => {
 
         it('should calculate relative standard deviation (RSD)', () => {
             expect(rsd([10, 20, 30], false)).toBeCloseTo(0.4082, 4);
-            expect(() => rsd([0, 0, 0], false)).toThrowError('Cannot calculate relative standard deviation with the mean of zero!');
+            expect(() => rsd([0, 0, 0], false)).toThrow('Cannot calculate relative standard deviation with the mean of zero!');
         });
 
         it('should calculate Mean Squared Error (MSE)', () => {
             expect(mse([1, 2, 3], [1, 2, 3])).toBe(0);
             expect(mse([1, 2, 3], [2, 2, 2])).toBe(2 / 3);
-            expect(() => mse([1, 2], [1])).toThrowError('The number of actual values must match the number of predicted values.');
+            expect(() => mse([1, 2], [1])).toThrow('The number of actual values must match the number of predicted values.');
         });
     });
 });

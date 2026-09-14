@@ -270,10 +270,10 @@ export function percentile(
  * @returns The median value.
  */
 export function median(
-    values: number[], 
-    mode: PercentMode = 'interpolated', 
+    values: number[],
+    mode: PercentMode = 'interpolated',
     digits?: number,
-    isSorted:boolean = false
+    isSorted: boolean = false
 ): number {
     return percentile(values, 0.5, mode, digits, isSorted);
 }
@@ -287,10 +287,10 @@ export function median(
  * @returns The first quartile value.
  */
 export function q1(
-    values: number[], 
-    mode: PercentMode = 'interpolated', 
-    digits?: number, 
-    isSorted:boolean = false
+    values: number[],
+    mode: PercentMode = 'interpolated',
+    digits?: number,
+    isSorted: boolean = false
 ): number {
     return percentile(values, 0.25, mode, digits, isSorted);
 }
@@ -305,10 +305,10 @@ export function q1(
  */
 export function q2(
     values: number[],
-     mode: PercentMode = 'interpolated', 
-     digits?: number, 
-     isSorted:boolean = false
-    ): number {
+    mode: PercentMode = 'interpolated',
+    digits?: number,
+    isSorted: boolean = false
+): number {
     return median(values, mode, digits, isSorted);
 }
 
@@ -324,7 +324,7 @@ export function q3(
     values: number[],
     mode: PercentMode = 'interpolated',
     digits?: number,
-    isSorted:boolean = false 
+    isSorted: boolean = false
 ): number {
     return percentile(values, 0.75, mode, digits, isSorted);
 }
@@ -463,6 +463,86 @@ export function kellySkewness(values: number[], mode: PercentMode = 'interpolate
     return quantileSkewness(values, 0.1, 0.9, mode, digits);
 }
 
+export function centralMoment2(values: number[]): number {
+    const N = values.length;
+
+    if (N === 0) return 0;
+    let mean = 0;
+    let M2 = 0;
+
+    for (let i = 0; i < N; i++) {
+        const n = i + 1;
+        const x = values[i];
+
+        const delta = x - mean;
+        const delta_n = delta / n;
+        const term1 = delta * delta_n * (n - 1);
+
+        mean += delta_n;
+        M2 += term1;
+    }
+
+    return M2;
+}
+
+export function centralMoment3(values: number[]): number {
+    const N = values.length;
+
+    if (N === 0) return 0;
+
+    let mean = 0;
+    let M2 = 0;
+    let M3 = 0;
+
+    for (let i = 0; i < N; i++) {
+        const n = i + 1;
+        const x = values[i];
+
+        const delta = x - mean;
+        const delta_n = delta / n;
+        const term1 = delta * delta_n * (n - 1);
+
+        mean += delta_n;
+        M3 += term1 * delta_n * (n - 2) - 3 * delta_n * M2;
+        M2 += term1;
+    }
+
+    return M3;
+}
+
+export function centralMoment4(values: number[]): number {
+    const N = values.length;
+
+    if (N === 0) return 0;
+
+    let mean = 0;
+    let M2 = 0;
+    let M3 = 0;
+    let M4 = 0;
+
+    for (let i = 0; i < N; i++) {
+        const n = i + 1;
+        const x = values[i];
+
+        const delta = x - mean;
+        const delta_n = delta / n;
+        const delta_n2 = delta_n * delta_n;
+        const term1 = delta * delta_n * (n - 1);
+
+        mean += delta_n;
+        M4 += term1 * delta_n2 * (n * n - 3 * n + 3) + 6 * delta_n2 * M2 - 4 * delta_n * M3;
+        M3 += term1 * delta_n * (n - 2) - 3 * delta_n * M2;
+        M2 += term1;
+    }
+
+    return M4;
+}
+
+export const naiveCentralDeviationsSum = (values: number[], k: number) => {
+    const avg = mean(values);
+    return values.reduce((total, val) => total + Math.pow(val - avg, k), 0);
+};
+
 /**
  * Calculates the k-th central moment of an array of numbers.
  *
@@ -472,76 +552,81 @@ export function kellySkewness(values: number[], mode: PercentMode = 'interpolate
  * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The k-th central moment value.
  * @throws {Error} If `values` is empty or invalid for sample statistics.
+ * @see {@link https://www.osti.gov/servlets/purl/1426900 | Formulas for the Computation of Higher-Order Central Moments }
  */
 export function centralMoment(
     values: number[],
     k: number,
+    digits?: number
+): number {
+    switch (k) {
+        case 2:
+            return round(centralMoment2(values), digits);
+        case 3:
+            return round(centralMoment3(values), digits);
+        case 4:
+            return round(centralMoment4(values), digits);
+        default:
+            throw new Error("Only the 2nd, 3rd, and 4th central moments are allowed!");
+    }
+}
+
+/**
+ * Calculates the sample skewness (G1) of a dataset using the Terribery algorithm for M3 
+ * and applies the SPSS/SAS Type 2 bias correction.
+ *
+ * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda35b.htm | NIST Measures of Skewness and Kurtosis }
+ * 
+ * @param values - Array of numerical values.
+ * @param isSample - If true (default), returns the unbiased Type 2 sample skewness (G1). 
+ *                   If false, returns the population skewness (g1).
+ * @param digits - Optional number of decimal places to round the result.
+ * @returns The calculated skewness value.
+ * @throws {Error} If the dataset has fewer than 3 values (for sample mode) or zero variance.
+ */
+export function skewness(
+    values: number[],
     isSample: boolean = true,
     digits?: number
 ): number {
     validateValues(values, isSample);
+    const N = values.length;
 
-    if (k < 1 || !Number.isInteger(k)) {
-        throw new Error('Moment order k must be a positive integer.');
+    const s = std(values, isSample);
+
+    if (s === 0) {
+        throw new Error('Cannot calculate skewness for constant or zero-variance dataset.');
     }
 
-    if (k === 1) {
-        return round(0, digits);
+    const M3 = centralMoment3(values);
+    const sk = M3 / Math.pow(s, 3);
+
+    if (!isSample) {
+        return round(sk, digits);
     }
 
-    const n = values.length;
-    const length = getDegreesOfFreedom(values, isSample);
-
-    if (k === 2) {
-        return round(ssd(values) / length, digits);
+    if (N < 3) {
+        throw new Error("Sample skewness requires at least 3 values.");
     }
 
-    if (k === 3 || k === 4) {
-        let meanVal = 0;
-        let M2 = 0;
-        let M3 = 0;
-        let M4 = 0;
-
-        for (let i = 0; i < n; i++) {
-            const count = i + 1;
-            const x = values[i];
-
-            const delta = x - meanVal;
-            const delta_n = delta / count;
-            const delta_n2 = delta_n * delta_n;
-            const term1 = delta * delta_n * i;
-
-            if (k === 4) {
-                M4 += term1 * delta_n2 * (count * count - 3 * count + 3)
-                    + 6 * delta_n2 * M2 - 4 * delta_n * M3;
-            }
-
-            M3 += term1 * delta_n * (count - 2) - 3 * delta_n * M2;
-            M2 += term1;
-            meanVal += delta_n;
-        }
-
-        const rawMoment = k === 3 ? M3 : M4;
-        return round(rawMoment / length, digits);
-    }
-
-    const m = mean(values);
-    let sum = 0;
-    for (let i = 0; i < n; i++) {
-        sum += Math.pow(values[i] - m, k);
-    }
-
-    return round(sum / length, digits);
+    const bias = N / ((N - 1) * (N - 2));
+    return round(sk * bias, digits);
 }
 
 /**
- * Calculates the excess kurtosis of an array of numbers.
+ * Calculates the sample excess kurtosis (G2) of a dataset using the Terribery algorithm for M4 
+ * and applies the SPSS/SAS Type 2 bias correction.
+ * 
+ * Excess kurtosis is zero for a normal distribution.
  *
+ * @see @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda35b.htm | NIST Measures of Skewness and Kurtosis }
+ * 
  * @param values - Array of numerical values.
- * @param [isSample=false] - Whether to use sample calculations for central moment and standard deviation.
- * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
- * @returns The excess kurtosis value.
- * @throws {Error} If standard deviation is zero.
+ * @param isSample - If true (default), returns the unbiased Type 2 sample excess kurtosis (G2). 
+ *                   If false, returns the population excess kurtosis (g2).
+ * @param digits - Optional number of decimal places to round the result.
+ * @returns The calculated excess kurtosis value.
+ * @throws {Error} If the dataset has fewer than 4 values (for sample mode) or zero variance.
  */
 export function excessKurtosis(
     values: number[],
@@ -549,34 +634,30 @@ export function excessKurtosis(
     digits?: number
 ): number {
     validateValues(values, isSample);
+    const n = values.length;
+
     const s = std(values, isSample);
 
     if (s === 0) {
         throw new Error('Cannot calculate excess kurtosis for constant or zero-variance dataset.');
     }
 
-    const kurtosis = (centralMoment(values, 4, isSample) / Math.pow(s, 4)) - 3;
-    return round(kurtosis, digits);
-}
-
-/**
- * Calculates the standard skewness coefficient (3rd standardized moment) of an array of numbers.
- *
- * @param values - Array of numerical values.
- * @param [isSample=false] - Whether to use sample statistics.
- * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
- * @returns The skewness coefficient.
- * @throws {Error} If standard deviation is zero.
- */
-export function skewness(values: number[], isSample: boolean = true, digits?: number): number {
-    validateValues(values, isSample);
-    const s = std(values, isSample);
-
-    if (s === 0) {
-        throw new Error('Cannot calculate skewness for constant or zero-variance dataset.');
+    if (!isSample) {
+        const m4 = centralMoment4(values);
+        return round(m4 / Math.pow(s, 4) - 3, digits);
     }
 
-    return round(centralMoment(values, 3, isSample) / Math.pow(s, 3), digits);
+    if (n < 4) {
+        throw new Error("Sample excess kurtosis requires at least 4 values.");
+    }
+
+    const M4 = centralMoment4(values);
+    const sumZ4 = M4 / Math.pow(s, 4);
+    const term1 = (n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3));
+    const term2 = (3 * (n - 1) * (n - 1)) / ((n - 2) * (n - 3));
+    const K = term1 * sumZ4 - term2;
+
+    return round(K, digits);
 }
 
 /**
