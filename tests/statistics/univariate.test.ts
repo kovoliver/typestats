@@ -128,6 +128,7 @@ describe('Statisztikai Függvények Tesztelése', () => {
     describe('Skewness and Kurtosis', () => {
         const skewedData = [1, 2, 2, 3, 10];
         const skewedData2 = [1, 5, 7, 10, 23, 44];
+        const skewedData3 = [11, 12.45, 4, 5, 20.2, 25.8, 19.6];
 
         it('should calculate Pearson, Bowley, and Kelly skewness accurately', () => {
             expect(pearsonMeSkewness(skewedData, false)).toBeCloseTo(1.4715, 4);
@@ -147,6 +148,9 @@ describe('Statisztikai Függvények Tesztelése', () => {
 
             expect(skewness(skewedData2)).toBeCloseTo(1.485, 2);
             expect(excessKurtosis(skewedData2)).toBeCloseTo(1.790, 2);
+
+            expect(skewness(skewedData3)).toBeCloseTo(0.123, 3);
+            expect(excessKurtosis(skewedData3)).toBeCloseTo(-1.388, 3);
         });
 
         it('should throw error for zero-variance dataset in skewness/kurtosis', () => {
