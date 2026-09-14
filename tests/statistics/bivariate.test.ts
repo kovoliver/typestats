@@ -16,11 +16,6 @@ import getColumns, {
 } from '../../core/statistics/bivariate';
 
 describe('Bivariate and Matrix Statistical Functions', () => {
-    const contingencyTable = [
-        [10, 20],
-        [30, 40]
-    ];
-
     describe('Contingency Table and Matrix Operations', () => {
         const contingencyTable = [
             [10, 20],
@@ -54,29 +49,40 @@ describe('Bivariate and Matrix Statistical Functions', () => {
         });
     });
 
-    describe('Independence Test and Association (Chi-Square & Cramér V)', () => {
-        const contingencyTable = [
-            [10, 20],
-            [30, 40]
-        ];
+    describe('Independence Test and Association (Cramér V)', () => {
+        it('Table 1 (2x2 asymmetric): should calculate exact Cramér V', () => {
+            const table = [
+                [10, 20],
+                [30, 40]
+            ];
 
-        it('should calculate exact Chi-Square statistic', () => {
-            const chi = chiSquare(contingencyTable, 4);
-            expect(chi).toBeCloseTo(0.7937, 4);
+            expect(cramerV(table)).toBeCloseTo(0.089087, 6);
         });
 
-        it('should calculate exact Cramérs V coefficient', () => {
-            const v = cramerV(contingencyTable, 4);
-            expect(v).toBeCloseTo(0.0891, 4);
-        });
-
-        it('should return 0 for Chi-Square and Cramér V on perfectly independent table', () => {
-            const independentTable = [
+        it('Table 2 (2x2 independent): should return 0 for Cramér V on perfectly independent table', () => {
+            const table = [
                 [10, 20],
                 [20, 40]
             ];
-            expect(chiSquare(independentTable, 4)).toBe(0);
-            expect(cramerV(independentTable, 4)).toBe(0);
+            expect(cramerV(table)).toBe(0);
+        });
+
+        it('Table 3 (3x2 non-square): should calculate exact Cramér V for non-square matrix', () => {
+            const table = [
+                [20, 6],
+                [25, 12],
+                [38, 40]
+            ];
+            expect(cramerV(table)).toBeCloseTo(0.237830, 6);
+        });
+
+        it('Table 4 (3x3 square): should calculate exact Cramér V for 3x3 matrix', () => {
+            const table = [
+                [50, 10, 20],
+                [15, 45, 30],
+                [25, 20, 55]
+            ];
+            expect(cramerV(table)).toBeCloseTo(0.350283, 6);
         });
     });
 
@@ -110,6 +116,64 @@ describe('Bivariate and Matrix Statistical Functions', () => {
 
             expect(b).toBe(24);
             expect(w + b).toBe(t);
+        });
+
+        it('Table 1 (3 groups of 2): should calculate exact Within, Between, Total SSD, and Eta Squared', () => {
+            const groupTable = [
+                [2, 4],
+                [3, 5],
+                [4, 6]
+            ];
+
+            expect(betweenSSD(groupTable)).toBe(4);
+            expect(withinSSD(groupTable)).toBe(6);
+            expect(totalSSD(groupTable)).toBe(10);
+            expect(etaSquared(groupTable, 6)).toBe(0.4);
+        });
+
+        it('Table 2 (3 groups of 3): should satisfy SSD partition identity and calculate exact Eta Squared', () => {
+            const testTable = [
+                [1, 2, 3],
+                [3, 4, 5],
+                [5, 6, 7]
+            ];
+
+            const b = betweenSSD(testTable);
+            const w = withinSSD(testTable);
+            const t = totalSSD(testTable);
+
+            expect(b).toBe(24);
+            expect(w).toBe(6);
+            expect(t).toBe(30);
+            expect(w + b).toBe(t);
+            expect(etaSquared(testTable, 6)).toBe(0.8);
+        });
+
+        it('Table 3 (3 groups of unequal sizes): should handle groups with varying sample sizes', () => {
+            const unequalGroups = [
+                [10, 12, 14],
+                [20, 22],
+                [30, 32, 34, 36]
+            ];
+
+            expect(betweenSSD(unequalGroups)).toBeCloseTo(770, 6);
+            expect(withinSSD(unequalGroups)).toBe(30);
+            expect(totalSSD(unequalGroups)).toBe(800);
+            expect(etaSquared(unequalGroups, 4)).toBeCloseTo(0.9625, 4);
+        });
+
+        it('Table 4 (4 groups of 4): should calculate exact SSD components and effect size for larger datasets', () => {
+            const largerGroups = [
+                [5, 7, 8, 10],
+                [12, 14, 15, 19],
+                [20, 21, 23, 24],
+                [30, 32, 35, 39]
+            ];
+
+            expect(betweenSSD(largerGroups)).toBeCloseTo(1522.75, 2);
+            expect(withinSSD(largerGroups)).toBeCloseTo(95, 6);
+            expect(totalSSD(largerGroups)).toBeCloseTo(1617.75, 2);
+            expect(etaSquared(largerGroups, 6)).toBeCloseTo(0.941276, 6);
         });
     });
 

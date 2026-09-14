@@ -26,7 +26,7 @@ export default class Trend extends Cache {
         super();
 
         if (values.length < 2) {
-            throw new Error('You should give at least two values!');
+            throw new Error('Trend calculation requires at least two data points!');
         }
 
         this._y = values;

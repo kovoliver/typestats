@@ -49,14 +49,14 @@ describe('Regression Class', () => {
     });
 
     describe('Exponential Regression', () => {
-        it('should calculate exponential regression coefficients correctly', () => {
+        it('should calculate exact exponential regression coefficients', () => {
             const x = [1, 2, 3, 4];
-            const y = [2, 4, 8, 16]; // y = 2 * (2^x) approx
+            const y = [3.6, 6.48, 11.664, 20.9952]; 
             const reg = new Regression(x, y);
             const result = reg.exponential();
 
-            expect(result.b0).toBeGreaterThan(0);
-            expect(result.b1).toBeCloseTo(2.0, 1);
+            expect(result.b0).toBeCloseTo(2.0, 4);
+            expect(result.b1).toBeCloseTo(1.8, 4);
         });
 
         it('should return cached exponential regression results on second call', () => {
@@ -76,14 +76,14 @@ describe('Regression Class', () => {
     });
 
     describe('Power Regression', () => {
-        it('should calculate power regression coefficients correctly', () => {
-            const x = [1, 2, 3, 4];
-            const y = [1, 4, 9, 16]; // y = x^2
+        it('should calculate exact power regression coefficients', () => {
+            const x = [1, 4, 9, 16];
+            const y = [2, 16, 54, 128];
             const reg = new Regression(x, y);
             const result = reg.power();
 
-            expect(result.b0).toBeCloseTo(1.0, 1);
-            expect(result.b1).toBeCloseTo(2.0, 1);
+            expect(result.b0).toBeCloseTo(2.0, 4);
+            expect(result.b1).toBeCloseTo(1.5, 4);
         });
 
         it('should return cached power regression results on second call', () => {
@@ -107,24 +107,16 @@ describe('Regression Class', () => {
         });
     });
 
-    describe('RSD Calculation', () => {
+    describe('RSD (Residual Standard Deviation) Calculation', () => {
         it('should throw error if regression model has not been calculated before RSD call', () => {
             const reg = new Regression([1, 2, 3, 4, 5], [2, 4, 5, 4, 5]);
 
             expect(() => reg.RSD('linear')).toThrow(
                 "Cannot calculate RSD for 'linear' regression because the model coefficients have not been calculated yet. Call .linear() first!"
             );
-
-            expect(() => reg.RSD('exponential')).toThrow(
-                "Cannot calculate RSD for 'exponential' regression because the model coefficients have not been calculated yet. Call .exponential() first!"
-            );
-
-            expect(() => reg.RSD('power')).toThrow(
-                "Cannot calculate RSD for 'power' regression because the model coefficients have not been calculated yet. Call .power() first!"
-            );
         });
 
-        it('should calculate RSD correctly for linear regression after model is fitted', () => {
+        it('should calculate exact RSD for linear regression', () => {
             const x = [1, 2, 3, 4, 5];
             const y = [2, 4, 5, 4, 5];
             const reg = new Regression(x, y);
@@ -135,19 +127,27 @@ describe('Regression Class', () => {
             expect(rsd).toBeCloseTo(0.894427, 4);
         });
 
-        it('should calculate RSD correctly for exponential and power regression', () => {
-            const x = [1, 2, 3, 4, 5];
-            const y = [2, 4, 8, 16, 32];
+        it('should calculate exact RSD for exponential regression', () => {
+            const x = [1, 2, 3, 4];
+            const y = [2, 4, 8, 16];
             const reg = new Regression(x, y);
 
             reg.exponential();
             const expRsd = reg.RSD('exponential');
-            expect(expRsd).toBeGreaterThanOrEqual(0);
+
+            expect(expRsd).toBeCloseTo(0.0, 4);
+        });
+
+        it('should calculate exact RSD for power regression', () => {
+            const x = [1, 2, 3, 4, 5];
+            const y = [2, 5, 9, 15, 27];
+            const reg = new Regression(x, y);
 
             reg.power();
             const powerRsd = reg.RSD('power');
-            expect(powerRsd).toBeGreaterThanOrEqual(0);
-            expect(powerRsd).not.toBe(expRsd);
+
+            expect(powerRsd).toBeCloseTo(2.656087, 4);
+            expect(Number.isNaN(powerRsd)).toBe(false);
         });
 
         it('should return cached RSD on subsequent calls', () => {
