@@ -22,17 +22,22 @@ describe('Bivariate and Matrix Statistical Functions', () => {
     ];
 
     describe('Contingency Table and Matrix Operations', () => {
+        const contingencyTable = [
+            [10, 20],
+            [30, 40]
+        ];
+
         it('should calculate total count correctly', () => {
             expect(totalCount(contingencyTable)).toBe(100);
-            expect(() => totalCount([])).toThrowError('The data table should contain at least one row!');
+            expect(() => totalCount([])).toThrow('The data table should contain at least one row!');
         });
 
         it('should extract a specific column correctly', () => {
             expect(getColumn(contingencyTable, 0)).toEqual([10, 30]);
-            expect(() => getColumn(contingencyTable, 5)).toThrowError('The given column does not exist!');
+            expect(() => getColumn(contingencyTable, 5)).toThrow('The given column does not exist!');
         });
 
-        it('should extract all columns via default export', () => {
+        it('should extract all columns via getColumns', () => {
             expect(getColumns(contingencyTable)).toEqual([
                 [10, 30],
                 [20, 40]
@@ -50,16 +55,28 @@ describe('Bivariate and Matrix Statistical Functions', () => {
     });
 
     describe('Independence Test and Association (Chi-Square & Cramér V)', () => {
-        it('should calculate Chi-Square statistic', () => {
-            const chi = chiSquare(contingencyTable, 2);
-            expect(typeof chi).toBe('number');
-            expect(chi).toBeGreaterThanOrEqual(0);
+        const contingencyTable = [
+            [10, 20],
+            [30, 40]
+        ];
+
+        it('should calculate exact Chi-Square statistic', () => {
+            const chi = chiSquare(contingencyTable, 4);
+            expect(chi).toBeCloseTo(0.7937, 4);
         });
 
-        it('should calculate Cramérs V coefficient within [0, 1]', () => {
+        it('should calculate exact Cramérs V coefficient', () => {
             const v = cramerV(contingencyTable, 4);
-            expect(v).toBeGreaterThanOrEqual(0);
-            expect(v).toBeLessThanOrEqual(1);
+            expect(v).toBeCloseTo(0.0891, 4);
+        });
+
+        it('should return 0 for Chi-Square and Cramér V on perfectly independent table', () => {
+            const independentTable = [
+                [10, 20],
+                [20, 40]
+            ];
+            expect(chiSquare(independentTable, 4)).toBe(0);
+            expect(cramerV(independentTable, 4)).toBe(0);
         });
     });
 
@@ -70,26 +87,29 @@ describe('Bivariate and Matrix Statistical Functions', () => {
             [4, 6]
         ];
 
-        it('should calculate within, total, and between SSD correctly', () => {
-            expect(typeof withinSSD(groupTable)).toBe('number');
-            expect(typeof totalSSD(groupTable)).toBe('number');
-            expect(typeof betweenSSD(groupTable)).toBe('number');
+        it('should calculate exact Within, Between, and Total SSD', () => {
+            expect(withinSSD(groupTable)).toBe(6);
+            expect(betweenSSD(groupTable)).toBe(4);
+            expect(totalSSD(groupTable)).toBe(10);
         });
 
-        it('should calculate within, total, and between SSD correctly', () => {
+        it('should calculate exact Eta Squared effect size', () => {
+            const eta = etaSquared(groupTable, 4);
+            expect(eta).toBe(0.4);
+        });
+
+        it('should satisfy the identity SSD_total = SSD_within + SSD_between', () => {
             const testTable = [
-                [1, 2, 3], 
-                [3, 4, 5], 
+                [1, 2, 3],
+                [3, 4, 5],
                 [5, 6, 7]
             ];
-            
-            expect(betweenSSD(testTable)).toBe(24);
-        });
+            const w = withinSSD(testTable);
+            const b = betweenSSD(testTable);
+            const t = totalSSD(testTable);
 
-        it('should calculate Eta Squared effect size', () => {
-            const eta = etaSquared(groupTable, 4);
-            expect(eta).toBeGreaterThanOrEqual(0);
-            expect(eta).toBeLessThanOrEqual(1);
+            expect(b).toBe(24);
+            expect(w + b).toBe(t);
         });
     });
 
@@ -100,33 +120,126 @@ describe('Bivariate and Matrix Statistical Functions', () => {
         it('should calculate population and sample covariance', () => {
             expect(covariance(x, y, false)).toBe(4);
             expect(covariance(x, y, true)).toBe(5);
-            expect(() => covariance([1], [2], true)).toThrowError('Sample covariance requires at least 2 data points.');
-            expect(() => covariance([1, 2], [1], false)).toThrowError('The number of elements must match in the two arrays!');
+            expect(() => covariance([1], [2], true)).toThrow('Sample covariance requires at least 2 data points.');
+            expect(() => covariance([1, 2], [1], false)).toThrow('The number of elements must match in the two arrays!');
         });
 
         it('should calculate Pearson correlation coefficient', () => {
             expect(correlation(x, y)).toBe(1);
             expect(correlation([5, 5, 5], [1, 2, 3])).toBe(0);
-            expect(correlation([5,7,9,11,12,23], [1,4,6,7,9,10])).toBeCloseTo(0.8465, 4);
+            expect(correlation([5, 7, 9, 11, 12, 23], [1, 4, 6, 7, 9, 10])).toBeCloseTo(0.8465, 4);
+        }); 1
+
+        it('should correctly compute negative linear correlation', () => {
+            const x = [1, 2, 3, 4, 5];
+            const y = [5, 4, 2, 1, 0];
+
+            const r = correlation(x, y, true, 4);
+            expect(r).toBeCloseTo(-0.991, 3);
+        });
+
+        it('should compute accurate correlation for real decimal data', () => {
+            const x = [10, 20, 30, 40, 50];
+            const y = [12, 24, 28, 42, 58];
+
+            const r = correlation(x, y, true, 4);
+            expect(r).toBeCloseTo(0.983, 3);
+        });
+
+        it('should be numerically stable with large numbers and offsets', () => {
+            const x = [1e9 + 1, 1e9 + 2, 1e9 + 3, 1e9 + 4, 1e9 + 5];
+            const y = [100.5, 200.5, 300.5, 400.5, 500.5];
+
+            const r = correlation(x, y);
+            expect(r).toBeCloseTo(1.0, 4);
+        });
+
+        it('should handle zero variance (constant array) safely without crashing', () => {
+            const x = [5, 5, 5, 5, 5];
+            const y = [1, 2, 3, 4, 5];
+
+            const r = correlation(x, y);
+            expect(r).toBe(0);
         });
     });
 
     describe('Ranks and Spearman Correlation', () => {
-        it('should compute fractional ranks correctly', () => {
-            const ranks = getRanks([10, 20, 20, 30]);
-            expect(ranks.get(10)).toBe(1);
-            expect(ranks.get(20)).toBe(2.5);
-            expect(ranks.get(30)).toBe(4);
-            expect(() => getRanks([1])).toThrowError('Values array must contain at least 2 numbers!');
+        describe('getRanks', () => {
+            it('should compute fractional ranks correctly for ties and distinct values', () => {
+                const ranks = getRanks([10, 20, 20, 30]);
+                expect(ranks.get(10)).toBe(1);
+                expect(ranks.get(20)).toBe(2.5);
+                expect(ranks.get(30)).toBe(4);
+            });
+
+            it('should throw error when array length is less than 2', () => {
+                expect(() => getRanks([1])).toThrow('Values array must contain at least 2 numbers!');
+            });
         });
 
-        it('should calculate Spearman rank correlation coefficient', () => {
-            const x = [1, 2, 3, 4, 5];
-            const y = [1, 2, 4, 3, 5];
-            const r = rankCorrelation(x, y, false, 2);
-            expect(typeof r).toBe('number');
-            expect(r).toBeGreaterThanOrEqual(-1);
-            expect(r).toBeLessThanOrEqual(1);
+        describe('rankCorrelation (Spearman)', () => {
+            it('should calculate exact Spearman rank correlation coefficient', () => {
+                const x = [1, 2, 3, 4, 5];
+                const y = [1, 2, 4, 3, 5];
+
+                expect(rankCorrelation(x, y)).toBe(0.9);
+            });
+
+            it('should return 1 for perfectly monotonic increasing data', () => {
+                const x = [10, 20, 30, 40];
+                const y = [5, 15, 25, 35];
+                expect(rankCorrelation(x, y)).toBe(1);
+            });
+
+            it('should return -1 for perfectly monotonic decreasing data', () => {
+                const x = [1, 2, 3, 4];
+                const y = [40, 30, 20, 10];
+                expect(rankCorrelation(x, y)).toBe(-1);
+            });
+
+            it('should correctly handle tied ranks', () => {
+                const x = [10, 20, 20, 30, 40];
+                const y = [1, 2, 3, 3, 5];
+
+                const r = rankCorrelation(x, y, false, 4);
+                expect(r).toBeCloseTo(0.9211, 4);
+            });
+
+            it('should calculate Spearman correlation for small sample with single tie', () => {
+                const x = [5, 10, 10, 15, 20];
+                const y = [2, 4, 6, 6, 10];
+
+                const r = rankCorrelation(x, y, false, 4);
+                expect(r).toBeCloseTo(0.921, 3);
+            });
+
+            it('should calculate Spearman correlation with multiple and triple ties', () => {
+                const x = [10, 10, 10, 20, 30, 40];
+                const y = [5, 15, 25, 25, 25, 50];
+
+                const r = rankCorrelation(x, y, false, 4);
+                expect(r).toBeCloseTo(0.806, 3);
+            });
+
+            it('should calculate Spearman correlation for negative association with ties', () => {
+                const x = [1, 2, 3, 3, 5, 6];
+                const y = [10, 8, 8, 4, 2, 1];
+
+                const r = rankCorrelation(x, y, false, 4);
+                expect(r).toBeCloseTo(-0.9559, 4);
+            });
+
+            it('should calculate Spearman correlation when values repeat in sequence', () => {
+                const x = [100, 100, 200, 200, 300, 300];
+                const y = [10, 30, 20, 40, 30, 50];
+
+                const r = rankCorrelation(x, y, false, 4);
+                expect(r).toBeCloseTo(0.606, 3);
+            });
+
+            it('should throw error if input arrays have different lengths', () => {
+                expect(() => rankCorrelation([1, 2], [1])).toThrow();
+            });
         });
     });
 });
