@@ -49,6 +49,41 @@ describe('Bivariate and Matrix Statistical Functions', () => {
         });
     });
 
+    describe('Chi-Square Calculations with Larger and Fractional Data', () => {
+        it('Table 5 (4x3 matrix with fractions): should calculate chi-square correctly', () => {
+            const fractionalTable1 = [
+                [2.5, 5.5, 12.0],
+                [4.5, 6.5, 9.0],
+                [6.5, 8.5, 5.0],
+                [6.5, 9.5, 24.0]
+            ];
+
+            expect(chiSquare(fractionalTable1)).toBeCloseTo(7.914583, 5);
+        });
+
+        it('Table 6 (3x4 matrix with fractions): should calculate near-independent fractional table', () => {
+            const fractionalTable2 = [
+                [2.5, 6.5, 9.5, 11.5],
+                [5.5, 9.5, 14.5, 20.5],
+                [2.0, 4.0, 6.0, 8.0]
+            ];
+
+            expect(chiSquare(fractionalTable2)).toBeCloseTo(0.277778, 5);
+        });
+
+        it('Table 7 (5x5 matrix with fractions): should calculate chi-square for large uniform distribution with small perturbations', () => {
+            const fractionalTable3 = [
+                [20.5, 19.5, 21.0, 19.0, 20.0],
+                [18.5, 21.5, 19.5, 20.5, 20.0],
+                [22.0, 18.0, 20.5, 19.5, 20.0],
+                [19.0, 21.0, 19.0, 21.0, 20.0],
+                [20.0, 20.0, 20.0, 20.0, 20.0]
+            ];
+
+            expect(chiSquare(fractionalTable3)).toBeCloseTo(1.0, 5);
+        });
+    });
+
     describe('Independence Test and Association (Cramér V)', () => {
         it('Table 1 (2x2 asymmetric): should calculate exact Cramér V', () => {
             const table = [
@@ -199,7 +234,7 @@ describe('Bivariate and Matrix Statistical Functions', () => {
             const y = [5, 4, 2, 1, 0];
 
             const r = correlation(x, y, true, 4);
-            expect(r).toBeCloseTo(-0.991, 3);
+            expect(r).toBeCloseTo(-0.9912, 4);
         });
 
         it('should compute accurate correlation for real decimal data', () => {
@@ -207,7 +242,7 @@ describe('Bivariate and Matrix Statistical Functions', () => {
             const y = [12, 24, 28, 42, 58];
 
             const r = correlation(x, y, true, 4);
-            expect(r).toBeCloseTo(0.983, 3);
+            expect(r).toBeCloseTo(0.9828, 4);
         });
 
         it('should be numerically stable with large numbers and offsets', () => {

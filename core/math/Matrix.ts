@@ -317,4 +317,31 @@ export default class Matrix {
 
         return x;
     }
+
+    public multiply(matrixA:Matrix, matrixB:Matrix): Matrix {
+        const a = matrixA.values;
+        const b = matrixB.values;
+
+        const rowsA = a.length;
+        const colsA = a[0].length;
+        const colsB = b[0].length;
+
+        const result = Array.from(
+            { length: rowsA }, () => new Array(colsB).fill(0)
+        );
+
+        for (let i = 0; i < rowsA; i++) {
+            for (let j = 0; j < colsB; j++) {
+                let sum = 0;
+
+                for (let k = 0; k < colsA; k++) {
+                    sum += a[i][k] * b[k][j];
+                }
+
+                result[i][j] = sum;
+            }
+        }
+
+        return new Matrix(result);
+    }
 }

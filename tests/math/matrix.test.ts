@@ -4,16 +4,16 @@ import Matrix from '../../core/math/Matrix';
 describe('Matrix', () => {
     describe('Constructor and basic properties', () => {
         it('throws an error for empty matrix', () => {
-            expect(() => new Matrix([])).toThrowError();
-            expect(() => new Matrix(null as any)).toThrowError();
+            expect(() => new Matrix([])).toThrow();
+            expect(() => new Matrix(null as any)).toThrow();
         });
 
         it('throws an error for empty rows', () => {
-            expect(() => new Matrix([[], []])).toThrowError();
+            expect(() => new Matrix([[], []])).toThrow();
         });
 
         it('throws an error if row dimensions mismatch', () => {
-            expect(() => new Matrix([[1, 2], [3]])).toThrowError();
+            expect(() => new Matrix([[1, 2], [3]])).toThrow();
         });
 
         it('initializes correctly and returns proper dimensions', () => {
@@ -61,9 +61,9 @@ describe('Matrix', () => {
         });
 
         it('throws an error if index is out of bounds', () => {
-            expect(() => m.getElement(-1, 0)).toThrowError();
-            expect(() => m.getElement(0, 2)).toThrowError();
-            expect(() => m.getElement(2, 0)).toThrowError();
+            expect(() => m.getElement(-1, 0)).toThrow();
+            expect(() => m.getElement(0, 2)).toThrow();
+            expect(() => m.getElement(2, 0)).toThrow();
         });
     });
 
@@ -81,7 +81,7 @@ describe('Matrix', () => {
     describe('Determinant', () => {
         it('throws an error for non-square matrices', () => {
             const m = new Matrix([[1, 2, 3], [4, 5, 6]]);
-            expect(() => m.determinant).toThrowError();
+            expect(() => m.determinant).toThrow();
         });
 
         it('calculates determinant of a 2x2 matrix correctly', () => {
@@ -107,12 +107,12 @@ describe('Matrix', () => {
     describe('Inverse', () => {
         it('throws an error for non-square matrices', () => {
             const m = new Matrix([[1, 2, 3], [4, 5, 6]]);
-            expect(() => m.inverse()).toThrowError();
+            expect(() => m.inverse()).toThrow();
         });
 
         it('throws an error for singular matrices', () => {
             const m = new Matrix([[2, 4], [1, 2]]);
-            expect(() => m.inverse()).toThrowError();
+            expect(() => m.inverse()).toThrow();
         });
 
         it('calculates the inverse of a 2x2 matrix correctly', () => {
@@ -129,12 +129,12 @@ describe('Matrix', () => {
     describe('Eigen Decomposition (Jacobi Method)', () => {
         it('throws an error for non-square matrices', () => {
             const m = new Matrix([[1, 2, 3], [4, 5, 6]]);
-            expect(() => m.eigen()).toThrowError();
+            expect(() => m.eigen()).toThrow();
         });
 
         it('throws an error for non-symmetric matrices', () => {
             const m = new Matrix([[1, 2], [3, 4]]);
-            expect(() => m.eigen()).toThrowError();
+            expect(() => m.eigen()).toThrow();
         });
 
         it('calculates eigenvalues for a symmetric matrix correctly', () => {
@@ -151,13 +151,13 @@ describe('Matrix', () => {
     describe('Pivot Operation', () => {
         it('throws an error for out of bound indices', () => {
             const m = new Matrix([[1, 2], [3, 4]]);
-            expect(() => m.pivot(-1, 0)).toThrowError();
-            expect(() => m.pivot(0, 5)).toThrowError();
+            expect(() => m.pivot(-1, 0)).toThrow();
+            expect(() => m.pivot(0, 5)).toThrow();
         });
 
         it('throws an error if pivot element is zero', () => {
             const m = new Matrix([[0, 2], [3, 4]]);
-            expect(() => m.pivot(0, 0)).toThrowError();
+            expect(() => m.pivot(0, 0)).toThrow();
         });
 
         it('performs pivot operation correctly', () => {
@@ -174,17 +174,17 @@ describe('Matrix', () => {
     describe('Linear System Solver', () => {
         it('throws an error if vector length does not match matrix rows', () => {
             const m = new Matrix([[1, 2], [3, 4]]);
-            expect(() => m.solve([1])).toThrowError();
+            expect(() => m.solve([1])).toThrow();
         });
 
         it('throws an error for inconsistent systems (no solution)', () => {
             const m = new Matrix([[1, 1], [1, 1]]);
-            expect(() => m.solve([1, 2])).toThrowError();
+            expect(() => m.solve([1, 2])).toThrow();
         });
 
         it('throws an error for underdetermined systems (infinite solutions)', () => {
             const m = new Matrix([[1, 1], [2, 2]]);
-            expect(() => m.solve([1, 2])).toThrowError();
+            expect(() => m.solve([1, 2])).toThrow();
         });
 
         it('solves a valid linear system correctly', () => {

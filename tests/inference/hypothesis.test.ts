@@ -66,7 +66,7 @@ describe('Hypothesis Testing Functions', () => {
         });
     });
 
-    describe('zTest', () => {
+    describe('1. One-Sample z-Test', () => {
         it('calculates Z test statistic correctly for two-sided test (H0 accepted)', () => {
             const result = zTest([1, 2, 3], 0.75, 0.05, 1.5, 'two-sided');
             expect(result.z).toBeCloseTo(1.1547, 4);

@@ -107,78 +107,58 @@ export function calcCombinationTable(table: number[][]): number[][] {
     return combTable;
 }
 
-/**
- * Calculates the Chi-Square (χ²) statistic of independence for a contingency table.
- *
- * @param table - 2D matrix representing the contingency table.
- * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
- * @returns The Chi-Square statistic value.
- * @throws {Error} If the table structure is invalid.
- */
-export function chiSquareDep(table: number[][], digits?: number): number {
+export function chiSquare(table: number[][], digits?: number): number {
     validateTable(table);
-    const combTable = calcCombinationTable(table);
-    const total = totalCount(table);
-    const rows = table.length;
-    const cols = table[0].length;
 
-    let khi = 0;
+    const numCols = table.length;
+    const numRows = table[0].length;
 
-    for (let col = 0; col < cols; col++) {
-        const colTotal = combTable[rows][col];
+    const colTotals = new Array(numCols).fill(0);
+    const rowTotals = new Array(numRows).fill(0);
+    let grandTotal = 0;
 
-        for (let row = 0; row < rows; row++) {
-            const rowTotal = combTable[row][cols];
-
-            const expectedValue = (rowTotal * colTotal) / total;
-
-            if (expectedValue === 0) {
-                continue;
-            }
-
-            const ratio = Math.pow(table[row][col] - expectedValue, 2) / expectedValue;
-            khi += ratio;
+    for (let col = 0; col < numCols; col++) {
+        for (let row = 0; row < numRows; row++) {
+            const currentEl = table[col][row];
+            colTotals[col] += currentEl;
+            rowTotals[row] += currentEl;
+            grandTotal += currentEl;
         }
     }
 
-    return round(khi, digits);
-}
-
-export function chiSquare(table: number[][], digits?: number): number {
-    validateTable(table);
-    const combTable = calcCombinationTable(table);
-    const total = totalCount(table);
-    const rows = table.length;
-    const cols = table[0].length;
+    if (grandTotal <= 0) {
+        throw new Error("The grand total cannot be zero or negative!");
+    }
 
     let khi = 0;
     let compensation = 0;
 
-    for (let row = 0; row < rows; row++) {
-        const rowTotal = combTable[row][cols];
-        if (rowTotal === 0) continue;
+    for (let col = 0; col < numCols; col++) {
+        const colTotal = colTotals[col];
+        if (colTotal === 0) continue;
 
-        for (let col = 0; col < cols; col++) {
-            const colTotal = combTable[rows][col];
-            if (colTotal === 0) continue;
+        for (let row = 0; row < numRows; row++) {
+            const rowTotal = rowTotals[row];
+            if (rowTotal === 0) continue;
 
-            const expectedValue = (rowTotal * colTotal) / total;
+            const expectedValue = (colTotal * rowTotal) / grandTotal;
 
             if (expectedValue < Number.EPSILON) {
                 continue;
             }
 
-            const observed = table[row][col];
+            const observed = table[col][row];
             const diff = observed - expectedValue;
-
             const ratio = (diff * diff) / expectedValue;
 
             const t = khi + ratio;
+
             if (Math.abs(khi) >= Math.abs(ratio)) {
                 compensation += (khi - t) + ratio;
             } else {
                 compensation += (ratio - t) + khi;
             }
+
             khi = t;
         }
     }
