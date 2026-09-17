@@ -418,6 +418,47 @@ export default class Table {
         return this.newTableByIndices(finalIndices);
     }
 
+    public where(
+        lbl: string[] | string,
+        fn: (...params: any[]) => boolean
+    ): Table {
+        const isArr = Array.isArray(lbl);
+
+        if (!isArr && typeof lbl !== 'string') {
+            throw new Error('The given identifier must be a string or an array!');
+        }
+
+        if (isArr && !lbl.every(id => typeof id === 'string')) {
+            throw new Error('All the identifiers must be strings!');
+        }
+
+        const targetLabels = isArr ? lbl : [lbl];
+        const labelCount = targetLabels.length;
+        const targetColIndices: number[] = [];
+
+        for (let i = 0; i < labelCount; i++) {
+            const colIdx = this.getIndex(targetLabels[i]);
+            targetColIndices.push(colIdx);
+        }
+
+        const matchingIndices = new Int32Array(this.rowCount);
+        let matchCount = 0;
+
+        for (let row = 0; row < this.rowCount; row++) {
+            let params: any[] = [];
+
+            for (const col of targetColIndices) {
+                params.push(this._values[col][row]);
+            }
+
+            let passed = fn(...params);
+            if (passed) matchingIndices[matchCount++] = row;
+        }
+
+        const finalIndices = matchingIndices.subarray(0, matchCount);
+        return this.newTableByIndices(finalIndices);
+    }
+
     public whereAll(
         labels: (string | number)[],
         fns: ((value: any) => boolean)[]
@@ -430,27 +471,6 @@ export default class Table {
         fns: ((value: any) => boolean)[]
     ): Table {
         return this.whereMultiple(labels, fns, 'or');
-    }
-
-    public where(label: string | number, fn: (value: any) => boolean): Table {
-        const colIdx = this.getIndex(label);
-        const colData = this._values[colIdx];
-        const len = colData.length;
-
-        if (len === 0) {
-            return this.newTableByIndices(new Int32Array(0));
-        }
-
-        const matchingIndices = new Int32Array(len);
-        let matchCount = 0;
-
-        for (let i = 0; i < len; i++) {
-            if (fn(colData[i])) {
-                matchingIndices[matchCount++] = i;
-            }
-        }
-
-        return this.newTableByIndices(matchingIndices.subarray(0, matchCount));
     }
 
     private getColsByIndices(indices: number[]): Table {
@@ -559,8 +579,8 @@ export default class Table {
      * @throws {Error} Throws an error if the specified column is not a `NumberColumn`, or if both boundaries are empty.
      */
     public countOutliers(
-        label:string|number,
-        boundaries:Boundaries
+        label: string | number,
+        boundaries: Boundaries
     ) {
         const col = this.getCol(label);
 
@@ -583,7 +603,7 @@ export default class Table {
      * @throws {Error} Throws an error if the specified column is not a `NumberColumn`.
      */
     public countOutliersIqr(
-        label:string|number,
+        label: string | number,
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
     ) {
