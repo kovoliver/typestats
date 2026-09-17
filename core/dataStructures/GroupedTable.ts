@@ -70,16 +70,16 @@ export default class GroupedTable {
 
     public count(alias?: string): Table {
         const groupColumns = this.getGroupColumns();
+        
         const countValues = this._values.map(group => {
             const firstCol = this._columnKeys[0];
             return group[firstCol] ? group[firstCol].length : 0;
         });
 
         const resultMatrix = [...groupColumns, countValues];
-        const groupLabels = this._columnKeys.slice(0, groupColumns.length);
 
         const colInfos = [
-            ...groupLabels.map(label => ({ label, type: 'string' as const })),
+            ...this._groupByColumns.map(label => ({ label, type: 'string' as const })),
             { label: (alias || 'count'), type: 'number' as const }
         ];
 

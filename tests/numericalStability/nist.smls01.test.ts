@@ -61,8 +61,8 @@ describe('DataMatrix - NIST SmLs01 Numerical Stability Test (Low Difficulty)', (
     const MIN_LRE_THRESHOLD = 15.0;
 
     test('should have transposed dimensions (9 rows = treatments, 21 cols = replicates)', () => {
-        expect(matrix.rows).toBe(9);
-        expect(matrix.cols).toBe(21);
+        expect(matrix.rows).toBe(21);
+        expect(matrix.cols).toBe(9);
     });
 
     test('should achieve near-perfect LRE for Grand Mean', () => {
@@ -91,9 +91,9 @@ describe('DataMatrix - NIST SmLs01 Numerical Stability Test (Low Difficulty)', (
     });
 
     test('should maintain maximum precision (LRE >= 15.0) for ANOVA statistics (MS, F-ratio, Residual SD)', () => {
-        const betweenDF = matrix.rows - 1;
+        const betweenDF = matrix.cols - 1;
         const totalN = matrix.rows * matrix.cols;
-        const withinDF = totalN - matrix.rows;
+        const withinDF = totalN - matrix.cols;
 
         const betweenMS = matrix.betweenSSD() / betweenDF;
         const withinMS = matrix.withinSSD() / withinDF;

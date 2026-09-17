@@ -1,5 +1,6 @@
-import { betweenSSD, chiSquare, cramerV, totalSSD, withinSSD } from "../statistics/bivariate.js";
+import { betweenSSD, chiSquare, cramerV, etaSquared, totalSSD, withinSSD } from "../statistics/bivariate.js";
 import { mean } from "../statistics/univariate.js";
+import { isEmpty } from "../utils/utils.js";
 
 export default class DataMatrix {
     private _values: number[][];
@@ -27,11 +28,11 @@ export default class DataMatrix {
     }
 
     public get rows() {
-        return this._values.length;
+        return this._values.length > 0 ? this._values[0].length : 0;
     }
 
     public get cols() {
-        return this._values.length > 0 ? this._values[0].length : 0;
+        return this._values.length;
     }
 
     public mainMean(): number {
@@ -53,11 +54,11 @@ export default class DataMatrix {
     public etaSquared(): number {
         const totalSSD = this.totalSSD();
 
-        if(totalSSD === 0) {
+        if (totalSSD === 0) {
             throw new Error('Cannot calculate eta squared when total SSD is zero.');
         }
 
-        return this.betweenSSD() / totalSSD;
+        return etaSquared(this._values);
     }
 
     public chiSquare(): number {
@@ -69,14 +70,16 @@ export default class DataMatrix {
     }
 
     public printTable() {
-        const printObj: Record<number, Record<string, number>> = {};
+        const printObj: Record<number, Record<string, number | string>> = {};
 
         for (let i = 0; i < this.rows; i++) {
             printObj[i] = {};
 
             for (let j = 0; j < this.cols; j++) {
                 const colLabel = this._colLabels[j];
-                printObj[i][colLabel] = this._values[i][j];
+                const val = this._values[j][i];
+
+                printObj[i][colLabel] = !isEmpty(val) ? val : "-";
             }
         }
 
@@ -85,21 +88,18 @@ export default class DataMatrix {
 
     public printContingencyTable() {
         if (!this._rowLabels) {
-            throw new Error(
-                'Row labels are required for printContingencyTable.'
-            );
+            throw new Error('Row labels are required for printContingencyTable.');
         }
 
         const printObj: Record<string, Record<string, number>> = {};
 
         for (let i = 0; i < this.rows; i++) {
-            const rowLabel = this._rowLabels![i];
-
+            const rowLabel = this._rowLabels[i];
             printObj[rowLabel] = {};
 
             for (let j = 0; j < this.cols; j++) {
                 const colLabel = this._colLabels[j];
-                printObj[rowLabel][colLabel] = this._values[i][j];
+                printObj[rowLabel][colLabel] = this._values[j][i];
             }
         }
 

@@ -8,7 +8,7 @@ import { Boundaries, ConfidenceInterval, ImputeType, PercentMode, RegressionMode
 import { correlation, covariance } from "../statistics/bivariate.js";
 import Regression from "../inference/Regression.js";
 import Trend from "../inference/Trend.js";
-import { orderAsc, orderDesc } from '../utils/numberUtils.js';
+import { orderAsc, orderDesc, round } from '../utils/numberUtils.js';
 import {
     meanEstimationIIDwithSTD,
     meanEstimationIIDwithoutSTD,
@@ -1158,16 +1158,17 @@ export default class NumberColumn extends Column<number> {
 
         const validValues = this.getValidValues();
         const sortedValues = orderAsc(validValues);
+        const median = round(percentile(sortedValues, 0.5, 'interpolated', undefined, true), 4);
 
         return {
             label: this._label,
             missing,
             valid: validCount,
-            mean: mean(sortedValues),
-            std: std(sortedValues),
-            min: sortedValues[0],
-            max: sortedValues[sortedValues.length - 1],
-            median: percentile(sortedValues, 0.5, 'interpolated', undefined, true)
+            mean:round(mean(sortedValues), 3),
+            std: round(std(sortedValues), 3),
+            min: round(sortedValues[0], 3),
+            max: round(sortedValues[sortedValues.length - 1], 3),
+            median: median
         };
     }
 }

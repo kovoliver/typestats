@@ -4,7 +4,7 @@ import { std } from '../../core/statistics/univariate.js';
 import { lre } from '../../core/utils/numberUtils.js';
 
 describe('DataMatrix - NIST SmLs08 Numerical Stability Test (High Difficulty)', () => {
-    const rawNistValues: number[][] = [
+    const rawValues: number[][] = [
         [1000000000000.4, 1000000000000.3, 1000000000000.5, 1000000000000.3, 1000000000000.5, 1000000000000.3, 1000000000000.5, 1000000000000.3, 1000000000000.5],
         [1000000000000.3, 1000000000000.2, 1000000000000.4, 1000000000000.2, 1000000000000.4, 1000000000000.2, 1000000000000.4, 1000000000000.2, 1000000000000.4],
         [1000000000000.5, 1000000000000.4, 1000000000000.6, 1000000000000.4, 1000000000000.6, 1000000000000.4, 1000000000000.6, 1000000000000.4, 1000000000000.6],
@@ -208,12 +208,12 @@ describe('DataMatrix - NIST SmLs08 Numerical Stability Test (High Difficulty)', 
         [1000000000000.5, 1000000000000.4, 1000000000000.6, 1000000000000.4, 1000000000000.6, 1000000000000.4, 1000000000000.6, 1000000000000.4, 1000000000000.6],
     ];
 
-    const values: number[][] = rawNistValues[0].map((_, colIndex) =>
-        rawNistValues.map(row => row[colIndex])
+    const values: number[][] = rawValues[0].map((_, colIndex) =>
+        rawValues.map(row => row[colIndex])
     );
 
-    const colLabels = Array.from({ length: 201 }, (_, i) => `Replicate ${i + 1}`);
-    const rowLabels = Array.from({ length: 9 }, (_, i) => `Treatment ${i + 1}`);
+    const colLabels = Array.from({ length: 9 }, (_, i) => `Treatment ${i + 1}`);
+    const rowLabels = Array.from({ length: 201 }, (_, i) => `Replicate ${i + 1}`);
 
     const matrix = new DataMatrix(values, colLabels, rowLabels);
 
@@ -242,8 +242,8 @@ describe('DataMatrix - NIST SmLs08 Numerical Stability Test (High Difficulty)', 
     const MIN_LRE_THRESHOLD = 2;
 
     test('should have transposed dimensions (9 rows = treatments, 201 cols = replicates)', () => {
-        expect(matrix.rows).toBe(9);
-        expect(matrix.cols).toBe(201);
+        expect(matrix.rows).toBe(201);
+        expect(matrix.cols).toBe(9);
     });
 
     test('should achieve high LRE for Grand Mean', () => {
@@ -253,28 +253,32 @@ describe('DataMatrix - NIST SmLs08 Numerical Stability Test (High Difficulty)', 
 
     test('should maintain required precision for Total Sum of Squared Deviations (SSD)', () => {
         const computed = matrix.totalSSD();
+        console.log("totalSSD: ", CERTIFIED.totalSSD, "-", computed);
         expect(lre(computed, CERTIFIED.totalSSD)).toBeGreaterThanOrEqual(MIN_LRE_THRESHOLD);
     });
 
     test('should maintain required precision for Within-treatment SSD', () => {
         const computed = matrix.withinSSD();
+        console.log("withinSSD: ", CERTIFIED.withinSSD, "-", computed);
         expect(lre(computed, CERTIFIED.withinSSD)).toBeGreaterThanOrEqual(MIN_LRE_THRESHOLD);
     });
 
     test('should maintain required precision for Between-treatment SSD', () => {
         const computed = matrix.betweenSSD();
+        console.log("betweenSSD: ", CERTIFIED.betweenSSD, "-", computed);
         expect(lre(computed, CERTIFIED.betweenSSD)).toBeGreaterThanOrEqual(MIN_LRE_THRESHOLD);
     });
 
     test('should maintain required precision for Eta Squared', () => {
         const computed = matrix.etaSquared();
+        console.log("etaSquared", CERTIFIED.etaSquared, "-", computed);
         expect(lre(computed, CERTIFIED.etaSquared)).toBeGreaterThanOrEqual(MIN_LRE_THRESHOLD);
     });
 
     test('should maintain required precision for ANOVA statistics (MS, F-ratio, Residual SD)', () => {
-        const betweenDF = matrix.rows - 1;
+        const betweenDF = matrix.cols - 1;
         const totalN = matrix.rows * matrix.cols;
-        const withinDF = totalN - matrix.rows;
+        const withinDF = totalN - matrix.cols;
 
         const betweenMS = matrix.betweenSSD() / betweenDF;
         const withinMS = matrix.withinSSD() / withinDF;

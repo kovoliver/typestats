@@ -17,6 +17,7 @@ import { toNumberArray, toBoolArray, toDateArray, toStringArray }
 import { getIqrBoundaries, replaceEmptyValues, replaceOutliers }
     from '../dataPreparation/dataPreparation.js';
 import { correlation, covariance } from '../statistics/bivariate.js';
+import DataMatrix from './DataMatrix.js';
 
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
@@ -1035,6 +1036,7 @@ export default class Table {
         return finalStr;
     }
 
+    
     public toMatrix(): any[][] {
         const matrix: any[][] = [];
         const colCount = this._values.length;
@@ -1051,5 +1053,81 @@ export default class Table {
         }
 
         return matrix;
+    }
+
+    /**
+     * Constructs a contingency table (`DataMatrix`) representing the joint frequency distribution 
+     * of two categorical variables.
+     *
+     * @param colLabel - The name of the column to be used as column variables (categories).
+     * @param rowLabel - The name of the column to be used as row variables (suppliers/subcategories).
+     * @returns A `DataMatrix` containing the cross-tabulated cell frequencies with assigned row and column labels.
+     */
+    public toContingencyTable(colLabel: string, rowLabel: string): DataMatrix {
+        const table = this.groupBy(colLabel, rowLabel).count();
+        const colLabelCol = table.getCol(colLabel);
+        const rowLabelCol = table.getCol(rowLabel);
+
+        const colLabels = [...new Set(colLabelCol.values)].map(val => String(val));
+        const rowLabels = [...new Set(rowLabelCol.values)].map(val => String(val));
+
+        const crossTable: number[][] = Array.from(
+            { length: colLabels.length },
+            () => []
+        );
+
+        for (let col = 0; col < colLabels.length; col++) {
+            const currentColVal = colLabels[col];
+            const whereCol = table.where(colLabel, (c) => String(c) === currentColVal);
+
+            for (const currentRowVal of rowLabels) {
+                const whereRow = whereCol.where(rowLabel, (s) => String(s) === currentRowVal);
+
+                if (whereRow.rowCount !== 0) {
+                    const values = whereRow.getCol("count").values as never[];
+
+                    crossTable[col].push(...values);
+                } else {
+                    crossTable[col].push(0);
+                }
+            }
+        }
+
+        return new DataMatrix(crossTable, colLabels, rowLabels);
+    }
+
+    /**
+     * Transforms grouped numerical data into an ANOVA-ready `DataMatrix`.
+     * 
+     * Groups numerical values by a specified categorical column and pads shorter groups 
+     * with zeros to ensure uniform column lengths (rectangular matrix structure) 
+     * for statistical calculations and table rendering.
+     *
+     * @param groupColLabel - The name of the categorical column used for grouping.
+     * @param valueColLabel - The name of the numerical column containing the measurement values.
+     * @returns A `DataMatrix` structured for one-way ANOVA calculations and contingency views.
+     */
+    public toAnovaTable(groupColLabel: string, valueColLabel: string): DataMatrix {
+        const groupCol = this.getCol(groupColLabel);
+        const valueCol = this.getCol(valueColLabel);
+
+        const colLabels = [...new Set(groupCol.values)].map(val => String(val));
+
+        const matrixValues: number[][] = Array.from(
+            { length: colLabels.length },
+            () => []
+        );
+
+        for (let i = 0; i < this.rowCount; i++) {
+            const groupVal = String(groupCol.values[i]);
+            const numericVal = Number(valueCol.values[i]);
+
+            const groupIndex = colLabels.indexOf(groupVal);
+            if (groupIndex !== -1 && !isNaN(numericVal)) {
+                matrixValues[groupIndex].push(numericVal);
+            }
+        }
+        
+        return new DataMatrix(matrixValues, colLabels);
     }
 }

@@ -239,26 +239,10 @@ export function totalSSD(table: number[][], digits?: number): number {
  * @returns The between-group sum of squared deviations.
  * @throws {Error} If the table structure is invalid.
  */
-export function betweenSSDDep(
-    table: number[][],
+export function betweenSSD(
+    table: number[][], 
     digits?: number
 ): number {
-    validateTable(table);
-
-    const totalMean = mean(table.flat());
-    let totalSsd = 0;
-
-    for (const group of table) {
-        totalSsd += group.length * Math.pow(
-            mean(group) - totalMean,
-            2
-        );
-    }
-
-    return round(totalSsd, digits);
-}
-
-export function betweenSSD(table: number[][], digits?: number): number {
     validateTable(table);
 
     const groups: { n: number; mean: number }[] = [];
