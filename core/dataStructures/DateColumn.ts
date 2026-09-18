@@ -345,7 +345,40 @@ export default class DateColumn extends Column<number | Date> {
      */
     public format(index: number, pattern: string): string {
         const d = this.getElementByIndex(index);
-        if (d === null) throw new Error('Invalid date');
+
+        if (d === null) {
+            throw new Error('The date is invalid at the given index!');
+        }
+
+        const parts = pattern.split(/([yMdhms]+)/).filter(Boolean);
+        const tokens = parts.filter(part => /^[yMdhms]+$/.test(part));
+
+        const order = ['y', 'M', 'd', 'h', 'm', 's'];
+        let previousIndex = -1;
+
+        for (const token of tokens) {
+            const type = token[0];
+            const currentIndex = order.indexOf(type);
+
+            if (currentIndex === -1 || currentIndex <= previousIndex) {
+                throw new Error(
+                    'Invalid date format! Components must be in the order y, M, d, h, m, s.'
+                );
+            }
+
+            previousIndex = currentIndex;
+        }
+
+        if (
+            tokens.length < 3 ||
+            tokens[0][0] !== 'y' ||
+            tokens[1][0] !== 'M' ||
+            tokens[2][0] !== 'd'
+        ) {
+            throw new Error(
+                'Invalid date format! The format must contain y, M and d in this order.'
+            );
+        }
 
         const values: Record<string, string> = {
             yyyy: d.getUTCFullYear().toString(),
