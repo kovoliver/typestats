@@ -39,6 +39,8 @@ You're now ready to run the pipeline example above.
 
 ## Quickstart & Full Pipeline
 
+🚀 **Get Started:** Check out the [`all-in-one.js`](./examples/all-in-one.js) example in the `./examples` folder.
+
 This complete end-to-end pipeline demonstrates how to ingest data from CSV, impute missing values, perform feature engineering, run statistical calculations, fit regression/trend models, and export the processed dataset.
 
 ### Installation
