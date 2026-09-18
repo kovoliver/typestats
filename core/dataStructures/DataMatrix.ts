@@ -1,5 +1,6 @@
 import { betweenSSD, chiSquare, cramerV, etaSquared, totalSSD, withinSSD } from "../statistics/bivariate.js";
 import { mean } from "../statistics/univariate.js";
+import { round } from "../utils/numberUtils.js";
 import { isEmpty } from "../utils/utils.js";
 
 export default class DataMatrix {
@@ -77,7 +78,7 @@ export default class DataMatrix {
 
             for (let j = 0; j < this.cols; j++) {
                 const colLabel = this._colLabels[j];
-                const val = this._values[j][i];
+                const val = round(this._values[j][i], 3);
 
                 printObj[i][colLabel] = !isEmpty(val) ? val : "-";
             }
@@ -99,7 +100,7 @@ export default class DataMatrix {
 
             for (let j = 0; j < this.cols; j++) {
                 const colLabel = this._colLabels[j];
-                printObj[rowLabel][colLabel] = this._values[j][i];
+                printObj[rowLabel][colLabel] = round(this._values[j][i], 3);
             }
         }
 

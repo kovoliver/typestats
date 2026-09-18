@@ -18,6 +18,7 @@ import { getIqrBoundaries, replaceEmptyValues, replaceOutliers }
     from '../dataPreparation/dataPreparation.js';
 import { correlation, covariance } from '../statistics/bivariate.js';
 import DataMatrix from './DataMatrix.js';
+import { round } from '../utils/numberUtils.js';
 
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
@@ -907,10 +908,10 @@ export default class Table {
                     throw new Error(`The following column is not numeric: ${labels[i]}`);
                 }
 
-                const covar = fn(col1.getValidValues(), col2.getValidValues());
+                const calculated = fn(col1.getValidValues(), col2.getValidValues());
 
-                matrix[i][j] = covar;
-                matrix[j][i] = covar;
+                matrix[i][j] = calculated;
+                matrix[j][i] = calculated;
             }
         }
 
@@ -923,7 +924,7 @@ export default class Table {
 
                 for (let j = 0; j < n; j++) {
                     const colLabel = labels[j];
-                    printObj[rowLabel][colLabel] = matrix[i][j];
+                    printObj[rowLabel][colLabel] = round(matrix[i][j], 3);
                 }
             }
 
@@ -933,10 +934,24 @@ export default class Table {
         return matrix;
     }
 
+    /**
+     * Calculates the covariance matrix for the specified numeric columns.
+     *
+     * @param labels - The labels of the columns to include in the matrix.
+     * @param printed - Whether to print the resulting matrix.
+     * @returns A two-dimensional array containing the covariance matrix.
+     */
     public covariance(labels: string[], printed: boolean = false): number[][] {
         return this.createStatMatrix(labels, covariance, 'covariance', printed);
     }
 
+    /**
+     * Calculates the correlation matrix for the specified numeric columns.
+     *
+     * @param labels - The labels of the columns to include in the matrix.
+     * @param printed - Whether to print the resulting matrix.
+     * @returns A two-dimensional array containing the correlation matrix.
+     */
     public correlation(labels: string[], printed: boolean = false): number[][] {
         return this.createStatMatrix(labels, correlation, 'correlation', printed);
     }
@@ -963,11 +978,11 @@ export default class Table {
                 : 0;
 
             columnInfos.push({
-                columnName: col.label,
+                label: col.label,
                 type: this._colInfos[i].type ?? 'string',
-                missingCount: missing,
-                validCount: valid,
-                missingPercent: `${missingPercent}%`
+                missing: missing,
+                valid: valid,
+                'missing/valid': `${missingPercent}%`
             });
 
             if (col instanceof NumberColumn) {
@@ -976,7 +991,7 @@ export default class Table {
 
             if (col instanceof DateColumn) {
                 dateStats.push({
-                    columnName: col.label,
+                    label: col.label,
                     min: displayDateString((col as DateColumn).min()),
                     max: displayDateString((col as DateColumn).max())
                 });
@@ -996,6 +1011,13 @@ export default class Table {
         }
     }
 
+    /**
+     * Converts the table into an array of objects.
+     *
+     * Each object represents one row, with column labels used as property names.
+     *
+     * @returns An array of objects representing the rows of the table.
+     */
     public toObject(): Record<string, any>[] {
         const finalObj: Record<string, any>[] = [];
         const rowCount = this.rowCount;
@@ -1014,6 +1036,14 @@ export default class Table {
         return finalObj;
     }
 
+    /**
+     * Converts the table into a CSV-formatted string.
+     *
+     * Missing, NaN, and undefined values are represented as empty fields.
+     *
+     * @param separator - The character used to separate fields.
+     * @returns A string containing the table in CSV format.
+     */
     public toCSV(separator: string = ';'): string {
         const labels = this._colInfos.map(info => info.label);
         let finalStr = labels.join(separator) + "\n";
@@ -1036,7 +1066,14 @@ export default class Table {
         return finalStr;
     }
 
-    
+    /**
+     * Converts the table into a two-dimensional matrix.
+     *
+     * Each inner array represents one row of the table, with values ordered
+     * according to the table's columns.
+     *
+     * @returns A two-dimensional array containing the table data.
+     */
     public toMatrix(): any[][] {
         const matrix: any[][] = [];
         const colCount = this._values.length;
@@ -1127,7 +1164,7 @@ export default class Table {
                 matrixValues[groupIndex].push(numericVal);
             }
         }
-        
+
         return new DataMatrix(matrixValues, colLabels);
     }
 }

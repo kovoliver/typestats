@@ -1158,7 +1158,7 @@ export default class NumberColumn extends Column<number> {
 
         const validValues = this.getValidValues();
         const sortedValues = orderAsc(validValues);
-        const median = round(percentile(sortedValues, 0.5, 'interpolated', undefined, true), 4);
+        const median = round(percentile(sortedValues, 0.5, 'interpolated', undefined, true), 3);
 
         return {
             label: this._label,

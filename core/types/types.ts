@@ -86,11 +86,11 @@ export type TrendModel = {
 }
 
 export type ColumnInfo = {
-    columnName: string,
+    label: string,
     type: ColType,
-    validCount: number,
-    missingCount: number,
-    missingPercent: number | string
+    valid: number,
+    missing: number,
+    'missing/valid': number | string
 }
 
 export const TimeUnit = {
