@@ -2,7 +2,14 @@ import { TimeUnit } from "../types/types.js";
 import { isInteger } from "../utils/numberUtils.js";
 import { displayDateString, isEmpty, toUnixTimestampArray } from "../utils/utils.js";
 import Column from "./Column.js";
-
+/**
+ * Represents a column of Date values optimized for statistical analysis and data transformation.
+ * 
+ * @remarks
+ * All internal operations, comparisons, truncations, and getters (e.g., `getYear`, `getMonth`) 
+ * strictly use **UTC** time to ensure consistent and reproducible analytical results across 
+ * different server environments and client timezones.
+ */
 export default class DateColumn extends Column<number | Date> {
     private readonly _months = [
         'January',
@@ -62,56 +69,62 @@ export default class DateColumn extends Column<number | Date> {
      * Returns the full year (e.g., 2023) for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns The year as a four-digit number, or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getYear(index: number): number | null {
         const d = this.getElementByIndex(index);
-        return d ? d?.getFullYear() : null;
+        return d ? d.getUTCFullYear() : null;
     }
 
     /**
      * Returns the 1-based month index (1–12) for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns Month number (1–12) or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getMonth(index: number): number | null {
         const d = this.getElementByIndex(index);
-        return d ? d.getMonth() + 1 : null;
+        return d ? d.getUTCMonth() + 1 : null;
     }
 
     /**
      * Returns the English name of the month (e.g., 'January') for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns Full month name or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getMonthName(index: number): string | null {
         const d = this.getElementByIndex(index);
-        return d ? this._months[d?.getMonth()] : null;
+        return d ? this._months[d.getUTCMonth()] : null;
     }
 
     /**
      * Returns the day of the month (1–31) for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns Day of the month or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getDayOfTheMonth(index: number): number | null {
         const d = this.getElementByIndex(index);
-        return d ? d.getDate() : null;
+        return d ? d.getUTCDate() : null;
     }
 
     /**
      * Returns the day of the week index (0 for Sunday, 1 for Monday, etc.) for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns Day index (0–6) or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getDay(index: number): number | null {
         const d = this.getElementByIndex(index);
-        return d ? d.getDay() : null;
+        return d ? d.getUTCDay() : null;
     }
 
     /**
      * Returns the English name of the day of the week (e.g., 'Monday') for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns Full day name or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getDayOfTheWeek(index: number): string | null {
         const d = this.getElementByIndex(index);
@@ -122,6 +135,7 @@ export default class DateColumn extends Column<number | Date> {
      * Returns the hour (0–23) for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns Hour value (0–23) or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getHours(index: number): number | null {
         const d = this.getElementByIndex(index);
@@ -132,6 +146,7 @@ export default class DateColumn extends Column<number | Date> {
      * Returns the minute (0–59) for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns Minute value (0–59) or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getMinutes(index: number): number | null {
         const d = this.getElementByIndex(index);
@@ -142,6 +157,7 @@ export default class DateColumn extends Column<number | Date> {
      * Returns the second (0–59) for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns Second value (0–59) or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getSeconds(index: number): number | null {
         const d = this.getElementByIndex(index);
@@ -152,6 +168,7 @@ export default class DateColumn extends Column<number | Date> {
      * Returns the millisecond (0–999) for the date at the specified index.
      * @param index - Zero-based row index.
      * @returns Millisecond value (0–999) or null if missing.
+     * @note Operates strictly in UTC.
      */
     public getMilliseconds(index: number): number | null {
         const d = this.getElementByIndex(index);
@@ -328,60 +345,21 @@ export default class DateColumn extends Column<number | Date> {
      */
     public format(index: number, pattern: string): string {
         const d = this.getElementByIndex(index);
+        if (d === null) throw new Error('Invalid date');
 
-        if (d === null) {
-            throw new Error('The date is invalid at the given index!');
-        }
-
-        const parts = pattern.split(/([yMdhms]+)/).filter(Boolean);
-        const tokens = parts.filter(part => /^[yMdhms]+$/.test(part));
-
-        const order = ['y', 'M', 'd', 'h', 'm', 's'];
-
-        let previousIndex = -1;
-
-        for (const token of tokens) {
-            const type = token[0];
-            const currentIndex = order.indexOf(type);
-
-            if (currentIndex === -1 || currentIndex <= previousIndex) {
-                throw new Error(
-                    'Invalid date format! Components must be in the order y, M, d, h, m, s.'
-                );
-            }
-
-            previousIndex = currentIndex;
-        }
-
-        if (
-            tokens.length < 3 ||
-            tokens[0][0] !== 'y' ||
-            tokens[1][0] !== 'M' ||
-            tokens[2][0] !== 'd'
-        ) {
-            throw new Error(
-                'Invalid date format! The format must contain y, M and d in this order.'
-            );
-        }
-
-        const values: Record<string, number> = {
-            y: d.getFullYear(),
-            M: d.getMonth() + 1,
-            d: d.getDate(),
-            h: d.getHours(),
-            m: d.getMinutes(),
-            s: d.getSeconds()
+        const values: Record<string, string> = {
+            yyyy: d.getUTCFullYear().toString(),
+            yy: d.getUTCFullYear().toString().slice(-2),
+            MM: (d.getUTCMonth() + 1).toString().padStart(2, '0'),
+            M: (d.getUTCMonth() + 1).toString(),
+            dd: d.getUTCDate().toString().padStart(2, '0'),
+            d: d.getUTCDate().toString(),
+            hh: d.getUTCHours().toString().padStart(2, '0'),
+            mm: d.getUTCMinutes().toString().padStart(2, '0'),
+            ss: d.getUTCSeconds().toString().padStart(2, '0'),
         };
 
-        return parts
-            .map(part => {
-                if (/^[yMdhms]+$/.test(part)) {
-                    return values[part[0]].toString().padStart(part.length, '0');
-                }
-
-                return part;
-            })
-            .join('');
+        return pattern.replace(/yyyy|yy|MM|M|dd|d|hh|mm|ss/g, match => values[match] || match);
     }
 
     private order(mode: 'asc' | 'desc'): DateColumn {

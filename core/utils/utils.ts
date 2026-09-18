@@ -615,9 +615,24 @@ export function parseDate(val: unknown): Date | null {
         return isNaN(val.getTime()) ? null : val;
     }
 
-    if (typeof val === 'string' || typeof val === 'number') {
+    if (typeof val === 'number') {
         const d = new Date(val);
         return isNaN(d.getTime()) ? null : d;
+    }
+
+    if (typeof val === 'string') {
+        const d = new Date(val);
+        const time = d.getTime();
+
+        if (isNaN(time)) return null;
+        const isIsoFormat = val.length >= 10 && val.charCodeAt(4) === 45 && val.charCodeAt(7) === 45;
+
+        if (isIsoFormat) {
+            return d;
+        }
+
+        const utcTime = time - (d.getTimezoneOffset() * 60_000);
+        return new Date(utcTime);
     }
 
     return null;
