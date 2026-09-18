@@ -181,7 +181,20 @@ export function isDate(value: any): boolean {
         return !Number.isNaN(value.getTime());
     }
 
-    const d = new Date(value);
+    if (typeof value !== 'string') {
+        return false;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+
+    const firstCode = trimmed.charCodeAt(0);
+
+    if (firstCode < 48 || firstCode > 57) {
+        return false;
+    }
+
+    const d = new Date(trimmed);
     return !Number.isNaN(d.getTime());
 }
 
