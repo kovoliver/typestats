@@ -1147,32 +1147,40 @@ export default class Table {
      * @returns A `DataMatrix` containing the cross-tabulated cell frequencies with assigned row and column labels.
      */
     public toContingencyTable(colLabel: string, rowLabel: string): DataMatrix {
-        const table = this.groupBy(colLabel, rowLabel).count();
-        const colLabelCol = table.getCol(colLabel);
-        const rowLabelCol = table.getCol(rowLabel);
+        const colValues = this.getCol(colLabel).values;
+        const rowValues = this.getCol(rowLabel).values;
+        const len = this.rowCount;
 
-        const colLabels = [...new Set(colLabelCol.values)].map(val => String(val));
-        const rowLabels = [...new Set(rowLabelCol.values)].map(val => String(val));
+        const colSet = new Set<string>();
+        const rowSet = new Set<string>();
 
-        const crossTable: number[][] = Array.from(
-            { length: colLabels.length },
-            () => []
-        );
+        for (let i = 0; i < len; i++) {
+            if (colValues[i] != null) colSet.add(String(colValues[i]));
+            if (rowValues[i] != null) rowSet.add(String(rowValues[i]));
+        }
 
-        for (let col = 0; col < colLabels.length; col++) {
-            const currentColVal = colLabels[col];
-            const whereCol = table.where(colLabel, (c) => String(c) === currentColVal);
+        const colLabels = Array.from(colSet);
+        const rowLabels = Array.from(rowSet);
 
-            for (const currentRowVal of rowLabels) {
-                const whereRow = whereCol.where(rowLabel, (s) => String(s) === currentRowVal);
+        const colIndexMap = new Map<string, number>();
+        for (let i = 0; i < colLabels.length; i++) colIndexMap.set(colLabels[i], i);
 
-                if (whereRow.rowCount !== 0) {
-                    const values = whereRow.getCol("count").values as never[];
+        const rowIndexMap = new Map<string, number>();
+        for (let i = 0; i < rowLabels.length; i++) rowIndexMap.set(rowLabels[i], i);
 
-                    crossTable[col].push(...values);
-                } else {
-                    crossTable[col].push(0);
-                }
+        const numCols = colLabels.length;
+        const numRows = rowLabels.length;
+
+        const crossTable: number[][] = Array.from({ length: numCols }, () => new Array<number>(numRows).fill(0));
+
+        for (let i = 0; i < len; i++) {
+            const cVal = colValues[i];
+            const rVal = rowValues[i];
+
+            if (cVal != null && rVal != null) {
+                const cIdx = colIndexMap.get(String(cVal))!;
+                const rIdx = rowIndexMap.get(String(rVal))!;
+                crossTable[cIdx][rIdx]++;
             }
         }
 
@@ -1191,23 +1199,30 @@ export default class Table {
      * @returns A `DataMatrix` structured for one-way ANOVA calculations and contingency views.
      */
     public toAnovaTable(groupColLabel: string, valueColLabel: string): DataMatrix {
-        const groupCol = this.getCol(groupColLabel);
-        const valueCol = this.getCol(valueColLabel);
+        const groupValues = this.getCol(groupColLabel).values;
+        const numericValues = this.getCol(valueColLabel).values;
+        const len = this.rowCount;
 
-        const colLabels = [...new Set(groupCol.values)].map(val => String(val));
+        const groupSet = new Set<string>();
+        for (let i = 0; i < len; i++) {
+            if (groupValues[i] != null) groupSet.add(String(groupValues[i]));
+        }
+        const colLabels = Array.from(groupSet);
 
-        const matrixValues: number[][] = Array.from(
-            { length: colLabels.length },
-            () => []
-        );
+        const groupIndexMap = new Map<string, number>();
+        for (let i = 0; i < colLabels.length; i++) {
+            groupIndexMap.set(colLabels[i], i);
+        }
 
-        for (let i = 0; i < this.rowCount; i++) {
-            const groupVal = String(groupCol.values[i]);
-            const numericVal = Number(valueCol.values[i]);
+        const matrixValues: number[][] = Array.from({ length: colLabels.length }, () => []);
 
-            const groupIndex = colLabels.indexOf(groupVal);
-            if (groupIndex !== -1 && !isNaN(numericVal)) {
-                matrixValues[groupIndex].push(numericVal);
+        for (let i = 0; i < len; i++) {
+            const gVal = groupValues[i];
+            const nVal = Number(numericValues[i]);
+
+            if (gVal != null && !isNaN(nVal)) {
+                const gIdx = groupIndexMap.get(String(gVal))!;
+                matrixValues[gIdx].push(nVal);
             }
         }
 

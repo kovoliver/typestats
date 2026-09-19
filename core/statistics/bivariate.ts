@@ -111,19 +111,26 @@ export function chiSquare(table: number[][], digits?: number): number {
     validateTable(table);
 
     const numCols = table.length;
+    if (numCols === 0) return 0;
     const numRows = table[0].length;
+    if (numRows === 0) return 0;
 
-    const colTotals = new Array(numCols).fill(0);
-    const rowTotals = new Array(numRows).fill(0);
+    const colTotals = new Float64Array(numCols);
+    const rowTotals = new Float64Array(numRows);
     let grandTotal = 0;
 
     for (let col = 0; col < numCols; col++) {
+        const colArr = table[col];
+        let cTotal = 0;
+
         for (let row = 0; row < numRows; row++) {
-            const currentEl = table[col][row];
-            colTotals[col] += currentEl;
+            const currentEl = colArr[row];
+            cTotal += currentEl;
             rowTotals[row] += currentEl;
-            grandTotal += currentEl;
         }
+
+        colTotals[col] = cTotal;
+        grandTotal += cTotal;
     }
 
     if (grandTotal <= 0) {
@@ -137,6 +144,8 @@ export function chiSquare(table: number[][], digits?: number): number {
         const colTotal = colTotals[col];
         if (colTotal === 0) continue;
 
+        const colArr = table[col];
+
         for (let row = 0; row < numRows; row++) {
             const rowTotal = rowTotals[row];
             if (rowTotal === 0) continue;
@@ -147,7 +156,7 @@ export function chiSquare(table: number[][], digits?: number): number {
                 continue;
             }
 
-            const observed = table[col][row];
+            const observed = colArr[row];
             const diff = observed - expectedValue;
             const ratio = (diff * diff) / expectedValue;
 
@@ -240,37 +249,58 @@ export function totalSSD(table: number[][], digits?: number): number {
  * @throws {Error} If the table structure is invalid.
  */
 export function betweenSSD(
-    table: number[][], 
+    table: number[][],
     digits?: number
 ): number {
     validateTable(table);
 
-    const groups: { n: number; mean: number }[] = [];
-    for (let i = 0; i < table.length; i++) {
+    const len = table.length;
+    if (len === 0) return 0;
+
+    const groupNs = new Float64Array(len);
+    const groupMeans = new Float64Array(len);
+    let validGroupCount = 0;
+
+    for (let i = 0; i < len; i++) {
         const group = table[i];
         if (!group || group.length === 0) continue;
-        groups.push({ n: group.length, mean: mean(group) });
+
+        groupNs[validGroupCount] = group.length;
+        groupMeans[validGroupCount] = mean(group);
+        validGroupCount++;
     }
-    if (groups.length === 0) return 0;
 
-    let combined = groups[0];
-    for (let i = 1; i < groups.length; i++) {
-        const g = groups[i];
-        const n = combined.n + g.n;
-        const delta = g.mean - combined.mean;
-        combined = { n, mean: combined.mean + delta * (g.n / n) };
+    if (validGroupCount === 0) return 0;
+
+    let combN = groupNs[0];
+    let combMean = groupMeans[0];
+
+    for (let i = 1; i < validGroupCount; i++) {
+        const gn = groupNs[i];
+        const gMean = groupMeans[i];
+        const nextN = combN + gn;
+        const delta = gMean - combMean;
+
+        combMean += delta * (gn / nextN);
+        combN = nextN;
     }
-    const grandMean = combined.mean;
 
-    let totalSsd = 0, compensation = 0;
+    const grandMean = combMean;
 
-    for (const g of groups) {
-        const diff = g.mean - grandMean;
-        const term = g.n * diff * diff;
+    let totalSsd = 0;
+    let compensation = 0;
+
+    for (let i = 0; i < validGroupCount; i++) {
+        const gn = groupNs[i];
+        const diff = groupMeans[i] - grandMean;
+        const term = gn * diff * diff;
+
         const t = totalSsd + term;
-        compensation += Math.abs(totalSsd) >= Math.abs(term)
-            ? (totalSsd - t) + term
-            : (term - t) + totalSsd;
+        if (Math.abs(totalSsd) >= Math.abs(term)) {
+            compensation += (totalSsd - t) + term;
+        } else {
+            compensation += (term - t) + totalSsd;
+        }
         totalSsd = t;
     }
 
