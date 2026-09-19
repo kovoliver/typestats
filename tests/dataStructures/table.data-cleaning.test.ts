@@ -4,36 +4,95 @@ import { ColInfo } from '../../core/types/types';
 import DateColumn from '../../core/dataStructures/DateColumn';
 
 describe('Table - Data Cleaning & Imputation', () => {
-    it('should drop rows with NA/null/NaN values via dropNa', () => {
-        const data = [
-            [1, null, 3, NaN],
-            ['a', 'b', 'c', 'd'],
-            [
-                new Date('2023-01-01'), null, 
-                new Date('2023-01-03'), 
-                new Date('2023-01-04')
-            ]
-        ];
-        const infos: ColInfo[] = [
-            { label: 'num', type: 'number' },
-            { label: 'str', type: 'string' },
-            { label: 'date', type: 'date' }
-        ];
-        const table = new Table(data, infos);
-        
-        const cleanedNum = table.dropNa('num');
-        expect(cleanedNum.rowCount).toBe(2);
-        expect(cleanedNum.getCol('num').values).toEqual([1, 3]);
+    describe('dropNa functionality', () => {
+        it('should drop rows with NA/null/NaN values for a single column', () => {
+            const data = [
+                [1, null, 3, NaN],
+                ['a', 'b', 'c', 'd'],
+                [
+                    new Date('2023-01-01'), null, 
+                    new Date('2023-01-03'), 
+                    new Date('2023-01-04')
+                ]
+            ];
+            const infos: ColInfo[] = [
+                { label: 'num', type: 'number' },
+                { label: 'str', type: 'string' },
+                { label: 'date', type: 'date' }
+            ];
+            const table = new Table(data, infos);
+            
+            const cleanedNum = table.dropNa('num');
+            expect(cleanedNum.rowCount).toBe(2);
+            expect(cleanedNum.getCol('num').values).toEqual([1, 3]);
 
-        const cleanedDate = table.dropNa('date');
-        
-        expect(cleanedDate.rowCount).toBe(3);
-        expect(cleanedDate.getCol('date')).toBeInstanceOf(DateColumn);
-        expect(cleanedDate.getCol('date').values).toEqual([
-            new Date('2023-01-01'),
-            new Date('2023-01-03'),
-            new Date('2023-01-04')
-        ]);
+            const cleanedDate = table.dropNa('date');
+            expect(cleanedDate.rowCount).toBe(3);
+            expect(cleanedDate.getCol('date')).toBeInstanceOf(DateColumn);
+            expect(cleanedDate.getCol('date').values).toEqual([
+                new Date('2023-01-01'),
+                new Date('2023-01-03'),
+                new Date('2023-01-04')
+            ]);
+        });
+
+        it('should handle array of labels with how="any" (default)', () => {
+            const data = [
+                [1, null, 3, NaN],
+                ['a', null, 'c', 'd'],
+                [
+                    new Date('2023-01-01'), null, 
+                    new Date('2023-01-03'), 
+                    new Date('2023-01-04')
+                ]
+            ];
+            const infos: ColInfo[] = [
+                { label: 'num', type: 'number' },
+                { label: 'str', type: 'string' },
+                { label: 'date', type: 'date' }
+            ];
+            const table = new Table(data, infos);
+
+            const cleanedAny = table.dropNa(['num', 'str'], 'any');
+            expect(cleanedAny.rowCount).toBe(2);
+            expect(cleanedAny.getCol('num').values).toEqual([1, 3]);
+            expect(cleanedAny.getCol('str').values).toEqual(['a', 'c']);
+        });
+
+        it('should handle array of labels with how="all"', () => {
+            const data = [
+                [1, null, 3, NaN],
+                ['a', null, 'c', 'd'],
+                [
+                    new Date('2023-01-01'), null, 
+                    new Date('2023-01-03'), 
+                    new Date('2023-01-04')
+                ]
+            ];
+            const infos: ColInfo[] = [
+                { label: 'num', type: 'number' },
+                { label: 'str', type: 'string' },
+                { label: 'date', type: 'date' }
+            ];
+            const table = new Table(data, infos);
+
+            const cleanedAll = table.dropNa(['num', 'str'], 'all');
+            expect(cleanedAll.rowCount).toBe(3);
+            expect(cleanedAll.getCol('num').values).toEqual([1, 3, NaN]);
+            expect(cleanedAll.getCol('str').values).toEqual(['a', 'c', 'd']);
+        });
+
+        it('should throw an error when empty label or empty array is passed', () => {
+            const data = [[1, 2], ['a', 'b']];
+            const infos: ColInfo[] = [
+                { label: 'num', type: 'number' },
+                { label: 'str', type: 'string' }
+            ];
+            const table = new Table(data, infos);
+
+            expect(() => table.dropNa([])).toThrow('You must provide at least one label!');
+            expect(() => table.dropNa('')).toThrow('You must provide at least one label!');
+        });
     });
 
     it('should drop outliers based on fixed Boundaries', () => {
@@ -130,19 +189,19 @@ describe('Table - Data Cleaning & Imputation', () => {
         ];
         const table = new Table(data, infos);
 
-        expect(() => table.replaceOutliers('str', 'mean', { min: 0, max: 10 })).toThrowError(
+        expect(() => table.replaceOutliers('str', 'mean', { min: 0, max: 10 })).toThrow(
             'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
         );
 
-        expect(() => table.replaceOutliers('date', 'mean', { min: 0, max: 10 })).toThrowError(
+        expect(() => table.replaceOutliers('date', 'mean', { min: 0, max: 10 })).toThrow(
             'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
         );
 
-        expect(() => table.replaceOutliersIQR('str', 'median')).toThrowError(
+        expect(() => table.replaceOutliersIQR('str', 'median')).toThrow(
             'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
         );
 
-        expect(() => table.replaceOutliersIQR('date', 'median')).toThrowError(
+        expect(() => table.replaceOutliersIQR('date', 'median')).toThrow(
             'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
         );
     });
