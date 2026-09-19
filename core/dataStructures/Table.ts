@@ -560,7 +560,7 @@ export default class Table {
 
         const validators = targetIndices.map(colIdx => {
             const type = this._colInfos[colIdx].type;
-            
+
             switch (type) {
                 case "number": return isValidNumber;
                 case "string": return isValidString;
@@ -700,16 +700,13 @@ export default class Table {
         const targetCol = this.getCol(label) as NumberColumn;
 
         if (!(targetCol instanceof NumberColumn)) {
-            throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
+            throw new Error('Statistical imputation (mean, median, mode) is only applicable to numeric columns!');
         }
 
         const targetIndex = this.getIndex(label);
-        const newCol = replaceOutliers((targetCol.values as number[]), type, boundaries);
-
-        const newValues = this._values.map((col, idx) => {
-            if (idx === targetIndex) return [...newCol];
-            return [...col];
-        });
+        const newCol = replaceOutliers(targetCol.values as number[], type, boundaries);
+        const newValues = this._values.slice();
+        newValues[targetIndex] = newCol;
 
         return new Table(newValues, this._colInfos, true);
     }
@@ -723,18 +720,11 @@ export default class Table {
         const targetCol = this.getCol(label) as NumberColumn;
 
         if (!(targetCol instanceof NumberColumn)) {
-            throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
+            throw new Error('Statistical imputation (mean, median, mode) is only applicable to numeric columns!');
         }
 
         const boundaries = getIqrBoundaries(targetCol.values as number[], multiplier, percentMode);
-        const targetIndex = this.getIndex(label);
-        const newCol = replaceOutliers(targetCol.values as number[], type, boundaries);
-
-        const newValues = this._values.map((col, idx) =>
-            idx === targetIndex ? newCol : col
-        );
-
-        return new Table(newValues, this._colInfos, true);
+        return this.replaceOutliers(label, type, boundaries);
     }
 
     public fillNa(label: string | number, value: number | string | boolean | Date): Table {

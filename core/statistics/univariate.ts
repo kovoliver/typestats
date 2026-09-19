@@ -197,6 +197,37 @@ export function std(values: number[], isSample: boolean = true, digits?: number)
     return round(Math.sqrt(v), digits);
 }
 
+function quickselect(arr: number[], k: number, left = 0, right = arr.length - 1): number {
+    while (left < right) {
+        const pivotIndex = (left + right) >> 1;
+        const pivotValue = arr[pivotIndex];
+        let i = left;
+        let j = right;
+
+        while (i <= j) {
+            while (arr[i] < pivotValue) i++;
+            while (arr[j] > pivotValue) j--;
+            if (i <= j) {
+                const temp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = temp;
+                i++;
+                j--;
+            }
+        }
+
+        if (k <= j) {
+            right = j;
+        } else if (k >= i) {
+            left = i;
+        } else {
+            break;
+        }
+    }
+
+    return arr[k];
+}
+
 /**
  * Calculates a specified percentile value from an array of numbers.
  *
@@ -220,46 +251,125 @@ export function percentile(
         throw new Error('The given percentage should be between 0 and 1!');
     }
 
-    const sortedVals = isSorted ? values : orderAsc([...values]);
+    const len = values.length;
+    if (len === 0) return NaN;
 
-    if (percent === 0) return round(sortedVals[0], digits);
-    if (percent === 1) return round(sortedVals[sortedVals.length - 1], digits);
+    const arr = isSorted ? values : values.slice();
 
-    const index = (sortedVals.length - 1) * percent;
+    if (percent === 0) {
+        if (!isSorted) quickselect(arr, 0);
+        return round(arr[0], digits);
+    }
+    if (percent === 1) {
+        if (!isSorted) quickselect(arr, len - 1);
+        return round(arr[len - 1], digits);
+    }
+
+    const index = (len - 1) * percent;
     const intIndex = Math.floor(index);
     const indexDiff = index - intIndex;
 
     if (indexDiff === 0) {
-        return round(sortedVals[intIndex], digits);
+        if (!isSorted) quickselect(arr, intIndex);
+        return round(arr[intIndex], digits);
+    }
+
+    let vLow: number;
+    if (isSorted) {
+        vLow = arr[intIndex];
+    } else {
+        vLow = quickselect(arr, intIndex);
+    }
+
+    let vHigh: number = vLow;
+
+    if (mode === 'interpolated' || mode === 'midpoint' || mode === 'higher' || (mode === 'nearest' && indexDiff >= 0.5)) {
+        if (isSorted) {
+            vHigh = arr[intIndex + 1];
+        } else {
+            vHigh = quickselect(arr, intIndex + 1, intIndex + 1, len - 1);
+        }
     }
 
     let result: number;
-    const interpolVal = (sortedVals[intIndex + 1] - sortedVals[intIndex]) * indexDiff;
-    const interpolated = sortedVals[intIndex] + interpolVal;
 
     switch (mode) {
         case 'midpoint':
-            result = (sortedVals[intIndex] + sortedVals[intIndex + 1]) / 2;
+            result = (vLow + vHigh) / 2;
             break;
         case 'lower':
-            result = sortedVals[intIndex];
+            result = vLow;
             break;
         case 'higher':
-            result = sortedVals[intIndex + 1];
+            result = vHigh;
             break;
         case 'nearest': {
-            const currIndex = indexDiff < 0.5 ? intIndex : intIndex + 1;
-            result = sortedVals[currIndex];
+            result = indexDiff < 0.5 ? vLow : vHigh;
             break;
         }
         case 'interpolated':
-        default:
-            result = interpolated;
+        default: {
+            const interpolVal = (vHigh - vLow) * indexDiff;
+            result = vLow + interpolVal;
             break;
+        }
     }
 
     return round(result, digits);
 }
+// export function percentile(
+//     values: number[],
+//     percent: number,
+//     mode: PercentMode = 'interpolated',
+//     digits?: number,
+//     isSorted: boolean = false
+// ): number {
+//     validateValues(values);
+
+//     if (percent < 0 || percent > 1) {
+//         throw new Error('The given percentage should be between 0 and 1!');
+//     }
+
+//     const sortedVals = isSorted ? values : orderAsc([...values]);
+
+//     if (percent === 0) return round(sortedVals[0], digits);
+//     if (percent === 1) return round(sortedVals[sortedVals.length - 1], digits);
+
+//     const index = (sortedVals.length - 1) * percent;
+//     const intIndex = Math.floor(index);
+//     const indexDiff = index - intIndex;
+
+//     if (indexDiff === 0) {
+//         return round(sortedVals[intIndex], digits);
+//     }
+
+//     let result: number;
+//     const interpolVal = (sortedVals[intIndex + 1] - sortedVals[intIndex]) * indexDiff;
+//     const interpolated = sortedVals[intIndex] + interpolVal;
+
+//     switch (mode) {
+//         case 'midpoint':
+//             result = (sortedVals[intIndex] + sortedVals[intIndex + 1]) / 2;
+//             break;
+//         case 'lower':
+//             result = sortedVals[intIndex];
+//             break;
+//         case 'higher':
+//             result = sortedVals[intIndex + 1];
+//             break;
+//         case 'nearest': {
+//             const currIndex = indexDiff < 0.5 ? intIndex : intIndex + 1;
+//             result = sortedVals[currIndex];
+//             break;
+//         }
+//         case 'interpolated':
+//         default:
+//             result = interpolated;
+//             break;
+//     }
+
+//     return round(result, digits);
+// }
 
 /**
  * Calculates the median (50th percentile) of an array of numbers.

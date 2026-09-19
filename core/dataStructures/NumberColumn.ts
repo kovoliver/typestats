@@ -291,7 +291,7 @@ export default class NumberColumn extends Column<number> {
 
         return this.getValidValues().reduce(
             (total, val) => val < boundaries.min!
-            || val > boundaries.max! ? total + 1 : total, 0
+                || val > boundaries.max! ? total + 1 : total, 0
         );
     }
 
@@ -1149,25 +1149,60 @@ export default class NumberColumn extends Column<number> {
     }
 
     public describeStats() {
-        const missing = this.countMissing();
-        const validCount = this._values.length - missing;
+        const len = this._values.length;
+
+        if (len === 0) {
+            return { missing: 0, valid: 0, mean: NaN, std: NaN, min: NaN, median: NaN, max: NaN };
+        }
+
+        const validValues = new Array<number>(len);
+        let missing = 0;
+        let validCount = 0;
+
+        let meanAcc = 0;
+        let M2 = 0;
+        let min = Infinity;
+        let max = -Infinity;
+
+        for (let i = 0; i < len; i++) {
+            const val = this._values[i];
+
+            if (val === null || val === undefined || val !== val) {
+                missing++;
+                continue;
+            }
+
+            validValues[validCount] = val as number;
+            validCount++;
+
+            if (val < min) min = val as number;
+            if (val > max) max = val as number;
+
+            const delta = (val as number) - meanAcc;
+            meanAcc += delta / validCount;
+            const delta2 = (val as number) - meanAcc;
+            M2 += delta * delta2;
+        }
 
         if (validCount === 0) {
             return { missing, valid: 0, mean: NaN, std: NaN, min: NaN, median: NaN, max: NaN };
         }
 
-        const validValues = this.getValidValues();
-        const sortedValues = orderAsc(validValues);
-        const median = round(percentile(sortedValues, 0.5, 'interpolated', undefined, true), 3);
+        validValues.length = validCount;
+
+        const variance = validCount > 1 ? M2 / (validCount - 1) : 0;
+        const stdVal = Math.sqrt(variance);
+
+        const median = round(percentile(validValues, 0.5, 'interpolated'), 3);
 
         return {
             label: this._label,
             missing,
             valid: validCount,
-            mean:round(mean(sortedValues), 3),
-            std: round(std(sortedValues), 3),
-            min: round(sortedValues[0], 3),
-            max: round(sortedValues[sortedValues.length - 1], 3),
+            mean: round(meanAcc, 3),
+            std: round(stdVal, 3),
+            min: round(min, 3),
+            max: round(max, 3),
             median: median
         };
     }

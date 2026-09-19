@@ -151,7 +151,7 @@ export function replaceValues(
 
     const validValues = getNonEmptyValues(values);
     const substitute = getSubstitute(validValues, type, boundaries);
-    const result = new Float64Array(len);
+    const result = new Array<number>(len);
 
     if (boundaries !== undefined) {
         const min = boundaries.min ?? -Infinity;
@@ -172,7 +172,7 @@ export function replaceValues(
         }
     }
 
-    return Array.from(result);
+    return result;
 }
 
 /**

@@ -190,19 +190,19 @@ describe('Table - Data Cleaning & Imputation', () => {
         const table = new Table(data, infos);
 
         expect(() => table.replaceOutliers('str', 'mean', { min: 0, max: 10 })).toThrow(
-            'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
+            'Statistical imputation (mean, median, mode) is only applicable to numeric columns!'
         );
 
         expect(() => table.replaceOutliers('date', 'mean', { min: 0, max: 10 })).toThrow(
-            'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
+            'Statistical imputation (mean, median, mode) is only applicable to numeric columns!'
         );
 
         expect(() => table.replaceOutliersIQR('str', 'median')).toThrow(
-            'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
+            'Statistical imputation (mean, median, mode) is only applicable to numeric columns!'
         );
 
         expect(() => table.replaceOutliersIQR('date', 'median')).toThrow(
-            'Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!'
+            'Statistical imputation (mean, median, mode) is only applicable to numeric columns!'
         );
     });
 });

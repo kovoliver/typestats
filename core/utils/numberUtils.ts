@@ -7,29 +7,41 @@ export function round(value: number, decimals?: number): number {
 
 export function orderAsc(values: number[]): number[] {
     const len = values.length;
-    if (len <= 1) return [...values];
+    if (len <= 1) return values.slice();
 
     if (len >= 10000) {
-        const typed = Float64Array.from(values);
+        const typed = new Float64Array(values);
         typed.sort();
-        return Array.from(typed);
+
+        const sortedArray = new Array<number>(len);
+
+        for (let i = 0; i < len; i++) {
+            sortedArray[i] = typed[i];
+        }
+
+        return sortedArray;
     }
 
-    return [...values].sort((a, b) => a - b);
+    return values.slice().sort((a, b) => a - b);
 }
 
 export function orderDesc(values: number[]): number[] {
     const len = values.length;
-    if (len <= 1) return [...values];
+    if (len <= 1) return values.slice();
 
     if (len >= 10000) {
-        const typed = Float64Array.from(values);
+        const typed = new Float64Array(values);
         typed.sort();
-        typed.reverse();
-        return Array.from(typed);
+
+        const sortedArray = new Array<number>(len);
+        for (let i = 0; i < len; i++) {
+            sortedArray[i] = typed[len - 1 - i];
+        }
+
+        return sortedArray;
     }
 
-    return [...values].sort((a, b) => b - a);
+    return values.slice().sort((a, b) => b - a);
 }
 
 export function isInteger(value: number): boolean {
