@@ -1038,7 +1038,7 @@ export default class Table {
                 type: this._colInfos[i].type ?? 'string',
                 missing: missing,
                 valid: valid,
-                'missing/valid': `${missingPercent}%`
+                'missing %': `${missingPercent}%`
             });
 
             if (col instanceof NumberColumn) {

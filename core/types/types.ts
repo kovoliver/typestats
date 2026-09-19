@@ -90,7 +90,7 @@ export type ColumnInfo = {
     type: ColType,
     valid: number,
     missing: number,
-    'missing/valid': number | string
+    'missing %': number | string
 }
 
 export const TimeUnit = {
