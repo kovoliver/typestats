@@ -10,8 +10,8 @@ describe('Table - Data Cleaning & Imputation', () => {
                 [1, null, 3, NaN],
                 ['a', 'b', 'c', 'd'],
                 [
-                    new Date('2023-01-01'), null, 
-                    new Date('2023-01-03'), 
+                    new Date('2023-01-01'), null,
+                    new Date('2023-01-03'),
                     new Date('2023-01-04')
                 ]
             ];
@@ -21,7 +21,7 @@ describe('Table - Data Cleaning & Imputation', () => {
                 { label: 'date', type: 'date' }
             ];
             const table = new Table(data, infos);
-            
+
             const cleanedNum = table.dropNa('num');
             expect(cleanedNum.rowCount).toBe(2);
             expect(cleanedNum.getCol('num').values).toEqual([1, 3]);
@@ -41,8 +41,8 @@ describe('Table - Data Cleaning & Imputation', () => {
                 [1, null, 3, NaN],
                 ['a', null, 'c', 'd'],
                 [
-                    new Date('2023-01-01'), null, 
-                    new Date('2023-01-03'), 
+                    new Date('2023-01-01'), null,
+                    new Date('2023-01-03'),
                     new Date('2023-01-04')
                 ]
             ];
@@ -64,8 +64,8 @@ describe('Table - Data Cleaning & Imputation', () => {
                 [1, null, 3, NaN],
                 ['a', null, 'c', 'd'],
                 [
-                    new Date('2023-01-01'), null, 
-                    new Date('2023-01-03'), 
+                    new Date('2023-01-01'), null,
+                    new Date('2023-01-03'),
                     new Date('2023-01-04')
                 ]
             ];
@@ -174,7 +174,7 @@ describe('Table - Data Cleaning & Imputation', () => {
         const table = new Table(data, infos);
 
         const replaced = table.replaceOutliersIQR('val', 'median', 1.5);
-        
+
         expect(replaced.getCol('val').values).toEqual([10, 12, 14, 15, 16, 18, 14.5]);
     });
 
