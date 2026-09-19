@@ -24,22 +24,22 @@ describe('Statistical Estimation and Confidence Intervals (strict)', () => {
 
         it('matches the exact known-sigma z-interval', () => {
             const ci = meanEstimationIIDwithSTD(sample, 0.05, 3.0);
-            expect(ci.lower).toBeCloseTo(11.370432, 4);
-            expect(ci.upper).toBeCloseTo(16.629568, 4);
+            expect(ci.lower).toBeCloseTo(11.370432, 5);
+            expect(ci.upper).toBeCloseTo(16.629568, 5);
         });
 
         it('matches the exact unknown-sigma t-interval', () => {
             const ci = meanEstimationIIDwithoutSTD(sample, 0.05);
-            expect(ci.lower).toBeCloseTo(9.789313, 3);
-            expect(ci.upper).toBeCloseTo(18.210687, 3);
+            expect(ci.lower).toBeCloseTo(9.789313, 5);
+            expect(ci.upper).toBeCloseTo(18.210687, 5);
         });
     });
 
     describe('Proportion Estimation', () => {
         it('matches the exact Wald interval (IID)', () => {
             const ci = proportionEstimationIID(0.5, 0.05, 100);
-            expect(ci.lower).toBeCloseTo(0.402002, 4);
-            expect(ci.upper).toBeCloseTo(0.597998, 4);
+            expect(ci.lower).toBeCloseTo(0.402002, 5);
+            expect(ci.upper).toBeCloseTo(0.597998, 5);
         });
 
         it('narrows relative to the IID interval once FPC is applied (SRS)', () => {
@@ -136,26 +136,26 @@ describe('Statistical Estimation and Confidence Intervals (strict)', () => {
 
         it('matches the exact known-variance mean-difference CI', () => {
             const ci = getMeanDiffKnownVariance(sample1, sample2, 4, 4, 0.05);
-            expect(ci.lower).toBeCloseTo(-0.021808, 3);
-            expect(ci.upper).toBeCloseTo(5.521808, 3);
+            expect(ci.lower).toBeCloseTo(-0.021808, 5);
+            expect(ci.upper).toBeCloseTo(5.521808, 5);
         });
 
         it('matches the exact pooled t mean-difference CI', () => {
             const ci = getMeanDiffPooledCI(sample1, sample2, 0.05);
-            expect(ci.lower).toBeCloseTo(-1.413946, 3);
-            expect(ci.upper).toBeCloseTo(6.913946, 3);
+            expect(ci.lower).toBeCloseTo(-1.413946, 5);
+            expect(ci.upper).toBeCloseTo(6.913946, 5);
         });
 
         it('matches the exact proportion-difference CI', () => {
             const ci = getProportionDiff(40, 100, 30, 100, 0.05);
-            expect(ci.lower).toBeCloseTo(-0.031478, 4);
-            expect(ci.upper).toBeCloseTo(0.231478, 4);
+            expect(ci.lower).toBeCloseTo(-0.031478, 5);
+            expect(ci.upper).toBeCloseTo(0.231478, 5);
         });
 
         it('matches the exact paired mean-difference CI', () => {
             const ci = getPairedMeanDiff([12, 15, 18], [10, 13, 15], 0.05);
-            expect(ci.lower).toBeCloseTo(0.899116, 3);
-            expect(ci.upper).toBeCloseTo(3.767551, 3);
+            expect(ci.lower).toBeCloseTo(0.899116, 5);
+            expect(ci.upper).toBeCloseTo(3.767551, 5);
         });
     });
 });
