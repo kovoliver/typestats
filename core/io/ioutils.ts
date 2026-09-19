@@ -116,6 +116,8 @@ export function processJSONDataChunk(
         for (let j = 0; j < validLength; j++) {
             const rawVal = row[labels[j]];
             const parsedVal = parseValue(rawVal, colInfos[j].type);
+ 
+            tempValues[j] = parsedVal;
 
             if (isEmpty(parsedVal)) {
                 hasMissing = true;
@@ -123,8 +125,6 @@ export function processJSONDataChunk(
                 if (invalidLine === 'drop' || invalidLine === 'throw') {
                     break;
                 }
-            } else {
-                tempValues[j] = parsedVal;
             }
         }
 

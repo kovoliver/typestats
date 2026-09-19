@@ -44,10 +44,6 @@ export default class Table {
         return this._values.map(col => [...col]);
     }
 
-    public get processedValues(): any[][] {
-        return this._values.map(col => [...col]);
-    }
-
     public get table(): AnyColumn[] {
         return this._colInfos.map((_, index) => this.getCol(index));
     }

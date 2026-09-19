@@ -112,7 +112,7 @@ describe('DateColumn Class', () => {
             const sortedAsc = col.orderAsc();
             expect(sortedAsc.getElementByIndex(0)?.toISOString()).toBe('2023-01-15T10:30:45.500Z');
             expect(sortedAsc.getElementByIndex(2)?.toISOString()).toBe('2024-02-29T00:00:00.000Z');
-            expect(sortedAsc.getElementByIndex(3)).toBeNull(); // Nulls pushed to back
+            expect(sortedAsc.getElementByIndex(3)).toBeNull();
         });
 
         it('should find min, max, and range correctly', () => {

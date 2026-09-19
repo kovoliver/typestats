@@ -37,7 +37,9 @@ export default class DateColumn extends Column<number | Date> {
     ] as const;
 
     public get values(): (Date | null)[] {
-        return this._values.map(ts => (Number.isNaN(ts) ? null : new Date(ts!)));
+        return this._values.map(ts =>
+            (ts === null || ts === undefined || Number.isNaN(ts) ? null : new Date(ts))
+        );
     }
 
     protected prepareData(rawValues: unknown[]): (number | null)[] {
@@ -60,7 +62,8 @@ export default class DateColumn extends Column<number | Date> {
         }
 
         const timestamp = this._values[index];
-        return !Number.isNaN(timestamp) ? new Date(timestamp!) : null;
+        return !Number.isNaN(timestamp) && timestamp !== null
+            ? new Date(timestamp!) : null;
     }
 
     /**
@@ -395,18 +398,15 @@ export default class DateColumn extends Column<number | Date> {
 
     private order(mode: 'asc' | 'desc'): DateColumn {
         const dates = [...this._values].sort((a, b) => {
-            const aNaN = Number.isNaN(a);
-            const bNaN = Number.isNaN(b);
-
-            if (aNaN && bNaN) return 0;
-            if (aNaN) return 1;
-            if (bNaN) return -1;
+            if (a === null && b === null) return 0;
+            if (a === null) return 1;
+            if (b === null) return -1;
 
             const diff = (a as number) - (b as number);
             return mode === 'asc' ? diff : -diff;
         });
 
-        return new DateColumn(dates, this._label);
+        return new DateColumn(dates, this._label, true);
     }
 
     /**
@@ -432,19 +432,20 @@ export default class DateColumn extends Column<number | Date> {
      * @returns The earliest Date instance or null if no valid dates exist.
      */
     public min(): Date | null {
-        let minDate: Date | null = null;
+        let minTs: number | null = null;
+        const len: number = this._values.length;
 
-        for (const timestamp of this._values) {
-            if (Number.isNaN(timestamp)) continue;
+        for (let i = 0; i < len; i++) {
+            const ts: number | null = this._values[i] as (number | null);
 
-            const d = new Date(timestamp!);
+            if (ts === null || ts === undefined || Number.isNaN(ts)) continue;
 
-            if (minDate === null || d < minDate) {
-                minDate = d;
+            if (minTs === null || ts < minTs) {
+                minTs = ts;
             }
         }
 
-        return minDate;
+        return minTs === null ? null : new Date(minTs);
     }
 
     /**
@@ -452,19 +453,20 @@ export default class DateColumn extends Column<number | Date> {
      * @returns The latest Date instance or null if no valid dates exist.
      */
     public max(): Date | null {
-        let minDate: Date | null = null;
+        let minTs: number | null = null;
+        const len: number = this._values.length;
 
-        for (const timestamp of this._values) {
-            if (Number.isNaN(timestamp)) continue;
+        for (let i = 0; i < len; i++) {
+            const ts: number | null = this._values[i] as (number | null);
 
-            const d = new Date(timestamp!);
+            if (ts === null || ts === undefined || Number.isNaN(ts)) continue;
 
-            if (minDate === null || d > minDate) {
-                minDate = d;
+            if (minTs === null || ts > minTs) {
+                minTs = ts;
             }
         }
 
-        return minDate;
+        return minTs === null ? null : new Date(minTs);
     }
 
     /**
@@ -472,23 +474,23 @@ export default class DateColumn extends Column<number | Date> {
      * @returns Object containing 'min' and 'max' Date properties or null values.
      */
     public range(): { min: Date | null; max: Date | null } {
-        let minDate: Date | null = null;
-        let maxDate: Date | null = null;
+        let minTs: number | null = null;
+        let maxTs: number | null = null;
+        const len: number = this._values.length;
 
-        for (const timestamp of this._values) {
-            if (Number.isNaN(timestamp)) continue;
+        for (let i = 0; i < len; i++) {
+            const ts: number | null = this._values[i] as (number|null);
 
-            const d = new Date(timestamp!);
+            if (ts === null || ts === undefined || Number.isNaN(ts)) continue;
 
-            if (minDate === null || d < minDate) {
-                minDate = d;
-            }
-            if (maxDate === null || d > maxDate) {
-                maxDate = d;
-            }
+            if (minTs === null || ts < minTs) minTs = ts;
+            if (maxTs === null || ts > maxTs) maxTs = ts;
         }
 
-        return { min: minDate, max: maxDate };
+        return {
+            min: minTs === null ? null : new Date(minTs),
+            max: maxTs === null ? null : new Date(maxTs)
+        };
     }
 
     /**

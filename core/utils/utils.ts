@@ -655,7 +655,7 @@ export function toUTCTimestamp(val: unknown): number | null {
     }
 
     if (typeof val === 'number') {
-        return !Number.isFinite(val) ? val : null;
+        return Number.isFinite(val) ? val : null;
     }
 
     if (typeof val === 'string') {
