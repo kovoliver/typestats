@@ -1,9 +1,14 @@
-import { Boundaries, ColInfo, ColumnInfo, ImputeType, PercentMode }
+import { Boundaries, ColInfo, ColumnInfo, ColumnLabel, ImputeType, PercentMode }
     from '../types/types.js';
 import {
     displayDateString,
     hasEmptyValues, getColType,
     isEmpty, isNanNullUndefined,
+    isValidNumber,
+    isValidString,
+    isValidBool,
+    isValidTimestamp,
+    toUnixTimestampArray,
 }
     from '../utils/utils.js';
 import NumberColumn from './NumberColumn.js';
@@ -75,7 +80,7 @@ export default class Table {
                     processedValues[i] = toBoolArray(rawCol);
                     break;
                 case 'date':
-                    processedValues[i] = toDateArray(rawCol);
+                    processedValues[i] = toUnixTimestampArray(rawCol);
                     break;
                 case 'string':
                 default:
@@ -215,7 +220,8 @@ export default class Table {
                 else if (rawVal === null) displayVal = '<null>';
                 else if (typeof rawVal === 'number' && Number.isNaN(rawVal)) displayVal = '<NaN>';
                 else if (info.type === 'date') {
-                    displayVal = displayDateString((rawVal as Date)) ?? '<null>';
+                    const dateObj = rawVal instanceof Date ? rawVal : new Date(rawVal as number);
+                    displayVal = displayDateString(dateObj) ?? '<null>';
                 } else {
                     displayVal = rawVal;
                 }
@@ -540,10 +546,64 @@ export default class Table {
         return new Table(newValues, newInfos, true);
     }
 
-    public dropNa(label: string | number): Table {
-        const col = this.getCol(label);
-        const validIndices = col.getValidIndices();
-        return this.newTableByIndices(validIndices);
+    public dropNa(
+        labels: ColumnLabel | ColumnLabel[],
+        how: 'any' | 'all' = 'any'
+    ): Table {
+        const isArray = Array.isArray(labels);
+
+        if (isEmpty(labels) || (isArray && labels.length === 0)) {
+            throw new Error("You must provide at least one label!");
+        }
+
+        const labelList = isArray ? labels : [labels];
+        const rowCount = this.rowCount;
+        const validIndices = new Int32Array(rowCount);
+
+        const targetIndices = labelList.map(label => this.getIndex(label));
+
+        const validators = targetIndices.map(colIdx => {
+            const type = this._colInfos[colIdx].type;
+            
+            switch (type) {
+                case "number": return isValidNumber;
+                case "string": return isValidString;
+                case "bool": return isValidBool;
+                case "date": return isValidTimestamp;
+                default: return isValidString;
+            }
+        });
+
+        const numCols = targetIndices.length;
+        let count = 0;
+
+        for (let row = 0; row < rowCount; row++) {
+            let isValidRow = how === 'any';
+
+            for (let c = 0; c < numCols; c++) {
+                const colIdx = targetIndices[c];
+                const rowValue = this._values[colIdx][row];
+                const cellValid = validators[c](rowValue);
+
+                if (how === 'any') {
+                    if (!cellValid) {
+                        isValidRow = false;
+                        break;
+                    }
+                } else {
+                    if (cellValid) {
+                        isValidRow = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isValidRow) {
+                validIndices[count++] = row;
+            }
+        }
+
+        return this.newTableByIndices(validIndices.subarray(0, count));
     }
 
     public dropOutliers(label: string | number, boundaries: Boundaries): Table {

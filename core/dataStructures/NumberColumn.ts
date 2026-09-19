@@ -1,5 +1,5 @@
 import Column from "./Column.js";
-import { getMax, getMin, isEmpty, toNumberArray } from '../utils/utils.js';
+import { getMax, getMin, isEmpty, isValidNumber, toNumberArray } from '../utils/utils.js';
 import { mean, variance, ssd, range, skewness, excessKurtosis, percentile, q1, median, q3, iqr, std }
     from '../statistics/univariate.js';
 import { standardizeValues, normalizeValues, replaceOutliers, replaceEmptyValues, isInvalidValue }
@@ -64,8 +64,8 @@ export default class NumberColumn extends Column<number> {
         this.regression = null;
     }
 
-    protected isValid(val: number | null): boolean {
-        return typeof val === 'number' && Number.isFinite(val);
+    public isValid(val: number | null): boolean {
+        return isValidNumber(val);
     }
 
     /**

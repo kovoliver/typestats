@@ -174,3 +174,5 @@ export type DBWorkerData = {
     chunk: Record<string, any>[];
     labels: string[];
 }
+
+export type ColumnLabel = string | number;

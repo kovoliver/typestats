@@ -1,6 +1,6 @@
 import { TimeUnit } from "../types/types.js";
 import { isInteger } from "../utils/numberUtils.js";
-import { displayDateString, isEmpty, toUnixTimestampArray } from "../utils/utils.js";
+import { displayDateString, isValidTimestamp, toUnixTimestampArray } from "../utils/utils.js";
 import Column from "./Column.js";
 /**
  * Represents a column of Date values optimized for statistical analysis and data transformation.
@@ -40,14 +40,12 @@ export default class DateColumn extends Column<number | Date> {
         return this._values.map(ts => (Number.isNaN(ts) ? null : new Date(ts!)));
     }
 
-    protected prepareData(rawValues: unknown[]): number[] {
+    protected prepareData(rawValues: unknown[]): (number | null)[] {
         return toUnixTimestampArray(rawValues);
     }
 
-    protected isValid(value: number): boolean {
-        if (isEmpty(value)) return false;
-        const d = new Date(value);
-        return !Number.isNaN(d.getTime());
+    public isValid(value: number): boolean {
+        return isValidTimestamp(value);
     }
 
     /**

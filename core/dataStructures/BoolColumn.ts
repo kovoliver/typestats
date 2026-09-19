@@ -3,7 +3,7 @@ import NumberColumn from "./NumberColumn.js";
 import { toBoolArray } from "../utils/utils.js";
 
 export default class BoolColumn extends Column<boolean> {
-    protected isValid(val: boolean | null): boolean {
+    public isValid(val: boolean | null): boolean {
         return typeof val === 'boolean';
     }
 

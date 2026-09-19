@@ -8,7 +8,11 @@ describe('Table - Data Cleaning & Imputation', () => {
         const data = [
             [1, null, 3, NaN],
             ['a', 'b', 'c', 'd'],
-            [new Date('2023-01-01'), null, new Date('2023-01-03'), new Date('2023-01-04')]
+            [
+                new Date('2023-01-01'), null, 
+                new Date('2023-01-03'), 
+                new Date('2023-01-04')
+            ]
         ];
         const infos: ColInfo[] = [
             { label: 'num', type: 'number' },
@@ -22,6 +26,7 @@ describe('Table - Data Cleaning & Imputation', () => {
         expect(cleanedNum.getCol('num').values).toEqual([1, 3]);
 
         const cleanedDate = table.dropNa('date');
+        
         expect(cleanedDate.rowCount).toBe(3);
         expect(cleanedDate.getCol('date')).toBeInstanceOf(DateColumn);
         expect(cleanedDate.getCol('date').values).toEqual([

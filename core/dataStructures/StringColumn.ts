@@ -1,11 +1,11 @@
 import Column from "./Column.js";
 import NumberColumn from "./NumberColumn.js";
 import { labelEncoding, oneHotEncode } from "../dataPreparation/dataPreparation.js";
-import { toStringArray } from "../utils/utils.js";
+import { isValidString, toStringArray } from "../utils/utils.js";
 
 export default class StringColumn extends Column<string> {
-    protected isValid(val: string | null): boolean {
-        return typeof val === 'string' && val.trim() !== '';
+    public isValid(val: string | null): boolean {
+        return isValidString(val);
     }
 
     /**

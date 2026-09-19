@@ -16,7 +16,7 @@ export default abstract class Column<T extends number | boolean | string | Date>
 
     protected abstract prepareData(rawValues: unknown[]): (T | null)[];
 
-    protected abstract isValid(value: T | null): boolean;
+    public abstract isValid(value: T | null): boolean;
 
     /**
      * Returns an array containing exclusively valid, non-missing values.
@@ -49,6 +49,25 @@ export default abstract class Column<T extends number | boolean | string | Date>
 
         for (let i = 0; i < len; i++) {
             if (this.isValid(this._values[i])) {
+                validIndices[count++] = i;
+            }
+        }
+
+        return validIndices.subarray(0, count);
+    }
+
+    public getInvalidIndices(): Int32Array {
+        const len = this._values.length;
+
+        if (len === 0) {
+            return new Int32Array(0);
+        }
+
+        const validIndices = new Int32Array(len);
+        let count = 0;
+
+        for (let i = 0; i < len; i++) {
+            if (!this.isValid(this._values[i])) {
                 validIndices[count++] = i;
             }
         }

@@ -392,30 +392,32 @@ export function toDateArray(values: unknown[]): (Date | null)[] {
     return result;
 }
 
-export function toUnixTimestampArray(values: unknown[]): number[] {
+export function toUnixTimestampArray(values: unknown[]): (number | null)[] {
     const len = values.length;
-    const result: number[] = [];
+    const result: (number | null)[] = new Array(len);
 
     for (let i = 0; i < len; i++) {
         const val = values[i];
 
         if (val === null || val === undefined || val === '') {
-            result.push(NaN);
+            result[i] = null;
             continue;
         }
 
         if (val instanceof Date) {
-            result.push(val.getTime());
+            const time = val.getTime();
+            result[i] = Number.isNaN(time) ? null : time;
             continue;
         }
 
         if (typeof val === 'string' || typeof val === 'number') {
             const d = new Date(val);
-            result.push(d.getTime());
+            const time = d.getTime();
+            result[i] = Number.isNaN(time) ? null : time;
             continue;
         }
 
-        result.push(NaN);
+        result[i] = null;
     }
 
     return result;
@@ -608,6 +610,12 @@ export function parseString(val: unknown): string | null {
     return String(val);
 }
 
+export function shiftToUTCTimestamp(d: Date): number {
+    const time = d.getTime();
+    const utcTime = time - (d.getTimezoneOffset() * 60_000);
+    return utcTime;
+}
+
 export function parseDate(val: unknown): Date | null {
     if (val === null || val === undefined || val === '') return null;
 
@@ -638,12 +646,35 @@ export function parseDate(val: unknown): Date | null {
     return null;
 }
 
+export function toUTCTimestamp(val: unknown): number | null {
+    if (isEmpty(val)) return null;
+
+    if (val instanceof Date) {
+        const time = val.getTime();
+        return !Number.isNaN(time) ? time : null;
+    }
+
+    if (typeof val === 'number') {
+        return !Number.isFinite(val) ? val : null;
+    }
+
+    if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed === '') return null;
+
+        const timestamp = Date.parse(trimmed);
+        return !Number.isNaN(timestamp) ? timestamp : null;
+    }
+
+    return null;
+}
+
 export function parseValue(val: unknown, type: ColType | undefined): any {
     if (type === undefined) return val;
     switch (type) {
         case 'number': return parseNumber(val);
         case 'bool': return parseBool(val);
-        case 'date': return parseDate(val);
+        case 'date': return toUTCTimestamp(val);
         default: return parseString(val);
     }
 }
@@ -654,4 +685,22 @@ export function getColType(col: any[]): ColType {
     if (firstNTypeCheck(col, 10, isDate)) return 'date';
 
     return 'string';
+}
+
+export function isValidNumber(val: unknown): boolean {
+    return typeof val === 'number' && Number.isFinite(val);
+}
+
+export function isValidString(val: unknown): boolean {
+    return typeof val === 'string' && val.trim() !== '';
+}
+
+export function isValidTimestamp(value: unknown): boolean {
+    if (typeof value !== 'number') return false;
+    const d = new Date(value);
+    return !Number.isNaN(d.getTime());
+}
+
+export function isValidBool(val: unknown): boolean {
+    return typeof val === 'boolean';
 }
