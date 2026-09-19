@@ -647,23 +647,36 @@ export function parseDate(val: unknown): Date | null {
 }
 
 export function toUTCTimestamp(val: unknown): number | null {
-    if (isEmpty(val)) return null;
+    if (val === null || val === undefined || val === '') return null;
 
     if (val instanceof Date) {
         const time = val.getTime();
-        return !Number.isNaN(time) ? time : null;
+        return isNaN(time) ? null : time;
     }
 
     if (typeof val === 'number') {
-        return Number.isFinite(val) ? val : null;
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : val;
     }
 
     if (typeof val === 'string') {
         const trimmed = val.trim();
         if (trimmed === '') return null;
 
-        const timestamp = Date.parse(trimmed);
-        return !Number.isNaN(timestamp) ? timestamp : null;
+        const d = new Date(trimmed);
+        const time = d.getTime();
+
+        if (isNaN(time)) return null;
+
+        const isIsoFormat = trimmed.length >= 10 &&
+            trimmed.charCodeAt(4) === 45 &&
+            trimmed.charCodeAt(7) === 45;
+
+        if (isIsoFormat) {
+            return time;
+        }
+
+        return time - (d.getTimezoneOffset() * 60_000);
     }
 
     return null;
