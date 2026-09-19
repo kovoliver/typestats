@@ -1,8 +1,8 @@
 import { RegressionType } from "../types/types.js";
-import { covariance } from "../statistics/bivariate.js";
-import { mean, variance } from "../statistics/univariate.js";
+import { mean } from "../statistics/univariate.js";
 import { Cache } from "../abstractions/abstractClasses.js";
-import { neumaierSumDotProduct, neumaierSumPow } from "../utils/numberUtils.js";
+import { neumaierSumPow } from "../utils/numberUtils.js";
+import { varianceAndCovariance, neumaierDotProductAndSumPow2 } from "../utils/numberUtils.js";
 
 /**
  * Represents a statistical tool for calculating linear, exponential, and power regression models.
@@ -11,8 +11,8 @@ import { neumaierSumDotProduct, neumaierSumPow } from "../utils/numberUtils.js";
 export default class Regression extends Cache {
     private _x: number[];
     private _y: number[];
-    private _lnY: number[];
-    private _lnX: number[];
+    private _lnY: number[] | null = null;
+    private _lnX: number[] | null = null;
     private _xMean: number;
     private _yMean: number;
     private _lnxMean: number | null = null;
@@ -20,24 +20,18 @@ export default class Regression extends Cache {
     private _xHasNonPositive: boolean = false;
     private _yHasNonPositive: boolean = false;
 
-    /**
-     * Initializes the regression model with independent and dependent variable datasets.
-     * 
-     * @param {number[]} x - An array of values for the independent variable.
-     * @param {number[]} y - An array of values for the dependent variable.
-     * @throws {Error} If fewer than two values are provided for either array.
-     * @throws {Error} If the lengths of the `x` and `y` arrays do not match.
-     */
     constructor(x: number[], y: number[]) {
         super();
 
-        if (x.length < 2 || y.length < 2) {
+        const len = x.length;
+
+        if (len < 2 || y.length < 2) {
             throw new Error(
                 'You must provide at least two dependent and independent variable values!'
             );
         }
 
-        if (x.length !== y.length) {
+        if (len !== y.length) {
             throw new Error(
                 'You must add the same number of independent and dependent values!'
             );
@@ -45,40 +39,52 @@ export default class Regression extends Cache {
 
         this._x = x;
         this._y = y;
-        this._lnY = [];
-        this._lnX = [];
-        this._xHasNonPositive = x.some((val) => val <= 0);
-        this._yHasNonPositive = y.some((val) => val <= 0);
 
-        if (!this._xHasNonPositive) {
-            this._lnX = x.map((val) => Math.log(val));
-            this._lnxMean = mean(this._lnX);
-        }
-
-        if (!this._yHasNonPositive) {
-            this._lnY = y.map((val) => Math.log(val));
-            this._lnyMean = mean(this._lnY);
+        for (let i = 0; i < len; i++) {
+            if (!this._xHasNonPositive && x[i] <= 0) this._xHasNonPositive = true;
+            if (!this._yHasNonPositive && y[i] <= 0) this._yHasNonPositive = true;
+            if (this._xHasNonPositive && this._yHasNonPositive) break;
         }
 
         this._xMean = mean(this._x);
         this._yMean = mean(this._y);
     }
 
-    /**
-     * Calculates the core regression coefficients (b0 and b1) using the least squares method.
-     * 
-     * @param {number[]} x - The input array for the independent variable (can be transformed to ln(x)).
-     * @param {number[]} y - The input array for the dependent variable (can be transformed to ln(y)).
-     * @param {RegressionType} type - The type of regression being calculated ('LINEAR', 'EXPONENTIAL', or 'POWER').
-     * @returns {{ b0: number, b1: number }} An object containing the calculated intercept (b0) and slope (b1).
-     * @throws {Error} If the variance of the independent variable is zero.
-     */
+    private getLnX(): { arr: number[]; mean: number } {
+        if (!this._lnX) {
+            const len = this._x.length;
+            const lnX = new Array<number>(len);
+            for (let i = 0; i < len; i++) {
+                lnX[i] = Math.log(this._x[i]);
+            }
+            this._lnX = lnX;
+            this._lnxMean = mean(lnX);
+        }
+        return { arr: this._lnX, mean: this._lnxMean! };
+    }
+
+    private getLnY(): { arr: number[]; mean: number } {
+        if (!this._lnY) {
+            const len = this._y.length;
+            const lnY = new Array<number>(len);
+            for (let i = 0; i < len; i++) {
+                lnY[i] = Math.log(this._y[i]);
+            }
+            this._lnY = lnY;
+            this._lnyMean = mean(lnY);
+        }
+        return { arr: this._lnY, mean: this._lnyMean! };
+    }
+
     private calculate(
         x: number[],
         y: number[],
         type: RegressionType
-    ): { b0: number, b1: number } {
-        const xVar = variance(x);
+    ): { b0: number; b1: number } {
+        const xMean = type === 'power' ? this.getLnX().mean : this._xMean;
+        const yMean = type === 'linear' ? this._yMean : this.getLnY().mean;
+
+        const { xVar, cov } = varianceAndCovariance(x, y, xMean, yMean);
 
         if (xVar === 0) {
             throw new Error(
@@ -86,25 +92,22 @@ export default class Regression extends Cache {
             );
         }
 
-        const b1 = covariance(x, y) / xVar;
+        const b1 = cov / xVar;
+        const b0 = yMean - b1 * xMean;
 
-        const xMean = type === 'power' ? this._lnxMean : this._xMean;
-        const yMean = type === 'linear' ? this._yMean : this._lnyMean;
-
-        const b0 = yMean! - b1 * xMean!;
-
-        return {
-            b0, b1
-        };
+        return { b0, b1 };
     }
 
-    private calculateNoIntercept(
-        x: number[],
-        y: number[]
-    ) {
-        const xySum = neumaierSumDotProduct(x, y);
-        const xSum = neumaierSumPow(x, 2);
-        return xySum / xSum;
+    private calculateNoIntercept(x: number[], y: number[]): number {
+        const { xySum, x2Sum } = neumaierDotProductAndSumPow2(x, y);
+
+        if (x2Sum === 0) {
+            throw new Error(
+                'Regression could not be calculated because the independent variable has zero sum of squares!'
+            );
+        }
+
+        return xySum / x2Sum;
     }
 
     public linearNoIntercept(): number {
@@ -121,7 +124,7 @@ export default class Regression extends Cache {
         }
 
         return this.getCached('exponential_no_intercept', () => {
-            return Math.exp(this.calculateNoIntercept(this._x, this._lnY));
+            return Math.exp(this.calculateNoIntercept(this._x, this.getLnY().arr));
         });
     }
 
@@ -133,30 +136,17 @@ export default class Regression extends Cache {
         }
 
         return this.getCached('power_no_intercept', () => {
-            return this.calculateNoIntercept(this._lnX, this._lnY);
+            return this.calculateNoIntercept(this.getLnX().arr, this.getLnY().arr);
         });
     }
 
-    /**
-     * Calculates the linear regression parameters for the equation: y = b0 + b1 * x.
-     * The result is cached after the first calculation.
-     * 
-     * @returns {{ b0: number, b1: number }} An object containing the y-intercept (b0) and the slope (b1).
-     */
-    public linear(): { b0: number, b1: number } {
+    public linear(): { b0: number; b1: number } {
         return this.getCached('linear', () => {
             return this.calculate(this._x, this._y, 'linear');
         });
     }
 
-    /**
-     * Calculates the exponential regression parameters for the equation: y = b0 * (b1 ^ x).
-     * The result is cached after the first calculation.
-     * 
-     * @returns {{ b0: number, b1: number }} An object containing the scale factor (b0) and the growth/decay base (b1).
-     * @throws {Error} If the dependent variable (y) contains non-positive values, as logarithms cannot be calculated.
-     */
-    public exponential(): { b0: number, b1: number } {
+    public exponential(): { b0: number; b1: number } {
         if (this._yHasNonPositive) {
             throw new Error(
                 'Exponential regression could not be calculated because of non-positive values in the dependent variable!'
@@ -164,7 +154,7 @@ export default class Regression extends Cache {
         }
 
         return this.getCached('exponential', () => {
-            const funcObj = this.calculate(this._x, this._lnY, 'exponential');
+            const funcObj = this.calculate(this._x, this.getLnY().arr, 'exponential');
             return {
                 b0: Math.exp(funcObj.b0),
                 b1: Math.exp(funcObj.b1)
@@ -172,14 +162,7 @@ export default class Regression extends Cache {
         });
     }
 
-    /**
-     * Calculates the power regression parameters for the equation: y = b0 * (x ^ b1).
-     * The result is cached after the first calculation.
-     * 
-     * @returns {{ b0: number, b1: number }} An object containing the proportionality constant (b0) and the exponent (b1).
-     * @throws {Error} If either the independent (x) or dependent (y) variable contains non-positive values.
-     */
-    public power(): { b0: number, b1: number } {
+    public power(): { b0: number; b1: number } {
         if (this._xHasNonPositive || this._yHasNonPositive) {
             throw new Error(
                 'Power regression could not be calculated because of non-positive values in either the independent or dependent variable!'
@@ -187,7 +170,7 @@ export default class Regression extends Cache {
         }
 
         return this.getCached('power', () => {
-            const funcObj = this.calculate(this._lnX, this._lnY, 'power');
+            const funcObj = this.calculate(this.getLnX().arr, this.getLnY().arr, 'power');
             return {
                 b0: Math.exp(funcObj.b0),
                 b1: funcObj.b1
@@ -200,11 +183,11 @@ export default class Regression extends Cache {
     }
 
     public exponentialFunc(b0: number, b1: number, x: number): number {
-        return b0 * b1 ** x;
+        return b0 * Math.pow(b1, x);
     }
 
     public powerFunc(b0: number, b1: number, x: number): number {
-        return b0 * x ** b1;
+        return b0 * Math.pow(x, b1);
     }
 
     public RSD(regression: 'linear' | 'exponential' | 'power'): number {
@@ -222,41 +205,41 @@ export default class Regression extends Cache {
                 () => { throw new Error('Unreachable code'); }
             );
 
-            const residuals = this._y.map((y, i) => {
-                const x = this._x[i];
-                let yHat = 0;
+            const len = this._y.length;
+            const x = this._x;
+            const y = this._y;
+            const residuals = new Array<number>(len);
 
-                switch (regression) {
-                    case 'linear':
-                        yHat = this.linearFunc(b0, b1, x);
-                        break;
-                    case 'power':
-                        yHat = this.powerFunc(b0, b1, x);
-                        break;
-                    case 'exponential':
-                        yHat = this.exponentialFunc(b0, b1, x);
-                        break;
+            if (regression === 'linear') {
+                for (let i = 0; i < len; i++) {
+                    residuals[i] = y[i] - (b0 + x[i] * b1);
                 }
-
-                return y - yHat;
-            });
+            } else if (regression === 'exponential') {
+                for (let i = 0; i < len; i++) {
+                    residuals[i] = y[i] - (b0 * Math.pow(b1, x[i]));
+                }
+            } else if (regression === 'power') {
+                for (let i = 0; i < len; i++) {
+                    residuals[i] = y[i] - (b0 * Math.pow(x[i], b1));
+                }
+            }
 
             const sse = neumaierSumPow(residuals, 2);
-            const df = this._y.length - 2;
+            const df = len - 2;
 
             return Math.sqrt(sse / df);
         });
     }
 
-    public RSDLinear() {
+    public RSDLinear(): number {
         return this.RSD('linear');
     }
 
-    public RSDExponential() {
+    public RSDExponential(): number {
         return this.RSD('exponential');
     }
 
-    public RSDPower() {
+    public RSDPower(): number {
         return this.RSD('power');
     }
 
@@ -277,41 +260,41 @@ export default class Regression extends Cache {
                 () => { throw new Error('Unreachable code'); }
             );
 
-            const residuals = this._y.map((y, i) => {
-                const x = this._x[i];
-                let yHat = 0;
+            const len = this._y.length;
+            const x = this._x;
+            const y = this._y;
+            const residuals = new Array<number>(len);
 
-                switch (regression) {
-                    case 'linear_no_intercept':
-                        yHat = this.linearFunc(0, slope, x);
-                        break;
-                    case 'exponential_no_intercept':
-                        yHat = this.exponentialFunc(1, slope, x);
-                        break;
-                    case 'power_no_intercept':
-                        yHat = this.powerFunc(1, slope, x);
-                        break;
+            if (regression === 'linear_no_intercept') {
+                for (let i = 0; i < len; i++) {
+                    residuals[i] = y[i] - (x[i] * slope);
                 }
-
-                return y - yHat;
-            });
+            } else if (regression === 'exponential_no_intercept') {
+                for (let i = 0; i < len; i++) {
+                    residuals[i] = y[i] - Math.pow(slope, x[i]);
+                }
+            } else if (regression === 'power_no_intercept') {
+                for (let i = 0; i < len; i++) {
+                    residuals[i] = y[i] - Math.pow(x[i], slope);
+                }
+            }
 
             const sse = neumaierSumPow(residuals, 2);
-            const df = this._y.length - 1;
+            const df = len - 1;
 
             return Math.sqrt(sse / df);
         });
     }
 
-    public RSDLinearNoIntercept() {
+    public RSDLinearNoIntercept(): number {
         return this.RSDNoIntercept('linear_no_intercept');
     }
 
-    public RSDExponentialNoIntercept() {
+    public RSDExponentialNoIntercept(): number {
         return this.RSDNoIntercept('exponential_no_intercept');
     }
 
-    public RSDPowerNoIntercept() {
+    public RSDPowerNoIntercept(): number {
         return this.RSDNoIntercept('power_no_intercept');
     }
 }

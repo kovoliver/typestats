@@ -216,3 +216,88 @@ export function neumaierSumPow(x: number[], pow: number): number {
 
     return sum + c;
 }
+
+
+export function varianceAndCovariance(
+    x: number[], y: number[], xMean: number, yMean: number): { xVar: number; cov: number } {
+    const len = x.length;
+    let varSum = 0;
+    let varC = 0;
+    let covSum = 0;
+    let covC = 0;
+
+    for (let i = 0; i < len; i++) {
+        const xDiff = x[i] - xMean;
+        const yDiff = y[i] - yMean;
+
+        const vVal = xDiff * xDiff;
+        const vT = varSum + vVal;
+
+        if (Math.abs(varSum) >= Math.abs(vVal)) {
+            varC += (varSum - vT) + vVal;
+        } else {
+            varC += (vVal - vT) + varSum;
+        }
+
+        varSum = vT;
+
+        const cVal = xDiff * yDiff;
+        const cT = covSum + cVal;
+
+        if (Math.abs(covSum) >= Math.abs(cVal)) {
+            covC += (covSum - cT) + cVal;
+        } else {
+            covC += (cVal - cT) + covSum;
+        }
+
+        covSum = cT;
+    }
+
+    varSum += varC;
+    covSum += covC;
+
+    const df = len - 1;
+
+    return {
+        xVar: varSum / df,
+        cov: covSum / df
+    };
+}
+
+export function neumaierDotProductAndSumPow2(x: number[], y: number[]): { xySum: number; x2Sum: number } {
+    const len = x.length;
+    let xySum = 0;
+    let xyC = 0;
+    let x2Sum = 0;
+    let x2C = 0;
+
+    for (let i = 0; i < len; i++) {
+        const xi = x[i];
+        const yi = y[i];
+
+        const xyVal = xi * yi;
+        const xyT = xySum + xyVal;
+
+        if (Math.abs(xySum) >= Math.abs(xyVal)) {
+            xyC += (xySum - xyT) + xyVal;
+        } else {
+            xyC += (xyVal - xyT) + xySum;
+        }
+        xySum = xyT;
+
+        const x2Val = xi * xi;
+        const x2T = x2Sum + x2Val;
+
+        if (Math.abs(x2Sum) >= Math.abs(x2Val)) {
+            x2C += (x2Sum - x2T) + x2Val;
+        } else {
+            x2C += (x2Val - x2T) + x2Sum;
+        }
+        x2Sum = x2T;
+    }
+
+    xySum += xyC;
+    x2Sum += x2C;
+
+    return { xySum, x2Sum };
+}
