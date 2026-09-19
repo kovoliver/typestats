@@ -9,8 +9,8 @@ describe('Trend Class - Strict Numerical Benchmarks', () => {
             const trend = new Trend(noisyData);
             const { a, b } = trend.linear();
 
-            expect(a).toBeCloseTo(13.779000, 4);
-            expect(b).toBeCloseTo(10.696000, 4);
+            expect(a).toBeCloseTo(10.696000, 4);
+            expect(b).toBeCloseTo(13.779000, 4);
             expect(trend.MSELinear()).toBeCloseTo(8.234502, 4);
         });
     });
@@ -42,8 +42,9 @@ describe('Trend Class - Strict Numerical Benchmarks', () => {
         it('calculates exact logarithmic parameters and MSE for fractional dataset', () => {
             const trend = new Trend(noisyData);
             const { a, b } = trend.logarithmic();
-            expect(a).toBeCloseTo(32.577393, 4);
-            expect(b).toBeCloseTo(7.0612, 4);
+
+            expect(a).toBeCloseTo(7.061200, 4);
+            expect(b).toBeCloseTo(32.577393, 4);
             expect(trend.MSELogarithmic()).toBeCloseTo(45.056840, 4);
         });
     });

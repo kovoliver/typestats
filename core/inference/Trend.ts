@@ -1,8 +1,7 @@
 import type { TrendType } from "../types/types.js";
 import { Cache } from "../abstractions/abstractClasses.js";
 import Matrix from "../math/Matrix.js";
-import { neumaierSum, neumaierSumPow, neumaierSumDotProduct } 
-from "../utils/numberUtils.js";
+import { neumaierSum, neumaierSumPow, neumaierSumDotProduct } from "../utils/numberUtils.js";
 
 export default class Trend extends Cache {
     private _y: number[];
@@ -55,6 +54,10 @@ export default class Trend extends Cache {
         return this._n;
     }
 
+    /**
+     * Internal OLS helper to compute linear parameters.
+     * @returns {{ a: number, b: number }} Object where `a` is the y-intercept and `b` is the slope.
+     */
     private trend(xSum: number, ySum: number, xySum: number, xSquaresSum: number): { a: number, b: number } {
         const xSquareSumb1 = xSquaresSum * this.N;
         const xySumb1 = xySum * this.N;
@@ -65,17 +68,20 @@ export default class Trend extends Cache {
         const denominator = xSquareSumb1 - xSumb2;
         const numerator = xySumb1 - ySumb2;
 
-        const a = numerator / denominator;
-        const b = (ySum - (a * xSum)) / this.N;
+        const slope = numerator / denominator;
+        const intercept = (ySum - (slope * xSum)) / this.N;
 
-        return { a, b };
+        return {
+            a: intercept,
+            b: slope
+        };
     }
 
     /**
      * Calculates the linear trend model using Ordinary Least Squares (OLS).
-     * Model equation: ŷ = a * x + b
+     * Model equation: ŷ = a + b * x
      * 
-     * @returns An object containing slope (`a`) and y-intercept (`b`).
+     * @returns An object containing y-intercept (`a`) and slope (`b`).
      */
     public linear(): { a: number, b: number } {
         return this.getCached('linear', () => {
@@ -109,8 +115,8 @@ export default class Trend extends Cache {
             );
 
             return {
-                a: Math.exp(funcObj.b),
-                b: Math.exp(funcObj.a),
+                a: Math.exp(funcObj.a),
+                b: Math.exp(funcObj.b),
             };
         });
     }
@@ -169,9 +175,9 @@ export default class Trend extends Cache {
 
     /**
      * Calculates the logarithmic trend model using transformed OLS: z = ln(x + 1).
-     * Model equation: ŷ = a * ln(x + 1) + b
+     * Model equation: ŷ = a + b * ln(x + 1)
      * 
-     * @returns An object containing slope coefficient (`a`) and constant term (`b`).
+     * @returns An object containing constant term (`a`) and slope coefficient (`b`).
      * @throws {Error} If there is zero variance in x values or N < 2.
      */
     public logarithmic(): { a: number, b: number } {
@@ -192,15 +198,18 @@ export default class Trend extends Cache {
                 throw new Error('Cannot fit logarithmic trend: Zero variance in x values (all x values are identical or N < 2).');
             }
 
-            const a = numerator / denominator;
-            const b = yMean - a * zAvg;
+            const slope = numerator / denominator;
+            const intercept = yMean - slope * zAvg;
 
-            return { a, b };
+            return { 
+                a: intercept, 
+                b: slope 
+            };
         });
     }
 
     private getYHatLinear(a: number, b: number, x: number): number {
-        return a * x + b;
+        return a + b * x;
     }
 
     private getYHatExponential(a: number, b: number, x: number): number {
@@ -212,7 +221,7 @@ export default class Trend extends Cache {
     }
 
     private getYHatLogarithmic(a: number, b: number, x: number): number {
-        return a * Math.log(x + 1) + b;
+        return a + b * Math.log(x + 1);
     }
 
     /**
