@@ -70,10 +70,14 @@ export default class DataMatrix {
         return cramerV(this._values);
     }
 
-    public printTable() {
+    public printTable(limit: number = 10): void {
+        const totalRows = this.rows;
+        const safeLimit = Math.max(0, limit);
+        const displayRows = Math.min(totalRows, safeLimit);
+
         const printObj: Record<number, Record<string, number | string>> = {};
 
-        for (let i = 0; i < this.rows; i++) {
+        for (let i = 0; i < displayRows; i++) {
             printObj[i] = {};
 
             for (let j = 0; j < this.cols; j++) {
@@ -85,6 +89,10 @@ export default class DataMatrix {
         }
 
         console.table(printObj);
+
+        if (totalRows > displayRows) {
+            console.log(`... Showing ${displayRows} of ${totalRows} rows`);
+        }
     }
 
     public printContingencyTable() {
