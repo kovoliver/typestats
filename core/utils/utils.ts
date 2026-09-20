@@ -65,8 +65,16 @@ export function defaultValue<T>(value: T, defaultVal: T): T {
  * @param {number[] | number[][]} values - A 1D or 2D array of numeric values.
  * @returns {number[]} A flat array containing only non-empty, valid numbers.
  */
-export function getNonEmptyValues(values: any[] | any[][]): any[] {
-    return values.flat().filter((val) => !isEmpty(val));
+export function getNonEmptyValues(values: any[]): any[] {
+    const validValues: number[] = [];
+
+    for (let i = 0; i < values.length; i++) {
+        if (!isEmpty(values[i])) {
+            validValues.push(values[i]);
+        }
+    }
+
+    return validValues;
 }
 
 /**

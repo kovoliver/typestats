@@ -695,16 +695,24 @@ export default class Table {
     public replaceOutliers(
         label: string | number,
         type: ImputeType,
-        boundaries: Boundaries
+        boundaries: Boundaries,
+        targetColInstance?: NumberColumn,
+        preparedValues?: number[]
     ): Table {
-        const targetCol = this.getCol(label) as NumberColumn;
+        const targetCol = targetColInstance ?? this.getCol(label);
 
         if (!(targetCol instanceof NumberColumn)) {
             throw new Error('Statistical imputation (mean, median, mode) is only applicable to numeric columns!');
         }
 
         const targetIndex = this.getIndex(label);
-        const newCol = replaceOutliers(targetCol.values as number[], type, boundaries);
+
+        const newCol = replaceOutliers(
+            targetCol.values as number[],
+            type, boundaries,
+            preparedValues ?? targetCol.getValidValues()
+        );
+
         const newValues = this._values.slice();
         newValues[targetIndex] = newCol;
 
@@ -723,8 +731,15 @@ export default class Table {
             throw new Error('Statistical imputation (mean, median, mode) is only applicable to numeric columns!');
         }
 
-        const boundaries = getIqrBoundaries(targetCol.values as number[], multiplier, percentMode);
-        return this.replaceOutliers(label, type, boundaries);
+        const preparedValues = targetCol.getValidValues();
+
+        const boundaries = getIqrBoundaries(
+            targetCol.values as number[],
+            multiplier, percentMode,
+            preparedValues
+        );
+
+        return this.replaceOutliers(label, type, boundaries, targetCol, preparedValues);
     }
 
     public fillNa(label: string | number, value: number | string | boolean | Date): Table {

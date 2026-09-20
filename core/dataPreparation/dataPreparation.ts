@@ -15,15 +15,29 @@ function getSubstitute(
     type: ImputeType,
     boundaries?: Boundaries
 ) {
-    if (values.length === 0) {
+    let len = values.length;
+
+    if (len === 0) {
         throw new Error('Cannot calculate substitution value for empty or all-missing data!');
     }
 
     if (boundaries && (boundaries.min !== undefined || boundaries.max !== undefined)) {
-        values = values.filter(val => !isOutlier(val, boundaries.min, boundaries.max));
+        const min = boundaries.min ?? -Infinity;
+        const max = boundaries.max ?? Infinity;
+        const filtered: number[] = [];
+
+        for (let i = 0; i < len; i++) {
+            const val = values[i];
+
+            if (val >= min && val <= max) {
+                filtered.push(val);
+            }
+        }
+        values = filtered;
+        len = values.length;
     }
 
-    if (values.length === 0) {
+    if (len === 0) {
         throw new Error('The given boundaries cleared all the values from the array!');
     }
 
@@ -32,28 +46,29 @@ function getSubstitute(
             return mean(values);
         case 'median':
             return median(values);
-        case 'mode':
+        case 'mode': {
             const modes = mode(values);
 
-            if (modes.length === 0) {
+            if (!modes || modes.length === 0) {
                 throw new Error('Mode cannot be calculated based on the values provided.');
             }
 
             return modes[0];
+        }
         default:
             throw new Error("The specified imputation type isn't implemented!");
     }
 }
 
 export function getIqrBoundaries(
-    values: (number|null)[],
+    values: (number | null)[],
     multiplier: number = 1.5,
-    percentMode: PercentMode = 'interpolated'
+    percentMode: PercentMode = 'interpolated',
+    preparedValues?: number[]
 ): Boundaries {
-    const validValues = getNonEmptyValues(values);
-    const sortedValues = orderAsc([...validValues]);
-    const q1Val = q1(sortedValues, percentMode, undefined, true);
-    const q3Val = q3(sortedValues, percentMode, undefined, true);
+    const validValues = !preparedValues ? getNonEmptyValues(values) : preparedValues;
+    const q1Val = q1(validValues, percentMode);
+    const q3Val = q3(validValues, percentMode);
     const iqrVal = q3Val - q1Val;
 
     return {
@@ -141,7 +156,8 @@ export function decodeOneHot(matrix: number[][], categories: string[]): string[]
 export function replaceValues(
     values: number[],
     type: ImputeType,
-    boundaries?: Boundaries
+    boundaries?: Boundaries,
+    preparedValues?:number[]
 ): number[] {
     const len = values.length;
 
@@ -149,7 +165,7 @@ export function replaceValues(
         throw new Error('You must add at least one value!');
     }
 
-    const validValues = getNonEmptyValues(values);
+    const validValues = !preparedValues ? getNonEmptyValues(values) : preparedValues;
     const substitute = getSubstitute(validValues, type, boundaries);
     const result = new Array<number>(len);
 
@@ -159,7 +175,10 @@ export function replaceValues(
 
         for (let i = 0; i < len; i++) {
             const val = values[i];
-            if (Number.isFinite(val) && (val < min || val > max)) {
+
+            if (!Number.isFinite(val)) {
+                result[i] = val;
+            } else if (val < min || val > max) {
                 result[i] = substitute;
             } else {
                 result[i] = val;
@@ -189,13 +208,14 @@ export function replaceValues(
 export function replaceOutliers(
     values: number[],
     type: ImputeType,
-    boundaries: Boundaries
+    boundaries: Boundaries,
+    preparedValues?:number[]
 ): number[] {
     if (!boundaries || (boundaries.min === undefined && boundaries.max === undefined)) {
         throw new Error('You must provide at least a minimum or a maximum boundary to replace outliers!');
     }
 
-    return replaceValues(values, type, boundaries);
+    return replaceValues(values, type, boundaries, preparedValues);
 }
 
 /**
