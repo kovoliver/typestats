@@ -17,7 +17,7 @@ import StringColumn from './StringColumn.js';
 import GroupedTable from './GroupedTable.js';
 import DateColumn from './DateColumn.js';
 import { isDate } from '../utils/utils.js';
-import { toNumberArray, toBoolArray, toDateArray, toStringArray }
+import { toNumberArray, toBoolArray, toStringArray }
     from '../utils/utils.js';
 import { getIqrBoundaries, replaceEmptyValues, replaceOutliers }
     from '../dataPreparation/dataPreparation.js';
@@ -1244,15 +1244,22 @@ export default class Table {
         return new DataMatrix(matrixValues, colLabels);
     }
 
-    private locf(values: number[]): number[] {
-        let finalNonEmpty = values.find(val => isValidNumber(val)) as number | undefined;
+    private locf(
+        values: number[],
+        validator: (val: number) => boolean = (val) => isValidNumber(val)
+    ): number[] {
+        if (values.length === 0) {
+            throw new Error('The time series does not have values!');
+        }
+
+        let finalNonEmpty = values.find(val => validator(val));
 
         if (finalNonEmpty === undefined) {
-            throw new Error("The given dataset only has non-numeric or invalid values!");
+            throw new Error("The given dataset only has invalid values or outliers!");
         }
 
         for (let i = 0; i < values.length; i++) {
-            if (isValidNumber(values[i])) {
+            if (validator(values[i])) {
                 finalNonEmpty = values[i];
             } else {
                 values[i] = finalNonEmpty;
@@ -1262,18 +1269,25 @@ export default class Table {
         return values;
     }
 
-    private nocb(values: number[]) {
+    private nocb(
+        values: number[],
+        validator: (val: number) => boolean = (val) => isValidNumber(val)
+    ): number[] {
+        if (values.length === 0) {
+            throw new Error('The time series does not have values!');
+        }
+
         let countInvalid = 0;
-        let validValue = values.find(val => isValidNumber(val)) as number | undefined;
+        let validValue = values.find(val => validator(val));
 
         if (validValue === undefined) {
-            throw new Error("The given dataset only has non-numeric or invalid values!");
+            throw new Error("The given dataset only has invalid values or outliers!");
         }
 
         const length = values.length;
 
         for (let i = 0; i < length; i++) {
-            if (!isValidNumber(values[i])) {
+            if (!validator(values[i])) {
                 countInvalid++;
             } else if (countInvalid !== 0) {
                 for (let j = 1; j <= countInvalid; j++) {
@@ -1311,15 +1325,22 @@ export default class Table {
         return interpolValues;
     }
 
-    private imputeInterpolation(values: number[]) {
+    private imputeInterpolation(
+        values: number[],
+        validator: (val: number) => boolean = (val) => isValidNumber(val)
+    ): number[] {
+        if (values.length === 0) {
+            throw new Error('The time series does not have values!');
+        }
+
         let countInvalid = 0;
         const length = values.length;
 
         for (let i = 0; i < length; i++) {
-            if (!isValidNumber(values[i])) {
+            if (!validator(values[i])) {
                 if (i === 0) {
                     throw new Error(
-                        'The first element is invalid; hence, interpolation is not possible!'
+                        'The first element is invalid or an outlier; hence, interpolation is not possible!'
                     );
                 }
                 countInvalid++;
@@ -1341,7 +1362,7 @@ export default class Table {
 
         if (countInvalid > 0) {
             throw new Error(
-                'The last elements are invalid; hence, interpolation is not possible!'
+                'The last elements are invalid or outliers; hence, interpolation is not possible!'
             );
         }
 
@@ -1350,19 +1371,23 @@ export default class Table {
 
     private movingAverageImputation(
         values: number[],
-        windowSize: number = 3
+        windowSize: number = 3,
+        validator: (val: number) => boolean = (val) => isValidNumber(val)
     ): number[] {
+        if (values.length === 0) {
+            throw new Error('The time series does not have values!');
+        }
+
         if (windowSize <= 0 || !Number.isInteger(windowSize)) {
             throw new Error('Window size must be a positive integer!');
         }
 
         const length = values.length;
-        const validFlags = values.map(val => isValidNumber(val));
+        const validFlags = values.map(val => validator(val));
 
         const hasAnyValid = validFlags.some(flag => flag);
-
         if (!hasAnyValid) {
-            throw new Error("The given dataset only has non-numeric or invalid values!");
+            throw new Error("The given dataset only has invalid values or outliers!");
         }
 
         const leftRadius = Math.floor(windowSize / 2);
@@ -1385,7 +1410,7 @@ export default class Table {
 
                 if (validCount === 0) {
                     throw new Error(
-                        `Moving average imputation is not possible for index ${i}: no valid values in window size ${windowSize}!`
+                        `Moving average imputation is not possible for index ${i}: no valid values or non-outliers in window size ${windowSize}!`
                     );
                 }
 
@@ -1396,15 +1421,39 @@ export default class Table {
         return values;
     }
 
-    public imputeTimeSeries(
+    private executeTimeSeriesTransformation(
+        colValues: number[],
+        imputeType: SeriesImputeType,
+        movingAvgWindowSize: number,
+        validator: (val: number) => boolean = (val) => isValidNumber(val)
+    ): number[] {
+        switch (imputeType) {
+            case 'locf':
+                return this.locf(colValues, validator);
+            case 'nocb':
+                return this.nocb(colValues, validator);
+            case 'interpolation':
+                return this.imputeInterpolation(colValues, validator);
+            case 'movingAverage':
+                return this.movingAverageImputation(
+                    colValues,
+                    movingAvgWindowSize,
+                    validator
+                );
+            default:
+                throw new Error('The provided imputation strategy does not exist!');
+        }
+    }
+
+    public imputeTS(
         label: string | number,
         imputeType: SeriesImputeType,
         movingAvgWindowSize: number = 3
-    ) {
+    ): Table {
         const targetCol: NumberColumn = this.getCol(label);
 
         if (!(targetCol instanceof NumberColumn)) {
-            throw new Error('The imputeSeries method is only available for numeric columns!');
+            throw new Error('The imputeTS method is only available for numeric columns!');
         }
 
         if (targetCol.values.length === 0) {
@@ -1413,31 +1462,99 @@ export default class Table {
 
         const targetIndex = this.getIndex(label);
         const colValues = (targetCol.values as number[]).slice();
-        let newCol: number[] = [];
 
-        switch (imputeType) {
-            case 'locf':
-                newCol = this.locf(colValues);
-                break;
-            case 'nocb':
-                newCol = this.nocb(colValues);
-                break;
-            case 'interpolation':
-                newCol = this.imputeInterpolation(colValues);
-                break;
-            case 'movingAverage':
-                newCol = this.movingAverageImputation(
-                    colValues,
-                    movingAvgWindowSize
-                );
-                break;
-            default:
-                throw new Error('The provided imputation strategy does not exist!');
-        }
+        const newCol = this.executeTimeSeriesTransformation(
+            colValues,
+            imputeType,
+            movingAvgWindowSize
+        );
 
         const newValues = this._values.slice();
         newValues[targetIndex] = newCol;
 
         return new Table(newValues, this._colInfos, true);
+    }
+
+    public replaceTSOutliers(
+        label: string | number,
+        imputeType: SeriesImputeType,
+        boundaries: Boundaries,
+        movingAvgWindowSize: number = 3
+    ): Table {
+        const targetCol: NumberColumn = this.getCol(label);
+
+        if (!(targetCol instanceof NumberColumn)) {
+            throw new Error('The replaceTSOutliers method is only available for numeric columns!');
+        }
+
+        if (targetCol.values.length === 0) {
+            throw new Error('The time series does not have values!');
+        }
+
+        const { min, max } = boundaries;
+
+        if (min === undefined && max === undefined) {
+            throw new Error('You must provide at least a min or a max boundary!');
+        }
+
+        const targetIndex = this.getIndex(label);
+        const colValues = (targetCol.values as number[]).slice();
+
+        const validator = (val: number): boolean => {
+            if (!isValidNumber(val)) {
+                return false;
+            }
+
+            if (min !== undefined && val < min) {
+                return false;
+            }
+
+            if (max !== undefined && val > max) {
+                return false;
+            }
+
+            return true;
+        };
+
+        const newCol = this.executeTimeSeriesTransformation(
+            colValues,
+            imputeType,
+            movingAvgWindowSize,
+            validator
+        );
+
+        const newValues = this._values.slice();
+        newValues[targetIndex] = newCol;
+
+        return new Table(newValues, this._colInfos, true);
+    }
+
+    public replaceTSOutliersIqr(
+        label: string | number,
+        imputeType: SeriesImputeType,
+        multiplier: number = 1.5,
+        movingAvgWindowSize: number = 3,
+        percentMode: PercentMode = 'interpolated'
+    ): Table {
+        const targetCol: NumberColumn = this.getCol(label);
+
+        if (!(targetCol instanceof NumberColumn)) {
+            throw new Error('The replaceTSOutliersIqr method is only available for numeric columns!');
+        }
+
+        const rawValues = targetCol.values as number[];
+
+        const iqrBounds = getIqrBoundaries(
+            rawValues,
+            multiplier,
+            percentMode
+        );
+
+        return this.replaceTSOutliers(
+            label,
+            imputeType,
+            iqrBounds,
+            movingAvgWindowSize
+        );
     }
 }

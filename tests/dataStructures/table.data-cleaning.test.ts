@@ -212,7 +212,7 @@ describe('Table - Data Cleaning & Imputation', () => {
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
-            const imputed = table.imputeTimeSeries('val', 'locf');
+            const imputed = table.imputeTS('val', 'locf');
             expect(imputed.getCol('val').values).toEqual([10, 10, 10, 20, 20, 50, 50]);
         });
 
@@ -221,7 +221,7 @@ describe('Table - Data Cleaning & Imputation', () => {
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
-            const imputed = table.imputeTimeSeries('val', 'nocb');
+            const imputed = table.imputeTS('val', 'nocb');
             expect(imputed.getCol('val').values).toEqual([10, 10, 40, 40, 40, 40]);
         });
 
@@ -230,7 +230,7 @@ describe('Table - Data Cleaning & Imputation', () => {
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
-            const imputed = table.imputeTimeSeries('val', 'interpolation');
+            const imputed = table.imputeTS('val', 'interpolation');
 
 
             expect(imputed.getCol('val').values).toEqual([500, 525, 550, 575, 600]);
@@ -241,10 +241,10 @@ describe('Table - Data Cleaning & Imputation', () => {
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
-            const imputedOdd = table.imputeTimeSeries('val', 'movingAverage', 3);
+            const imputedOdd = table.imputeTS('val', 'movingAverage', 3);
             expect(imputedOdd.getCol('val').values).toEqual([10, 20, 30, 40, 50]);
 
-            const imputedEven = table.imputeTimeSeries('val', 'movingAverage', 4);
+            const imputedEven = table.imputeTS('val', 'movingAverage', 4);
             const values = imputedEven.getCol('val').values;
             expect(values[2]).toBeCloseTo(23.3333, 4);
         });
@@ -255,7 +255,7 @@ describe('Table - Data Cleaning & Imputation', () => {
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
-            const imputed = table.imputeTimeSeries('val', 'locf');
+            const imputed = table.imputeTS('val', 'locf');
 
             expect(imputed.getCol('val').values).toEqual([10, 10, 30]);
             expect(table.getCol('val').values).toEqual([10, NaN, 30]);
@@ -266,8 +266,8 @@ describe('Table - Data Cleaning & Imputation', () => {
             const infos: ColInfo[] = [{ label: 'str', type: 'string' }];
             const table = new Table(data, infos);
 
-            expect(() => table.imputeTimeSeries('str', 'locf')).toThrow(
-                'The imputeSeries method is only available for numeric columns!'
+            expect(() => table.imputeTS('str', 'locf')).toThrow(
+                'The imputeTS method is only available for numeric columns!'
             );
         });
 
@@ -276,7 +276,7 @@ describe('Table - Data Cleaning & Imputation', () => {
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
-            expect(() => table.imputeTimeSeries('val', 'invalid_strategy' as any)).toThrow(
+            expect(() => table.imputeTS('val', 'invalid_strategy' as any)).toThrow(
                 'The provided imputation strategy does not exist!'
             );
         });
@@ -289,11 +289,11 @@ describe('Table - Data Cleaning & Imputation', () => {
             const tableStart = new Table(dataStartNaN, infos);
             const tableEnd = new Table(dataEndNaN, infos);
 
-            expect(() => tableStart.imputeTimeSeries('val', 'interpolation')).toThrow(
-                'The first element is invalid; hence, interpolation is not possible!'
+            expect(() => tableStart.imputeTS('val', 'interpolation')).toThrow(
+                'The first element is invalid or an outlier; hence, interpolation is not possible!'
             );
-            expect(() => tableEnd.imputeTimeSeries('val', 'interpolation')).toThrow(
-                'The last elements are invalid; hence, interpolation is not possible!'
+            expect(() => tableEnd.imputeTS('val', 'interpolation')).toThrow(
+                'The last elements are invalid or outliers; hence, interpolation is not possible!'
             );
         });
 
@@ -302,9 +302,94 @@ describe('Table - Data Cleaning & Imputation', () => {
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
-            expect(() => table.imputeTimeSeries('val', 'movingAverage', 3)).toThrow(
-                'The given dataset only has non-numeric or invalid values!'
+            expect(() => table.imputeTS('val', 'movingAverage', 3)).toThrow(
+                'The given dataset only has invalid values or outliers!'
             );
+        });
+    });
+
+    describe('Time Series Outlier Replacement', () => {
+        it('should replace fixed boundary outliers using replaceTSOutliers with linear interpolation', () => {
+            const data = [[10, 999, 30, -500, 50]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const cleaned = table.replaceTSOutliers('val', 'interpolation', { min: 0, max: 100 });
+            expect(cleaned.getCol('val').values).toEqual([10, 20, 30, 40, 50]);
+        });
+
+        it('should replace fixed boundary outliers using replaceTSOutliers with LOCF and NOCB', () => {
+            const data = [[10, 1000, 30, 40]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const locfCleaned = table.replaceTSOutliers('val', 'locf', { max: 100 });
+            expect(locfCleaned.getCol('val').values).toEqual([10, 10, 30, 40]);
+
+            const nocbCleaned = table.replaceTSOutliers('val', 'nocb', { max: 100 });
+            expect(nocbCleaned.getCol('val').values).toEqual([10, 30, 30, 40]);
+        });
+
+        it('should replace fixed boundary outliers using replaceTSOutliers with moving average', () => {
+            const data = [[10, 20, 1000, 40, 50]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const cleaned = table.replaceTSOutliers('val', 'movingAverage', { max: 500 }, 3);
+            expect(cleaned.getCol('val').values).toEqual([10, 20, 30, 40, 50]);
+        });
+
+        it('should replace outliers based on dynamic IQR boundaries using replaceTSOutliersIqr', () => {
+            const data = [[10, 12, 14, 15, 16, 18, 1000]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const cleanedLocf = table.replaceTSOutliersIqr('val', 'locf', 1.5);
+            expect(cleanedLocf.getCol('val').values).toEqual([10, 12, 14, 15, 16, 18, 18]);
+
+            const cleanedMovingAvg = table.replaceTSOutliersIqr('val', 'movingAverage', 1.5, 3);
+            const values = cleanedMovingAvg.getCol('val').values;
+
+            expect(values[6]).toBe(18);
+        });
+
+        it('should throw an error when replaceTSOutliers is called without min or max boundary', () => {
+            const data = [[10, 20, 30]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            expect(() => table.replaceTSOutliers('val', 'locf', {})).toThrow(
+                'You must provide at least a min or a max boundary!'
+            );
+        });
+
+        it('should throw an error when called on non-numeric columns', () => {
+            const data = [['a', 'b', 'c']];
+            const infos: ColInfo[] = [{ label: 'str', type: 'string' }];
+            const table = new Table(data, infos);
+
+            expect(() => table.imputeTS('str', 'locf')).toThrow(
+                'The imputeTS method is only available for numeric columns!'
+            );
+
+            expect(() => table.replaceTSOutliers('str', 'locf', { min: 0 })).toThrow(
+                'The replaceTSOutliers method is only available for numeric columns!'
+            );
+
+            expect(() => table.replaceTSOutliersIqr('str', 'locf')).toThrow(
+                'The replaceTSOutliersIqr method is only available for numeric columns!'
+            );
+        });
+
+        it('should preserve immutability and leave original table untouched', () => {
+            const data = [[10, 999, 30]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const cleaned = table.replaceTSOutliers('val', 'interpolation', { max: 100 });
+
+            expect(cleaned.getCol('val').values).toEqual([10, 20, 30]);
+            expect(table.getCol('val').values).toEqual([10, 999, 30]);
         });
     });
 });
