@@ -1445,6 +1445,19 @@ export default class Table {
         }
     }
 
+    /**
+     * Imputes missing (`NaN`/null) values in a time-series numeric column using time-series strategies.
+     *
+     * @remarks
+     * Supports Last Observation Carried Forward ('locf'), Next Observation Carried Backward ('nocb'),
+     * linear interpolation ('interpolation'), and centered moving average ('movingAverage').
+     *
+     * @param label - The label or index of the target numeric column.
+     * @param imputeType - The time-series imputation strategy to use ('locf', 'nocb', 'interpolation', 'movingAverage').
+     * @param movingAvgWindowSize - The window size for the moving average strategy (default is 3).
+     * @returns A new immutable `Table` instance with the imputed column values.
+     * @throws {Error} If the target column is not a numeric column or contains no values.
+     */
     public imputeTS(
         label: string | number,
         imputeType: SeriesImputeType,
@@ -1475,13 +1488,32 @@ export default class Table {
         return new Table(newValues, this._colInfos, true);
     }
 
+    /**
+     * Replaces outliers in a time-series numeric column based on fixed min/max boundaries
+     * using time-series interpolation/imputation strategies.
+     *
+     * @remarks
+     * **Note:** This method implicitly imputes missing (`NaN`/null) values as well.
+     * Because the internal validator marks both missing values and out-of-boundary outliers
+     * as invalid in a single pass, both are replaced simultaneously using the local
+     * time-series context without distorting neighboring values.
+     *
+     * @param label - The label or index of the target numeric column.
+     * @param imputeType - The time-series imputation strategy to use ('locf', 'nocb', 'interpolation', 'movingAverage').
+     * @param boundaries - An object containing `min` and/or `max` threshold values.
+     * @param movingAvgWindowSize - The window size for the moving average strategy (default is 3).
+     * @param targetColInstance - Optional pre-fetched `NumberColumn` instance to optimize repeated lookups.
+     * @returns A new immutable `Table` instance with the cleaned column values.
+     * @throws {Error} If the column is not numeric, contains no values, or if neither min nor max boundary is provided.
+     */
     public replaceTSOutliers(
         label: string | number,
         imputeType: SeriesImputeType,
         boundaries: Boundaries,
-        movingAvgWindowSize: number = 3
+        movingAvgWindowSize: number = 3,
+        targetColInstance?: NumberColumn
     ): Table {
-        const targetCol: NumberColumn = this.getCol(label);
+        const targetCol: NumberColumn = targetColInstance ? targetColInstance : this.getCol(label);
 
         if (!(targetCol instanceof NumberColumn)) {
             throw new Error('The replaceTSOutliers method is only available for numeric columns!');
@@ -1529,6 +1561,23 @@ export default class Table {
         return new Table(newValues, this._colInfos, true);
     }
 
+    /**
+     * Replaces outliers in a time-series numeric column based on dynamic Interquartile Range (IQR) boundaries
+     * using time-series interpolation/imputation strategies.
+     *
+     * @remarks
+     * **Note:** This method implicitly imputes missing (`NaN`/null) values as well.
+     * Outliers detected by the IQR rule and missing values are both marked as invalid simultaneously,
+     * allowing a single-pass time-series replacement that prevents outlier distortion during imputation.
+     *
+     * @param label - The label or index of the target numeric column.
+     * @param imputeType - The time-series imputation strategy to use ('locf', 'nocb', 'interpolation', 'movingAverage').
+     * @param multiplier - The IQR multiplier used to calculate outlier thresholds (default is 1.5).
+     * @param movingAvgWindowSize - The window size for the moving average strategy (default is 3).
+     * @param percentMode - The percentile calculation method used for IQR bounds (default is 'interpolated').
+     * @returns A new immutable `Table` instance with the cleaned column values.
+     * @throws {Error} If the target column is not a numeric column or contains no values.
+     */
     public replaceTSOutliersIqr(
         label: string | number,
         imputeType: SeriesImputeType,
@@ -1554,7 +1603,8 @@ export default class Table {
             label,
             imputeType,
             iqrBounds,
-            movingAvgWindowSize
+            movingAvgWindowSize,
+            targetCol
         );
     }
 }
