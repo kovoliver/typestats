@@ -71,8 +71,13 @@ describe('Node.js Backend I/O (nodeIO.ts)', () => {
         const table = await getTableFromCSV(csvPath, ';', [], 'impute');
 
         expect(table.rowCount).toBe(100);
+        const isSubscribedCol = table.getCol('is_subscribed');
         expect(table.getCol('first_name')).toBeDefined();
         expect(table.getCol('annual_income')).toBeDefined();
+        expect(isSubscribedCol.values).contains(true);
+        expect(isSubscribedCol.values).contains(false);
+        expect(isSubscribedCol.values[0]).toBe(true);
+        expect(isSubscribedCol.values[2]).toBe(false);
 
         console.log('\n--- 🖥️ NODE CSV TEST (users_dataset.csv head) ---');
         table.head(3);
