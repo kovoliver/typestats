@@ -176,9 +176,10 @@ export function isBool(value: unknown): boolean {
     if (value === null || value === undefined) return false;
     if (typeof value === 'boolean') return true;
 
-    if (typeof value === 'string') {
-        const str = String(value).trim().toLowerCase();
-        return BOOLISH_VALUES.has(str);
+    const str = String(value).trim().toLowerCase();
+
+    if (str === 'true' || str === 'false') {
+        return true;
     }
 
     return false;
@@ -690,13 +691,54 @@ export function toUTCTimestamp(val: unknown): number | null {
     return null;
 }
 
+export function parseNumberFast(val: any) {
+    if (typeof val === 'number') return val;
+
+    if (isEmpty(val)) return NaN;
+    return parseFloat(val);
+}
+
+export function toUTCTimestampFast(val: string): number | null {
+    if (isEmpty(val)) return null;
+
+    const trimmed = val.trim();
+    if (trimmed === '') return null;
+
+    const d = new Date(trimmed);
+    const time = d.getTime();
+
+    if (isNaN(time)) return null;
+
+    const isIsoFormat = trimmed.length >= 10 &&
+        trimmed.charCodeAt(4) === 45 &&
+        trimmed.charCodeAt(7) === 45;
+
+    if (isIsoFormat) {
+        return time;
+    }
+
+    return time - (d.getTimezoneOffset() * 60_000);
+}
+
+export function parseBoolFast(val: any): boolean | null {
+    if (isEmpty(val)) return null;
+    if (typeof val === 'boolean') return val;
+    val = String(val).toLocaleLowerCase();
+
+    if (val === 'true')
+        return true;
+    if (val === 'false')
+        return false;
+
+    return null;
+}
+
 export function parseValue(val: unknown, type: ColType | undefined): any {
-    if (type === undefined) return val;
     switch (type) {
-        case 'number': return parseNumber(val);
-        case 'bool': return parseBool(val);
-        case 'date': return toUTCTimestamp(val);
-        default: return parseString(val);
+        case 'number': return parseNumberFast(String(val));
+        case 'bool': return parseBoolFast(String(val));
+        case 'date': return toUTCTimestampFast(String(val));
+        default: return String(val);
     }
 }
 
