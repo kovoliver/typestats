@@ -176,3 +176,12 @@ export type DBWorkerData = {
 }
 
 export type ColumnLabel = string | number;
+
+export const SeriesImputeType = {
+    locf:'locf',
+    nocb:'nocb',
+    interpolation:'interpolation',
+    movingAverage:'movingAverage'
+} as const;
+
+export type SeriesImputeType = typeof SeriesImputeType[keyof typeof SeriesImputeType];

@@ -205,4 +205,106 @@ describe('Table - Data Cleaning & Imputation', () => {
             'Statistical imputation (mean, median, mode) is only applicable to numeric columns!'
         );
     });
+
+    describe('imputeSeries functionality', () => {
+        it('should correctly apply LOCF (Last Observation Carried Forward) strategy', () => {
+            const data = [[NaN, null, 10, 20, NaN, 50, NaN]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const imputed = table.imputeTimeSeries('val', 'locf');
+            expect(imputed.getCol('val').values).toEqual([10, 10, 10, 20, 20, 50, 50]);
+        });
+
+        it('should correctly apply NOCB (Next Observation Carried Backward) strategy', () => {
+            const data = [[NaN, 10, NaN, NaN, 40, NaN]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const imputed = table.imputeTimeSeries('val', 'nocb');
+            expect(imputed.getCol('val').values).toEqual([10, 10, 40, 40, 40, 40]);
+        });
+
+        it('should correctly apply linear interpolation strategy', () => {
+            const data = [[500, NaN, NaN, NaN, 600]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const imputed = table.imputeTimeSeries('val', 'interpolation');
+
+
+            expect(imputed.getCol('val').values).toEqual([500, 525, 550, 575, 600]);
+        });
+
+        it('should correctly apply movingAverage strategy with odd and even window sizes', () => {
+            const data = [[10, 20, NaN, 40, 50]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const imputedOdd = table.imputeTimeSeries('val', 'movingAverage', 3);
+            expect(imputedOdd.getCol('val').values).toEqual([10, 20, 30, 40, 50]);
+
+            const imputedEven = table.imputeTimeSeries('val', 'movingAverage', 4);
+            const values = imputedEven.getCol('val').values;
+            expect(values[2]).toBeCloseTo(23.3333, 4);
+        });
+
+        it('should preserve immutability and not mutate the original table', () => {
+            const originalValues = [10, NaN, 30];
+            const data = [[...originalValues]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            const imputed = table.imputeTimeSeries('val', 'locf');
+
+            expect(imputed.getCol('val').values).toEqual([10, 10, 30]);
+            expect(table.getCol('val').values).toEqual([10, NaN, 30]);
+        });
+
+        it('should throw an error when called on a non-numeric column', () => {
+            const data = [['a', null, 'c']];
+            const infos: ColInfo[] = [{ label: 'str', type: 'string' }];
+            const table = new Table(data, infos);
+
+            expect(() => table.imputeTimeSeries('str', 'locf')).toThrow(
+                'The imputeSeries method is only available for numeric columns!'
+            );
+        });
+
+        it('should throw an error when an invalid imputation strategy is provided', () => {
+            const data = [[10, NaN, 30]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            expect(() => table.imputeTimeSeries('val', 'invalid_strategy' as any)).toThrow(
+                'The provided imputation strategy does not exist!'
+            );
+        });
+
+        it('should throw an error when interpolation is impossible due to edge NaNs', () => {
+            const dataStartNaN = [[NaN, 10, 20]];
+            const dataEndNaN = [[10, 20, NaN]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+
+            const tableStart = new Table(dataStartNaN, infos);
+            const tableEnd = new Table(dataEndNaN, infos);
+
+            expect(() => tableStart.imputeTimeSeries('val', 'interpolation')).toThrow(
+                'The first element is invalid; hence, interpolation is not possible!'
+            );
+            expect(() => tableEnd.imputeTimeSeries('val', 'interpolation')).toThrow(
+                'The last elements are invalid; hence, interpolation is not possible!'
+            );
+        });
+
+        it('should throw an error when movingAverage window contains no valid values', () => {
+            const data = [[NaN, NaN, NaN, NaN]];
+            const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
+            const table = new Table(data, infos);
+
+            expect(() => table.imputeTimeSeries('val', 'movingAverage', 3)).toThrow(
+                'The given dataset only has non-numeric or invalid values!'
+            );
+        });
+    });
 });

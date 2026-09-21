@@ -1,4 +1,4 @@
-import { Boundaries, ColInfo, ColumnInfo, ColumnLabel, ImputeType, PercentMode }
+import { Boundaries, ColInfo, ColumnInfo, ColumnLabel, ImputeType, PercentMode, SeriesImputeType }
     from '../types/types.js';
 import {
     displayDateString,
@@ -1242,5 +1242,202 @@ export default class Table {
         }
 
         return new DataMatrix(matrixValues, colLabels);
+    }
+
+    private locf(values: number[]): number[] {
+        let finalNonEmpty = values.find(val => isValidNumber(val)) as number | undefined;
+
+        if (finalNonEmpty === undefined) {
+            throw new Error("The given dataset only has non-numeric or invalid values!");
+        }
+
+        for (let i = 0; i < values.length; i++) {
+            if (isValidNumber(values[i])) {
+                finalNonEmpty = values[i];
+            } else {
+                values[i] = finalNonEmpty;
+            }
+        }
+
+        return values;
+    }
+
+    private nocb(values: number[]) {
+        let countInvalid = 0;
+        let validValue = values.find(val => isValidNumber(val)) as number | undefined;
+
+        if (validValue === undefined) {
+            throw new Error("The given dataset only has non-numeric or invalid values!");
+        }
+
+        const length = values.length;
+
+        for (let i = 0; i < length; i++) {
+            if (!isValidNumber(values[i])) {
+                countInvalid++;
+            } else if (countInvalid !== 0) {
+                for (let j = 1; j <= countInvalid; j++) {
+                    values[i - j] = values[i];
+                }
+
+                countInvalid = 0;
+                validValue = values[i];
+            }
+        }
+
+        if (countInvalid > 0) {
+            for (let i = length - 1; i >= length - countInvalid; i--) {
+                values[i] = validValue;
+            }
+        }
+
+        return values;
+    }
+
+    private getInterpolatedValues(
+        firstValid: number,
+        lastValid: number,
+        steps: number
+    ): number[] {
+        const interPolAdd = (lastValid - firstValid) / (steps + 1);
+        let interpolVal = firstValid + interPolAdd;
+        const interpolValues: number[] = [];
+
+        for (let i = 0; i < steps; i++) {
+            interpolValues.push(interpolVal);
+            interpolVal += interPolAdd;
+        }
+
+        return interpolValues;
+    }
+
+    private imputeInterpolation(values: number[]) {
+        let countInvalid = 0;
+        const length = values.length;
+
+        for (let i = 0; i < length; i++) {
+            if (!isValidNumber(values[i])) {
+                if (i === 0) {
+                    throw new Error(
+                        'The first element is invalid; hence, interpolation is not possible!'
+                    );
+                }
+                countInvalid++;
+            } else if (countInvalid !== 0) {
+                const firstValid = values[i - (countInvalid + 1)];
+                const lastValid = values[i];
+
+                const interpolValues = this.getInterpolatedValues(
+                    firstValid, lastValid, countInvalid
+                );
+
+                for (let j = 0; j < countInvalid; j++) {
+                    values[i - countInvalid + j] = interpolValues[j];
+                }
+
+                countInvalid = 0;
+            }
+        }
+
+        if (countInvalid > 0) {
+            throw new Error(
+                'The last elements are invalid; hence, interpolation is not possible!'
+            );
+        }
+
+        return values;
+    }
+
+    private movingAverageImputation(
+        values: number[],
+        windowSize: number = 3
+    ): number[] {
+        if (windowSize <= 0 || !Number.isInteger(windowSize)) {
+            throw new Error('Window size must be a positive integer!');
+        }
+
+        const length = values.length;
+        const validFlags = values.map(val => isValidNumber(val));
+
+        const hasAnyValid = validFlags.some(flag => flag);
+
+        if (!hasAnyValid) {
+            throw new Error("The given dataset only has non-numeric or invalid values!");
+        }
+
+        const leftRadius = Math.floor(windowSize / 2);
+        const rightRadius = windowSize % 2 === 0 ? leftRadius - 1 : leftRadius;
+
+        for (let i = 0; i < length; i++) {
+            if (!validFlags[i]) {
+                let sum = 0;
+                let validCount = 0;
+
+                const start = Math.max(0, i - leftRadius);
+                const end = Math.min(length - 1, i + rightRadius);
+
+                for (let j = start; j <= end; j++) {
+                    if (j !== i && validFlags[j]) {
+                        sum += values[j];
+                        validCount++;
+                    }
+                }
+
+                if (validCount === 0) {
+                    throw new Error(
+                        `Moving average imputation is not possible for index ${i}: no valid values in window size ${windowSize}!`
+                    );
+                }
+
+                values[i] = sum / validCount;
+            }
+        }
+
+        return values;
+    }
+
+    public imputeTimeSeries(
+        label: string | number,
+        imputeType: SeriesImputeType,
+        movingAvgWindowSize: number = 3
+    ) {
+        const targetCol: NumberColumn = this.getCol(label);
+
+        if (!(targetCol instanceof NumberColumn)) {
+            throw new Error('The imputeSeries method is only available for numeric columns!');
+        }
+
+        if (targetCol.values.length === 0) {
+            throw new Error('The time series does not have values!');
+        }
+
+        const targetIndex = this.getIndex(label);
+        const colValues = (targetCol.values as number[]).slice();
+        let newCol: number[] = [];
+
+        switch (imputeType) {
+            case 'locf':
+                newCol = this.locf(colValues);
+                break;
+            case 'nocb':
+                newCol = this.nocb(colValues);
+                break;
+            case 'interpolation':
+                newCol = this.imputeInterpolation(colValues);
+                break;
+            case 'movingAverage':
+                newCol = this.movingAverageImputation(
+                    colValues,
+                    movingAvgWindowSize
+                );
+                break;
+            default:
+                throw new Error('The provided imputation strategy does not exist!');
+        }
+
+        const newValues = this._values.slice();
+        newValues[targetIndex] = newCol;
+
+        return new Table(newValues, this._colInfos, true);
     }
 }
