@@ -301,3 +301,51 @@ export function neumaierDotProductAndSumPow2(x: number[], y: number[]): { xySum:
 
     return { xySum, x2Sum };
 }
+
+/**
+ * Calculates Mean Squared Error (MSE) on-the-fly using Neumaier summation.
+ * 
+ * @param yActual - Observed values array.
+ * @param predict - Callback function returning predicted value (yHat) for index i.
+ * @param degreesOfFreedom - Estimated parameter count (k). Defaults to 0.
+ */
+export function calculateMSE(
+    yActual: ArrayLike<number>,
+    predict: (i: number) => number,
+    degreesOfFreedom: number = 0
+): number {
+    const n = yActual.length;
+
+    if (n === 0) {
+        return NaN;
+    }
+
+    const divisor = n - degreesOfFreedom;
+
+    if (divisor <= 0) {
+        throw new RangeError(
+            `Degrees of freedom corrected divisor (${divisor}) must be positive.`
+        );
+    }
+
+    let sum = 0;
+    let c = 0;
+
+    for (let i = 0; i < n; i++) {
+        const yHat = predict(i);
+        const diff = yActual[i] - yHat;
+        const sqError = diff * diff;
+
+        const t = sum + sqError;
+
+        if (Math.abs(sum) >= Math.abs(sqError)) {
+            c += (sum - t) + sqError;
+        } else {
+            c += (sqError - t) + sum;
+        }
+
+        sum = t;
+    }
+
+    return (sum + c) / divisor;
+}

@@ -768,22 +768,52 @@ export function rsd(values: number[], isSample: boolean = true, digits?: number)
 }
 
 /**
- * Calculates the Mean Squared Error (MSE) between actual values and predicted values.
- *
- * @param yValues - Array of ground truth / actual numerical values.
- * @param yHatValues - Array of predicted numerical values.
- * @returns The mean squared error.
- * @throws {Error} If actual and predicted arrays do not have equal lengths.
+ * Calculates the Mean Squared Error (MSE) using Neumaier summation for numerical stability.
+ * 
+ * @param yActual - The actual observed values.
+ * @param yPredicted - The model's predicted values (yHat).
+ * @param degreesOfFreedom - The number of estimated parameters in the model (k). 
+ *                           Defaults to 0 (population divisor: n). 
+ *                           If k > 0, calculates using an unbiased divisor: n - k.
  */
-export function mse(yValues: number[], yHatValues: number[]): number {
-    if (yValues.length !== yHatValues.length) {
-        throw new Error(
-            'The number of actual values must match the number of predicted values.'
+export function mse(
+    yActual: ArrayLike<number>,
+    yPredicted: ArrayLike<number>,
+    degreesOfFreedom: number = 0
+): number {
+    const n = yActual.length;
+
+    if (n === 0) {
+        return NaN;
+    }
+
+    if(n !== yPredicted.length) {
+        throw new Error('The number of actual values must match the number of predicted values.');
+    }
+
+    const divisor = n - degreesOfFreedom;
+    
+    if (divisor <= 0) {
+        throw new RangeError(
+            `Degrees of freedom corrected divisor (${divisor}) cannot be zero or negative.`
         );
     }
 
-    return yValues.reduce(
-        (total, value, i) => total + Math.pow(value - yHatValues[i], 2),
-        0
-    ) / yValues.length;
+    let sum = 0;
+    let c = 0;
+
+    for (let i = 0; i < n; i++) {
+        const diff = yActual[i] - yPredicted[i];
+        const sqError = diff * diff;
+
+        const t = sum + sqError;
+        if (Math.abs(sum) >= Math.abs(sqError)) {
+            c += (sum - t) + sqError;
+        } else {
+            c += (sqError - t) + sum;
+        }
+        sum = t;
+    }
+
+    return (sum + c) / divisor;
 }

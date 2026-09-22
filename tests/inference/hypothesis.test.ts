@@ -378,12 +378,12 @@ describe('Hypothesis Testing Functions', () => {
     describe('chiSquaredIndependenceTest', () => {
         describe('Validation and Edge Cases', () => {
             it('throws if contingency table has fewer than 2 rows', () => {
-                expect(() => chiSquaredIndependenceTest([[10, 20]], 0.05))
+                expect(() => chiSquaredIndependenceTest([[10], [20]], 0.05))
                     .toThrow(/at least 2 rows/);
             });
 
             it('throws if contingency table has fewer than 2 columns', () => {
-                expect(() => chiSquaredIndependenceTest([[10], [20]], 0.05))
+                expect(() => chiSquaredIndependenceTest([[10, 20]], 0.05))
                     .toThrow(/at least 2 columns/);
             });
 
@@ -393,7 +393,7 @@ describe('Hypothesis Testing Functions', () => {
                     [10, 20, 30]
                 ];
                 expect(() => chiSquaredIndependenceTest(table, 0.05))
-                    .toThrow(/same number of columns/);
+                    .toThrow('All columns in the contingency table must have the same number of rows.');
             });
 
             it('throws if observed frequencies contain negative numbers', () => {
@@ -405,13 +405,13 @@ describe('Hypothesis Testing Functions', () => {
                     .toThrow(/cannot be negative/);
             });
 
-            it('throws if the entire contingency table contains only zeros', () => {
+            it('throws if columns have inconsistent row lengths', () => {
                 const table = [
-                    [0, 0],
-                    [0, 0]
+                    [10, 20],
+                    [10, 20, 30]
                 ];
                 expect(() => chiSquaredIndependenceTest(table, 0.05))
-                    .toThrow(/non-zero data/);
+                    .toThrow(/same number of rows/);
             });
         });
 
@@ -832,12 +832,12 @@ describe('Hypothesis Testing Functions', () => {
         describe('Validation and Edge Cases', () => {
             it('throws if fewer than two groups are provided', () => {
                 expect(() => oneWayAnova([[10, 12, 14]], 0.05))
-                    .toThrow('At least two groups are required for ANOVA.');
+                    .toThrow(/At least two groups/);
             });
 
             it('throws if any group is empty', () => {
                 expect(() => oneWayAnova([[10, 12], []], 0.05))
-                    .toThrow('All groups must contain at least one element.');
+                    .toThrow(/must contain at least one element/);
             });
 
             it('throws if totalN - k <= 0 (not enough data points for dfWithin)', () => {

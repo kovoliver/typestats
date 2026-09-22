@@ -320,33 +320,33 @@ export function chiSquaredIndependenceTest(
     contingencyTable: number[][],
     alpha: number
 ) {
-    const numRows = contingencyTable.length;
-    if (numRows < 2) {
-        throw new Error("Contingency table must have at least 2 rows.");
-    }
-
-    const numCols = contingencyTable[0].length;
+    const numCols = contingencyTable.length;
     if (numCols < 2) {
         throw new Error("Contingency table must have at least 2 columns.");
+    }
+
+    const numRows = contingencyTable[0].length;
+    if (numRows < 2) {
+        throw new Error("Contingency table must have at least 2 rows.");
     }
 
     let grandTotal = 0;
     const rowTotals = new Array(numRows).fill(0);
     const colTotals = new Array(numCols).fill(0);
 
-    for (let i = 0; i < numRows; i++) {
-        if (contingencyTable[i].length !== numCols) {
-            throw new Error("All rows in the contingency table must have the same number of columns.");
+    for (let c = 0; c < numCols; c++) {
+        if (contingencyTable[c].length !== numRows) {
+            throw new Error("All columns in the contingency table must have the same number of rows.");
         }
-        for (let j = 0; j < numCols; j++) {
-            const val = contingencyTable[i][j];
+        for (let r = 0; r < numRows; r++) {
+            const val = contingencyTable[c][r];
 
             if (val < 0) {
                 throw new Error("Observed frequencies cannot be negative.");
             }
 
-            rowTotals[i] += val;
-            colTotals[j] += val;
+            colTotals[c] += val;
+            rowTotals[r] += val;
             grandTotal += val;
         }
     }
@@ -356,13 +356,13 @@ export function chiSquaredIndependenceTest(
     }
 
     let chi2 = 0;
-    for (let i = 0; i < numRows; i++) {
-        for (let j = 0; j < numCols; j++) {
-            const observed = contingencyTable[i][j];
-            const expected = (rowTotals[i] * colTotals[j]) / grandTotal;
+    for (let c = 0; c < numCols; c++) {
+        for (let r = 0; r < numRows; r++) {
+            const observed = contingencyTable[c][r];
+            const expected = (rowTotals[r] * colTotals[c]) / grandTotal;
 
             if (expected <= 0) {
-                throw new Error("Expected frequencies must be strictly greater than 0. Check your data or consider combining categories.");
+                throw new Error("Expected frequencies must be strictly greater than 0.");
             }
 
             chi2 += Math.pow(observed - expected, 2) / expected;
@@ -370,10 +370,8 @@ export function chiSquaredIndependenceTest(
     }
 
     const df = (numRows - 1) * (numCols - 1);
-
     const testDirection = 'right';
     const criticalBounds = getChi2CriticalBounds(alpha, df, testDirection);
-
     const passed = chi2 <= criticalBounds.upper!;
 
     return {
@@ -775,12 +773,12 @@ export function oneWayAnova(
     const k = groups.length;
 
     if (k < 2) {
-        throw new Error("At least two groups are required for ANOVA.");
+        throw new Error("At least two groups (columns) are required for ANOVA.");
     }
 
-    for (const group of groups) {
-        if (group.length === 0) {
-            throw new Error("All groups must contain at least one element.");
+    for (let c = 0; c < k; c++) {
+        if (groups[c].length === 0) {
+            throw new Error(`Group at column index ${c} must contain at least one element.`);
         }
     }
 
@@ -798,10 +796,8 @@ export function oneWayAnova(
         );
     }
 
-    const table = groups;
-
-    const ssBetween = betweenSSD(table);
-    const ssTotal = totalSSD(table);
+    const ssBetween = betweenSSD(groups);
+    const ssTotal = totalSSD(groups);
     const ssWithin = ssTotal - ssBetween;
 
     const msBetween = ssBetween / dfBetween;
@@ -832,6 +828,8 @@ export function oneWayAnova(
 
     return {
         F,
+        dfBetween,
+        dfWithin,
         msBetween,
         msWithin,
         criticalBounds,

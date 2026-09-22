@@ -1,8 +1,8 @@
 import { RegressionType } from "../types/types.js";
 import { mean } from "../statistics/univariate.js";
 import { Cache } from "../abstractions/abstractClasses.js";
-import { neumaierSumPow } from "../utils/numberUtils.js";
-import { varianceAndCovariance, neumaierDotProductAndSumPow2 } from "../utils/numberUtils.js";
+import { varianceAndCovariance, neumaierDotProductAndSumPow2, calculateMSE }
+    from "../utils/numberUtils.js";
 
 /**
  * Represents a statistical tool for calculating linear, exponential, and power regression models.
@@ -205,29 +205,18 @@ export default class Regression extends Cache {
                 () => { throw new Error('Unreachable code'); }
             );
 
-            const len = this._y.length;
-            const x = this._x;
-            const y = this._y;
-            const residuals = new Array<number>(len);
+            let predict: (i: number) => number;
 
             if (regression === 'linear') {
-                for (let i = 0; i < len; i++) {
-                    residuals[i] = y[i] - (b0 + x[i] * b1);
-                }
+                predict = (i) => this.linearFunc(b0, b1, this._x[i]);
             } else if (regression === 'exponential') {
-                for (let i = 0; i < len; i++) {
-                    residuals[i] = y[i] - (b0 * Math.pow(b1, x[i]));
-                }
-            } else if (regression === 'power') {
-                for (let i = 0; i < len; i++) {
-                    residuals[i] = y[i] - (b0 * Math.pow(x[i], b1));
-                }
+                predict = (i) => this.exponentialFunc(b0, b1, this._x[i]);
+            } else {
+                predict = (i) => this.powerFunc(b0, b1, this._x[i]);
             }
 
-            const sse = neumaierSumPow(residuals, 2);
-            const df = len - 2;
-
-            return Math.sqrt(sse / df);
+            const mseVal = calculateMSE(this._y, predict, 2);
+            return Math.sqrt(mseVal);
         });
     }
 
@@ -260,29 +249,18 @@ export default class Regression extends Cache {
                 () => { throw new Error('Unreachable code'); }
             );
 
-            const len = this._y.length;
-            const x = this._x;
-            const y = this._y;
-            const residuals = new Array<number>(len);
+            let predict: (i: number) => number;
 
             if (regression === 'linear_no_intercept') {
-                for (let i = 0; i < len; i++) {
-                    residuals[i] = y[i] - (x[i] * slope);
-                }
+                predict = (i) => this._x[i] * slope;
             } else if (regression === 'exponential_no_intercept') {
-                for (let i = 0; i < len; i++) {
-                    residuals[i] = y[i] - Math.pow(slope, x[i]);
-                }
-            } else if (regression === 'power_no_intercept') {
-                for (let i = 0; i < len; i++) {
-                    residuals[i] = y[i] - Math.pow(x[i], slope);
-                }
+                predict = (i) => Math.pow(slope, this._x[i]);
+            } else {
+                predict = (i) => Math.pow(this._x[i], slope);
             }
 
-            const sse = neumaierSumPow(residuals, 2);
-            const df = len - 1;
-
-            return Math.sqrt(sse / df);
+            const mseVal = calculateMSE(this._y, predict, 1);
+            return Math.sqrt(mseVal);
         });
     }
 
