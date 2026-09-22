@@ -9,13 +9,11 @@ export default class Trend extends Cache {
     private _n: number;
     private _hasNonPositive: boolean = false;
 
-    // Alapértékek (konstruktorban 1 ciklussal, 0 tömbalokációval számolva)
     private _xSum: number = 0;
     private _xSquaresSum: number = 0;
     private _ySum: number = 0;
     private _xySum: number = 0;
 
-    // Lusta kiértékelésű (lazy) mezők az exponenciális trendhez
     private _lnY: number[] | null = null;
     private _lnySum: number | null = null;
     private _lnxySum: number | null = null;
