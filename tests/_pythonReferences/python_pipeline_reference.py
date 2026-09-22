@@ -1,166 +1,207 @@
 import time
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import pingouin as pg
+import statsmodels.api as sm
 from scipy import stats
 from scipy.stats.contingency import association
-import statsmodels.api as sm
-from statsmodels.formula.api import ols
 from sklearn.metrics import mean_squared_error
 
-def describe_df(df: pd.DataFrame, title: str):
-    print(f"\n--- {title} ---")
-    print(f"Shape: {df.shape[0]} rows x {df.shape[1]} columns\n")
-    
-    overview = []
-    for col in df.columns:
-        missing = df[col].isna().sum()
-        valid = df[col].count()
-        total = len(df)
-        missing_pct = round((missing / total) * 100, 2) if total > 0 else 0
-        overview.append({
-            'label': col,
-            'type': str(df[col].dtype),
-            'missing': missing,
-            'valid': valid,
-            'missing %': f"{missing_pct}%"
-        })
-    print(pd.DataFrame(overview).to_string(index=False))
 
-def count_outliers_iqr(series: pd.Series) -> int:
-    q1 = series.quantile(0.25)
-    q3 = series.quantile(0.75)
-    iqr_val = stats.iqr(series)
-    lower_bound = q1 - 1.5 * iqr_val
-    upper_bound = q3 + 1.5 * iqr_val
-    return ((series < lower_bound) | (series > upper_bound)).sum()
+def measure(label: str, start_time: float) -> float:
+    end_time = time.perf_counter()
+    print(f"⏱️ [Time] {label}: {round(end_time - start_time, 4)} s")
+    return end_time
 
-def replace_outliers_iqr(series: pd.Series) -> pd.Series:
-    s = series.copy()
-    q1 = s.quantile(0.25)
-    q3 = s.quantile(0.75)
-    iqr_val = stats.iqr(s)
-    lower_bound = q1 - 1.5 * iqr_val
-    upper_bound = q3 + 1.5 * iqr_val
-    
-    outliers_mask = (s < lower_bound) | (s > upper_bound)
-    median_val = s[~outliers_mask].median()
-    s[outliers_mask] = median_val
-    return s
 
 def pipeline():
     t0 = time.perf_counter()
+    t_step = t0
 
     print("=== 1. LOADING & INITIAL SUMMARY ===")
-    df = pd.read_csv("stat_dataset.csv", sep=",")
-    describe_df(df, "Initial Dataset Summary")
+    df = pd.read_csv("stat_dataset.csv", sep=",", parse_dates=["date"])
+    t_step = measure("Data loading and type conversion", t_step)
 
-    print("\n=== 2. DATA CLEANING & IMPUTATION ===")
-    df = df.dropna(subset=["device", "payment_method"]).copy()
-    
-    df["ad_spend"] = df["ad_spend"].fillna(df["ad_spend"].median())
-    df["revenue"] = df["revenue"].fillna(df["revenue"].median())
-    
-    describe_df(df, "Cleaned Dataset Summary")
+    print(df.describe(include="all"))
+    t_step = measure("Initial descriptive statistics (describe)", t_step)
 
-    print("\n=== 3. OUTLIER ANALYSIS & TREATMENT ===")
-    outliers_ad_spend = count_outliers_iqr(df["ad_spend"])
-    outliers_revenue = count_outliers_iqr(df["revenue"])
-    print(f"Initial outliers -> Ad Spend: {outliers_ad_spend}, Revenue: {outliers_revenue}")
+    print("\n=== 1.5 DATA ORDERING ===")
+    df = df.sort_values("date", kind="stable", ignore_index=True)
+    t_step = measure("Ordering by date ascending (orderByAsc)", t_step)
 
-    df["ad_spend"] = replace_outliers_iqr(df["ad_spend"])
-    df["revenue"] = replace_outliers_iqr(df["revenue"])
-    df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
+    print("\n=== 2. CATEGORICAL DATA CLEANING ===")
+    t_fill_start = time.perf_counter()
+    df = df.fillna({"device": "Unknown", "payment_method": "Unknown"})
+    t_step = measure("Categorical missing data imputation (fillNa)", t_fill_start)
 
-    outliers_ad_spend_new = count_outliers_iqr(df["ad_spend"])
-    outliers_revenue_new = count_outliers_iqr(df["revenue"])
-    print(f"Outliers after IQR treatment -> Ad Spend: {outliers_ad_spend_new}, Revenue: {outliers_revenue_new}")
+    print(df.describe(include="all"))
+    t_step = measure("Descriptive statistics after categorical cleaning (describe)", t_step)
+
+    print("\n=== 3. OUTLIER ANALYSIS & SINGLE-PASS TS CLEANING ===")
+    num_cols = ["ad_spend", "revenue"]
+
+    t_count_init_start = time.perf_counter()
+    q = df[num_cols].quantile([0.25, 0.75])
+    iqr = q.loc[0.75] - q.loc[0.25]
+    lower = q.loc[0.25] - 1.5 * iqr
+    upper = q.loc[0.75] + 1.5 * iqr
+    is_outlier = df[num_cols].lt(lower) | df[num_cols].gt(upper)
+    outliers_init = is_outlier.sum()
+    print(f"Initial outliers -> Ad Spend: {outliers_init['ad_spend']}, Revenue: {outliers_init['revenue']}")
+    t_step = measure("Counting initial outliers", t_count_init_start)
+
+    t_replace_start = time.perf_counter()
+    df[num_cols] = (
+        df[num_cols]
+        .mask(is_outlier)
+        .interpolate(method="linear", limit_direction="both")
+    )
+    t_step = measure(
+        "Single-pass time-series cleaning and outlier replacement (ad_spend + revenue)",
+        t_replace_start,
+    )
+
+    t_count_after_start = time.perf_counter()
+    q2 = df[num_cols].quantile([0.25, 0.75])
+    iqr2 = q2.loc[0.75] - q2.loc[0.25]
+    outliers_after = (
+        df[num_cols].lt(q2.loc[0.25] - 1.5 * iqr2) | df[num_cols].gt(q2.loc[0.75] + 1.5 * iqr2)
+    ).sum()
+    print(f"Outliers after IQR treatment -> Ad Spend: {outliers_after['ad_spend']}, Revenue: {outliers_after['revenue']}")
+    t_step = measure("Counting outliers after treatment", t_count_after_start)
 
     print("\n=== 4. CORRELATION ANALYSIS ===")
-    corr_matrix = df[["ad_spend", "revenue"]].corr(method="pearson").round(4)
+    t_corr_start = time.perf_counter()
+    correlation = df[num_cols].corr(method="pearson")
     print("Pearson Correlation Matrix:")
-    print(corr_matrix.to_string())
+    print(correlation.round(4))
+    t_step = measure("Pearson correlation calculation", t_corr_start)
 
-    print("\n=== 5. ANOVA (Categorical vs. Numeric) via statsmodels ===")
-    model = ols('revenue ~ C(payment_method)', data=df).fit()
-    anova_table = sm.stats.anova_lm(model, typ=2)
+    print("\n=== 5. ANOVA & EFFECT SIZE (Categorical vs. Numeric) ===")
+    t_anova_start = time.perf_counter()
     
-    ss_between = anova_table.loc['C(payment_method)', 'sum_sq']
-    ss_total = anova_table['sum_sq'].sum()
-    eta_squared = ss_between / ss_total
+    anova_table = pg.anova(data=df, dv="revenue", between="payment_method", detailed=True)
+    print(anova_table.to_string(index=False))
 
-    anova_summary = df.groupby("payment_method")["revenue"].agg(["count", "mean", "std"]).round(4)
-    print(anova_summary.to_string())
+    alpha = 0.05
+    f_val = anova_table.loc[0, "F"]
+    df_between = int(anova_table.loc[0, "DF"])
+    df_within = int(anova_table.loc[1, "DF"])
+    ms_between = anova_table.loc[0, "MS"]
+    ms_within = anova_table.loc[1, "MS"]
+    eta_squared = anova_table.loc[0, "np2"]
+    
+    f_critical = stats.f.ppf(1 - alpha, df_between, df_within)
+    h0_passed = f_val <= f_critical
+
+    print("\n--- One-Way ANOVA Hypothesis Test Results ---")
+    print(f"F-Statistic: {round(f_val, 4)}")
+    print(f"Mean Squares: MS Between = {round(ms_between, 4)}, MS Within = {round(ms_within, 4)}")
+    print(f"Critical Upper Bound (alpha = {alpha}): {round(f_critical, 4)}")
+    print(f"Hypothesis Result (H0: equal group means): {'FAILED TO REJECT H0 (No significant difference)' if h0_passed else 'REJECT H0 (Statistically significant difference)'}")
     print(f"Strength of association between payment method and revenue (Eta Squared): {round(eta_squared, 4)}")
+    t_step = measure("ANOVA, hypothesis test, and Eta-squared calculation", t_anova_start)
 
-    print("\n=== 6. CRAMÉR'S V (Categorical vs. Categorical) via scipy.stats ===")
-    contingency = pd.crosstab(df["device"], df["payment_method"])
-    print(contingency.to_string())
+    print("\n=== 6. CHI-SQUARED TEST & CRAMÉR'S V (Categorical vs. Categorical) ===")
+    t_cramer_start = time.perf_counter()
     
-    cramer_v_val = association(contingency, method="cramer")
-    print(f"Cramér's V (device vs. payment method): {round(cramer_v_val, 4)}")
+    contingency_table = pd.crosstab(df["device"], df["payment_method"], margins=True, margins_name="Total")
+    print(contingency_table)
 
-    print("\n=== 7. TIME-SERIES TREND ANALYSIS (Revenue) via scipy.stats.linregress ===")
-    y_revenue = df["revenue"].values
-    t_steps_0 = np.arange(0, len(y_revenue))
-    t_steps_1 = np.arange(1, len(y_revenue) + 1)
+    observed = pd.crosstab(df["device"], df["payment_method"]).values
+    chi2_val, p_val, dof, expected = stats.chi2_contingency(observed)
+    
+    chi2_critical = stats.chi2.ppf(1 - alpha, dof)
+    chi2_h0_passed = chi2_val <= chi2_critical
+    
+    cramer_v = association(observed, method="cramer")
 
-    res_lin = stats.linregress(t_steps_0, y_revenue)
-    b_lin_t, a_lin_t = res_lin.slope, res_lin.intercept
-    pred_lin_t = a_lin_t + b_lin_t * t_steps_0
-    mse_lin_t = mean_squared_error(y_revenue, pred_lin_t)
+    print("\n--- Chi-Squared Test of Independence Results ---")
+    print(f"Chi-Square Statistic (chi2): {round(chi2_val, 4)}")
+    print(f"Critical Upper Bound (alpha = {alpha}): {round(chi2_critical, 4)}")
+    print(f"Hypothesis Result (H0: variables are independent): {'FAILED TO REJECT H0 (Variables are independent)' if chi2_h0_passed else 'REJECT H0 (Statistically significant association)'}")
+    print(f"Cramér's V (device vs. payment method): {round(cramer_v, 4)}")
+    t_step = measure("Contingency table, Chi-squared test, and Cramér's V calculation", t_cramer_start)
 
-    res_exp = stats.linregress(t_steps_0, np.log(y_revenue))
-    b_exp_kiteny, ln_a_exp_t = res_exp.slope, res_exp.intercept
-    a_exp_t = np.exp(ln_a_exp_t)
-    B_exp_t = np.exp(b_exp_kiteny)
-    pred_exp_t = a_exp_t * (B_exp_t ** t_steps_0)
-    mse_exp_t = mean_squared_error(y_revenue, pred_exp_t)
+    print("\n=== 7. TIME-SERIES TREND ANALYSIS (Revenue) ===")
+    revenue = df["revenue"].to_numpy()
+    ad_spend = df["ad_spend"].to_numpy()
+    ln_revenue = np.log(revenue)
+    
+    t_0based = np.arange(0, len(revenue))
+    t_1based = np.arange(1, len(revenue) + 1)
+    ln_t = np.log(t_1based)
 
-    # 7.3 Logaritmikus trend (y = a + b * ln(t))
-    res_log = stats.linregress(np.log(t_steps_1), y_revenue)
-    b_log_t, a_log_t = res_log.slope, res_log.intercept
-    pred_log_t = a_log_t + b_log_t * np.log(t_steps_1)
-    mse_log_t = mean_squared_error(y_revenue, pred_log_t)
+    t_lin_trend_start = time.perf_counter()
+    lin_trend = stats.linregress(t_0based, revenue)
+    lin_pred = lin_trend.intercept + lin_trend.slope * t_0based
+    lin_trend_mse = mean_squared_error(revenue, lin_pred)
+    t_lin_trend = measure("  - Linear trend", t_lin_trend_start)
 
-    trend_results = pd.DataFrame({
-        "intercept_a": [round(a_lin_t, 4), round(a_exp_t, 4), round(a_log_t, 4)],
-        "slope_b": [round(b_lin_t, 4), round(B_exp_t, 4), round(b_log_t, 4)],
-        "mse": [round(mse_lin_t, 4), round(mse_exp_t, 4), round(mse_log_t, 4)]
-    }, index=["Linear", "Exponential", "Logarithmic"])
-    print(trend_results.to_string())
+    exp_trend = stats.linregress(t_0based, ln_revenue)
+    exp_a = np.exp(exp_trend.intercept)
+    exp_b_factor = np.exp(exp_trend.slope)
+    exp_pred = exp_a * np.exp(exp_trend.slope * t_0based)
+    exp_trend_mse = mean_squared_error(revenue, exp_pred)
+    t_exp_trend = measure("  - Exponential trend", t_lin_trend)
 
-    print("\n=== 8. BIVARIATE REGRESSION MODELS (Ad Spend -> Revenue) via scipy.stats.linregress ===")
-    x_ad = df["ad_spend"].values
-    y_rev = df["revenue"].values
-    n = len(df)
+    log_trend = stats.linregress(ln_t, revenue)
+    log_pred = log_trend.intercept + log_trend.slope * ln_t
+    log_trend_mse = mean_squared_error(revenue, log_pred)
+    measure("  - Logarithmic trend", t_exp_trend)
 
-    reg_lin = stats.linregress(x_ad, y_rev)
-    b1_reg_lin, b0_reg_lin = reg_lin.slope, reg_lin.intercept
-    pred_reg_lin = b0_reg_lin + b1_reg_lin * x_ad
-    rsd_lin = np.sqrt(np.sum((y_rev - pred_reg_lin) ** 2) / (n - 2))
+    print(pd.DataFrame({
+        "Linear": {"intercept_a": lin_trend.intercept, "slope_b": lin_trend.slope, "mse": lin_trend_mse},
+        "Exponential": {"intercept_a": exp_a, "slope_b": exp_b_factor, "mse": exp_trend_mse},
+        "Logarithmic": {"intercept_a": log_trend.intercept, "slope_b": log_trend.slope, "mse": log_trend_mse},
+    }).T.round(4))
+    t_step = measure("Full trend analysis block", t_lin_trend_start)
 
-    reg_exp = stats.linregress(x_ad, np.log(y_rev))
-    b1_reg_exp_kiteny, ln_b0_reg_exp = reg_exp.slope, reg_exp.intercept
-    b0_reg_exp = np.exp(ln_b0_reg_exp)
-    B1_reg_exp = np.exp(b1_reg_exp_kiteny)
-    pred_reg_exp = b0_reg_exp * (B1_reg_exp ** x_ad)
-    rsd_exp = np.sqrt(np.sum((y_rev - pred_reg_exp) ** 2) / (n - 2))
+    print("\n=== 8. BIVARIATE REGRESSION MODELS (Ad Spend -> Revenue) ===")
+    t_lin_reg_start = time.perf_counter()
+    
+    lin_reg = sm.OLS(revenue, sm.add_constant(ad_spend)).fit()
+    lin_pred = lin_reg.predict(sm.add_constant(ad_spend))
+    lin_rsd = np.sqrt(np.sum((revenue - lin_pred) ** 2) / lin_reg.df_resid)
+    t_lin_reg = measure("  - Linear regression", t_lin_reg_start)
 
-    reg_pow = stats.linregress(np.log(x_ad), np.log(y_rev))
-    b1_reg_pow, ln_b0_reg_pow = reg_pow.slope, reg_pow.intercept
-    b0_reg_pow = np.exp(ln_b0_reg_pow)
-    pred_reg_pow = b0_reg_pow * (x_ad ** b1_reg_pow)
-    rsd_pow = np.sqrt(np.sum((y_rev - pred_reg_pow) ** 2) / (n - 2))
+    exp_reg = sm.OLS(ln_revenue, sm.add_constant(ad_spend)).fit()
+    exp_b0 = np.exp(exp_reg.params[0])
+    exp_b1_factor = np.exp(exp_reg.params[1])
+    exp_pred = exp_b0 * np.exp(exp_reg.params[1] * ad_spend)
+    exp_rsd = np.sqrt(np.sum((revenue - exp_pred) ** 2) / exp_reg.df_resid)
+    t_exp_reg = measure("  - Exponential regression", t_lin_reg)
 
-    regression_results = pd.DataFrame({
-        "b0_intercept": [round(b0_reg_lin, 4), round(b0_reg_exp, 4), round(b0_reg_pow, 4)],
-        "b1_slope": [round(b1_reg_lin, 4), round(B1_reg_exp, 4), round(b1_reg_pow, 4)],
-        "rsd": [round(rsd_lin, 4), round(rsd_exp, 4), round(rsd_pow, 4)]
-    }, index=["Linear", "Exponential", "Power"])
-    print(regression_results.to_string())
+    pow_reg = sm.OLS(ln_revenue, sm.add_constant(np.log(ad_spend))).fit()
+    pow_b0 = np.exp(pow_reg.params[0])
+    pow_b1 = pow_reg.params[1]
+    pow_pred = pow_b0 * (ad_spend ** pow_b1)
+    pow_rsd = np.sqrt(np.sum((revenue - pow_pred) ** 2) / pow_reg.df_resid)
+    measure("  - Power regression", t_exp_reg)
+
+    print(pd.DataFrame({
+        "Linear": {
+            "b0_intercept": lin_reg.params[0],
+            "b1_slope": lin_reg.params[1],
+            "rsd": lin_rsd,
+        },
+        "Exponential": {
+            "b0_intercept": exp_b0,
+            "b1_slope": exp_b1_factor,
+            "rsd": exp_rsd,
+        },
+        "Power": {
+            "b0_intercept": pow_b0,
+            "b1_slope": pow_b1,
+            "rsd": pow_rsd,
+        },
+    }).T.round(4))
+    t_step = measure("Full bivariate regression models block", t_lin_reg_start)
 
     t1 = time.perf_counter()
-    print(f"\nPython: Pipeline execution completed in {round(t1 - t0, 3)} seconds.")
+    print(f"\n🏁 Total pipeline execution time: {round(t1 - t0, 3)} seconds.")
+
 
 if __name__ == "__main__":
     pipeline()
