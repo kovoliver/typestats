@@ -6,10 +6,10 @@ export default class GroupedTable {
     private _groupByColumns: string[];
     private _groupKeys: string[];
     private _columnKeys: string[];
-    private _values: Record<string, any[]>[];
+    private _values: Record<string, Float64Array | unknown[]>[];
 
     constructor(
-        groupObj: Record<string, Record<string, any[]>>,
+        groupObj: Record<string, Record<string, Float64Array | unknown[]>>,
         groupByColumns: string[]
     ) {
         this._groupByColumns = groupByColumns;
@@ -44,10 +44,17 @@ export default class GroupedTable {
         return groupArr;
     }
 
+    private ensureFloat64Array(arr: Float64Array | unknown[]): Float64Array {
+        if (arr instanceof Float64Array) {
+            return arr;
+        }
+        return new Float64Array(arr as number[]);
+    }
+
     private createResultTable(
         targetColumn: string,
         statName: string,
-        calcFn: (arr: any[]) => number,
+        calcFn: (arr: Float64Array) => number,
         alias?: string
     ): Table {
         if (!this.hasColumn(targetColumn)) {
@@ -55,7 +62,12 @@ export default class GroupedTable {
         }
 
         const groupColumns = this.getGroupColumns();
-        const aggregatedValues = this._values.map(group => calcFn(group[targetColumn]));
+        const aggregatedValues = new Float64Array(this._values.length);
+
+        for (let i = 0; i < this._values.length; i++) {
+            const groupData = this.ensureFloat64Array(this._values[i][targetColumn]);
+            aggregatedValues[i] = calcFn(groupData);
+        }
 
         const resultMatrix = [...groupColumns, aggregatedValues];
         const colLabel = alias ? alias : `${targetColumn}_${statName}`;
@@ -65,16 +77,18 @@ export default class GroupedTable {
             { label: colLabel, type: 'number' as const }
         ];
 
-        return new Table(resultMatrix, colInfos);
+        return new Table(resultMatrix as any[][], colInfos);
     }
 
     public count(alias?: string): Table {
         const groupColumns = this.getGroupColumns();
-        
-        const countValues = this._values.map(group => {
-            const firstCol = this._columnKeys[0];
-            return group[firstCol] ? group[firstCol].length : 0;
-        });
+        const countValues = new Float64Array(this._values.length);
+        const firstCol = this._columnKeys[0];
+
+        for (let i = 0; i < this._values.length; i++) {
+            const group = this._values[i];
+            countValues[i] = group[firstCol] ? group[firstCol].length : 0;
+        }
 
         const resultMatrix = [...groupColumns, countValues];
 
@@ -83,14 +97,20 @@ export default class GroupedTable {
             { label: (alias || 'count'), type: 'number' as const }
         ];
 
-        return new Table(resultMatrix, colInfos);
+        return new Table(resultMatrix as any[][], colInfos);
     }
 
     public sum(column: string, alias?: string): Table {
-        return this.createResultTable(column, 'sum', (arr) =>
-            arr.reduce((total, val) => total + (Number(val) || 0), 0),
-            alias
-        );
+        return this.createResultTable(column, 'sum', (arr) => {
+            let total = 0;
+            for (let i = 0; i < arr.length; i++) {
+                const val = arr[i];
+                if (!Number.isNaN(val)) {
+                    total += val;
+                }
+            }
+            return total;
+        }, alias);
     }
 
     public avg(column: string, alias?: string): Table {
@@ -112,16 +132,14 @@ export default class GroupedTable {
     public variance(column: string, alias?: string): Table {
         return this.createResultTable(
             column, 'variance',
-            (arr) => arr.length >= 2 ? variance(arr)
-                : NaN, alias
+            (arr) => arr.length >= 2 ? variance(arr) : NaN, alias
         );
     }
 
     public std(column: string, alias?: string): Table {
         return this.createResultTable(
             column, 'std',
-            (arr) => arr.length >= 2 ? std(arr)
-                : NaN, alias
+            (arr) => arr.length >= 2 ? std(arr) : NaN, alias
         );
     }
 }

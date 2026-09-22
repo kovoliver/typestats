@@ -25,10 +25,11 @@ import { correlation, covariance } from '../statistics/bivariate.js';
 import DataMatrix from './DataMatrix.js';
 import { round } from '../utils/numberUtils.js';
 
+type ColumnArrayData = Float64Array | (boolean | null)[] | (string | null)[];
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
 export default class Table {
-    private readonly _values: (number | (boolean | null) | (string | null) | (Date | null))[][];
+    private readonly _values: ColumnArrayData[];
     private readonly _colInfos: ColInfo[];
 
     constructor(
@@ -40,8 +41,13 @@ export default class Table {
         this._values = isTrustedSource ? values : this.processValues(values, colInfos);
     }
 
-    public get originalTable(): any[][] {
-        return this._values.map(col => [...col]);
+    public get originalTable(): ColumnArrayData[] {
+        return this._values.map(col => {
+            if (col instanceof Float64Array) {
+                return new Float64Array(col);
+            }
+            return [...col];
+        }) as ColumnArrayData[];
     }
 
     public get table(): AnyColumn[] {
@@ -59,9 +65,9 @@ export default class Table {
         };
     }
 
-    private processValues(values: any[][], colInfos: ColInfo[]) {
+    private processValues(values: any[][], colInfos: ColInfo[]): ColumnArrayData[] {
         const colCount = values.length;
-        const processedValues: any[][] = new Array(colCount);
+        const processedValues: ColumnArrayData[] = new Array(colCount);
 
         for (let i = 0; i < colCount; i++) {
             const rawCol = values[i];
@@ -88,19 +94,19 @@ export default class Table {
         return processedValues;
     }
 
-    private createColumnFromData(values: any[], colInfo: ColInfo): AnyColumn {
-        const type = colInfo.type ?? getColType(values);
+    private createColumnFromData(values: ColumnArrayData, colInfo: ColInfo): AnyColumn {
+        const type = colInfo.type ?? getColType(values as any);
 
         switch (type) {
             case 'number':
-                return new NumberColumn(values, colInfo.label, true) as AnyColumn;
+                return new NumberColumn(values as Float64Array, colInfo.label, true) as AnyColumn;
             case 'bool':
-                return new BoolColumn(values, colInfo.label, true) as AnyColumn;
+                return new BoolColumn(values as (boolean | null)[], colInfo.label, true) as AnyColumn;
             case 'date':
-                return new DateColumn(values, colInfo.label, true) as AnyColumn;
+                return new DateColumn(values as Float64Array, colInfo.label, true) as AnyColumn;
             case 'string':
             default:
-                return new StringColumn(values, colInfo.label, true) as AnyColumn;
+                return new StringColumn(values as (string | null)[], colInfo.label, true) as AnyColumn;
         }
     }
 
@@ -216,8 +222,8 @@ export default class Table {
                 else if (rawVal === null) displayVal = '<null>';
                 else if (typeof rawVal === 'number' && Number.isNaN(rawVal)) displayVal = '<NaN>';
                 else if (info.type === 'date') {
-                    const dateObj = rawVal instanceof Date ? rawVal : new Date(rawVal as number);
-                    displayVal = displayDateString(dateObj) ?? '<null>';
+                    const dateObj = typeof rawVal === 'number' ? new Date(rawVal) : rawVal;
+                    displayVal = displayDateString(dateObj as Date) ?? '<null>';
                 } else {
                     displayVal = rawVal;
                 }
@@ -266,7 +272,7 @@ export default class Table {
         });
 
         const rowCount = this.rowCount;
-        const groups: Record<string, Record<string, any[]>> = {};
+        const groups: Record<string, Record<string, ColumnArrayData>> = {};
 
         for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
             const compositeKey = targetCols
@@ -277,39 +283,60 @@ export default class Table {
                 groups[compositeKey] = {};
 
                 for (let i = 0; i < this._colInfos.length; i++) {
-                    groups[compositeKey][this._colInfos[i].label] = [];
+                    const type = this._colInfos[i].type;
+                    if (type === 'number' || type === 'date') {
+                        groups[compositeKey][this._colInfos[i].label] = new Float64Array(0);
+                    } else {
+                        groups[compositeKey][this._colInfos[i].label] = [];
+                    }
                 }
             }
 
             for (let i = 0; i < this._colInfos.length; i++) {
-                groups[compositeKey][this._colInfos[i].label].push(this._values[i][rowIndex]);
+                const label = this._colInfos[i].label;
+                const val = this._values[i][rowIndex];
+                const current = groups[compositeKey][label];
+
+                if (current instanceof Float64Array) {
+                    const newArr = new Float64Array(current.length + 1);
+                    newArr.set(current, 0);
+                    newArr[current.length] = val as number;
+                    groups[compositeKey][label] = newArr;
+                } else {
+                    (current as any[]).push(val);
+                }
             }
         }
 
-        return new GroupedTable(groups, labels);
+        return new GroupedTable(groups as any, labels);
     }
 
     private newTableByIndices(indices: Int32Array): Table {
         const rowCount = indices.length;
         const colCount = this._values.length;
 
-        const newValues: unknown[][] = new Array(colCount);
+        const newValues: ColumnArrayData[] = new Array(colCount);
 
         for (let c = 0; c < colCount; c++) {
             const procCol = this._values[c];
 
-            const targetProc = new Array(rowCount);
-
-            for (let r = 0; r < rowCount; r++) {
-                const idx = indices[r];
-                targetProc[r] = procCol[idx];
+            if (procCol instanceof Float64Array) {
+                const targetProc = new Float64Array(rowCount);
+                for (let r = 0; r < rowCount; r++) {
+                    targetProc[r] = procCol[indices[r]];
+                }
+                newValues[c] = targetProc;
+            } else {
+                const targetProc = new Array(rowCount);
+                for (let r = 0; r < rowCount; r++) {
+                    targetProc[r] = procCol[indices[r]];
+                }
+                newValues[c] = targetProc;
             }
-
-            newValues[c] = targetProc;
         }
 
         const colInfos = this._colInfos.map(info => ({ ...info }));
-        return new Table(newValues, colInfos, true);
+        return new Table(newValues as any[][], colInfos, true);
     }
 
     private orderBy(labels: string[], type: 'asc' | 'desc'): Table {
@@ -335,8 +362,8 @@ export default class Table {
                 const secondVal = col[b];
 
                 if (firstVal === secondVal) continue;
-                if (firstVal === null || firstVal === undefined) return 1 * dir;
-                if (secondVal === null || secondVal === undefined) return -1 * dir;
+                if (firstVal === null || firstVal === undefined || Number.isNaN(firstVal)) return 1 * dir;
+                if (secondVal === null || secondVal === undefined || Number.isNaN(secondVal)) return -1 * dir;
 
                 if (typeof firstVal === 'number' && typeof secondVal === 'number') {
                     return (firstVal - secondVal) * dir;
@@ -344,10 +371,6 @@ export default class Table {
 
                 if (typeof firstVal === 'string' && typeof secondVal === 'string') {
                     return (firstVal < secondVal ? -1 : 1) * dir;
-                }
-
-                if (firstVal instanceof Date && secondVal instanceof Date) {
-                    return (firstVal.getTime() - secondVal.getTime()) * dir;
                 }
 
                 if (firstVal < secondVal) return -1 * dir;
@@ -383,7 +406,7 @@ export default class Table {
             return this.newTableByIndices(new Int32Array(0));
         }
 
-        const targetCols: unknown[][] = new Array(labelCount);
+        const targetCols: ColumnArrayData[] = new Array(labelCount);
         for (let i = 0; i < labelCount; i++) {
             const colIdx = this.getIndex(labels[i]);
             targetCols[i] = this._values[colIdx];
@@ -482,10 +505,16 @@ export default class Table {
             throw new Error('You must provide at least one index!');
         }
 
-        const procCols = indices.map(index => [...this._values[index]]);
+        const procCols = indices.map(index => {
+            const col = this._values[index];
+            if (col instanceof Float64Array) {
+                return new Float64Array(col);
+            }
+            return [...col];
+        });
         const colInfos = indices.map(index => ({ ...this._colInfos[index] }));
 
-        return new Table(procCols, colInfos, true);
+        return new Table(procCols as any[][], colInfos, true);
     }
 
     public select(...labels: (string | number)[]): Table {
@@ -534,12 +563,19 @@ export default class Table {
             info.type = getColType(values);
         }
 
-        const newValues = this._values.map(c => [...c]);
+        const newValues = this._values.map(c => c instanceof Float64Array ? new Float64Array(c) : [...c]);
         const newInfos = this._colInfos.map(i => ({ ...i }));
-        newValues.splice(index, 0, [...values]);
+
+        let processedVal: ColumnArrayData;
+        if (info.type === 'number') processedVal = toNumberArray(values);
+        else if (info.type === 'date') processedVal = toUnixTimestampArray(values);
+        else if (info.type === 'bool') processedVal = toBoolArray(values);
+        else processedVal = toStringArray(values);
+
+        newValues.splice(index, 0, processedVal as Float64Array<ArrayBuffer>);
         newInfos.splice(index, 0, info);
 
-        return new Table(newValues, newInfos, true);
+        return new Table(newValues as any[][], newInfos, true);
     }
 
     public dropNa(
@@ -579,7 +615,7 @@ export default class Table {
             for (let c = 0; c < numCols; c++) {
                 const colIdx = targetIndices[c];
                 const rowValue = this._values[colIdx][row];
-                const cellValid = validators[c](rowValue);
+                const cellValid = validators[c](rowValue as any);
 
                 if (how === 'any') {
                     if (!cellValid) {
@@ -628,18 +664,10 @@ export default class Table {
         return this.newTableByIndices(validIndices);
     }
 
-    /**
-     * Counts the number of values that fall strictly outside the specified minimum and maximum boundaries in a numeric column.
-     *
-     * @param label - The identifier (column name or index) of the target column.
-     * @param boundaries - The upper and lower bounds for outlier detection. At least one bound (`min` or `max`) must be defined.
-     * @returns The total count of outlier values in the specified column.
-     * @throws {Error} Throws an error if the specified column is not a `NumberColumn`, or if both boundaries are empty.
-     */
     public countOutliers(
         label: string | number,
         boundaries: Boundaries
-    ) {
+    ): number {
         const col = this.getCol(label);
 
         if (!(col instanceof NumberColumn)) {
@@ -649,22 +677,11 @@ export default class Table {
         return col.countOutliers(boundaries);
     }
 
-    /**
-     * Counts the number of outliers in a numeric column based on the Interquartile Range (IQR) method.
-     *
-     * Outliers are values falling below `Q1 - multiplier * IQR` or above `Q3 + multiplier * IQR`.
-     *
-     * @param label - The identifier (column name or index) of the target column.
-     * @param multiplier - The IQR multiplier used to define the outlier threshold. Defaults to `1.5` (standard Tukey fence).
-     * @param percentMode - The interpolation method used when calculating percentiles/quartiles. Defaults to `'interpolated'`.
-     * @returns The total count of outlier values identified in the specified column.
-     * @throws {Error} Throws an error if the specified column is not a `NumberColumn`.
-     */
     public countOutliersIqr(
         label: string | number,
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
-    ) {
+    ): number {
         const col = this.getCol(label);
 
         if (!(col instanceof NumberColumn)) {
@@ -682,14 +699,14 @@ export default class Table {
         }
 
         const targetIndex = this.getIndex(label);
-        const imputedValues = replaceEmptyValues(targetCol.values as number[], type);
+        const imputedValues = replaceEmptyValues(targetCol.getValidValues() as Float64Array, type);
 
         const newValues = this._values.map((col, idx) => {
-            if (idx === targetIndex) return [...imputedValues];
-            return [...col];
+            if (idx === targetIndex) return new Float64Array(imputedValues);
+            return col instanceof Float64Array ? new Float64Array(col) : [...col];
         });
 
-        return new Table(newValues, this._colInfos, true);
+        return new Table(newValues as any[][], this._colInfos, true);
     }
 
     public replaceOutliers(
@@ -697,7 +714,7 @@ export default class Table {
         type: ImputeType,
         boundaries: Boundaries,
         targetColInstance?: NumberColumn,
-        preparedValues?: number[]
+        preparedValues?: Float64Array
     ): Table {
         const targetCol = targetColInstance ?? this.getCol(label);
 
@@ -706,17 +723,20 @@ export default class Table {
         }
 
         const targetIndex = this.getIndex(label);
+        const rawValidValues = preparedValues ?? targetCol.getValidValues();
 
         const newCol = replaceOutliers(
-            targetCol.values as number[],
+            targetCol.getValidValues() as Float64Array,
             type, boundaries,
-            preparedValues ?? targetCol.getValidValues()
+            rawValidValues as Float64Array
         );
 
-        const newValues = this._values.slice();
-        newValues[targetIndex] = newCol;
+        const newValues = this._values.map((col, idx) => {
+            if (idx === targetIndex) return new Float64Array(newCol);
+            return col instanceof Float64Array ? new Float64Array(col) : [...col];
+        });
 
-        return new Table(newValues, this._colInfos, true);
+        return new Table(newValues as any[][], this._colInfos, true);
     }
 
     public replaceOutliersIQR(
@@ -734,12 +754,12 @@ export default class Table {
         const preparedValues = targetCol.getValidValues();
 
         const boundaries = getIqrBoundaries(
-            targetCol.values as number[],
+            preparedValues as Float64Array,
             multiplier, percentMode,
-            preparedValues
+            preparedValues as Float64Array
         );
 
-        return this.replaceOutliers(label, type, boundaries, targetCol, preparedValues);
+        return this.replaceOutliers(label, type, boundaries, targetCol, preparedValues as Float64Array);
     }
 
     public fillNa(label: string | number, value: number | string | boolean | Date): Table {
@@ -765,11 +785,11 @@ export default class Table {
         const filledValues = targetCol.getFilledValues(value as any);
 
         const newValues = this._values.map((col, idx) => {
-            if (idx === targetIndex) return [...filledValues];
-            return [...col];
+            if (idx === targetIndex) return filledValues;
+            return col instanceof Float64Array ? new Float64Array(col) : [...col];
         });
 
-        return new Table(newValues, this._colInfos, true);
+        return new Table(newValues as any[][], this._colInfos, true);
     }
 
     public mapColumn(
@@ -787,10 +807,16 @@ export default class Table {
         let newValues: any[] = [];
 
         try {
-            newValues = sourceData.map(val => {
-                if (isNanNullUndefined(val)) return val;
-                return fn(val as any);
-            });
+            const len = sourceData.length;
+            newValues = new Array(len);
+            for (let i = 0; i < len; i++) {
+                const val = sourceData[i];
+                if (isNanNullUndefined(val)) {
+                    newValues[i] = val;
+                } else {
+                    newValues[i] = fn(val as any);
+                }
+            }
         } catch {
             throw new Error(`The transformation function failed on column "${this._colInfos[colIndex].label}"!`);
         }
@@ -811,10 +837,16 @@ export default class Table {
         let newValues: any[] = [];
 
         try {
-            newValues = sourceData.map(val => {
-                if (isNanNullUndefined(val)) return val;
-                return fn(val as any);
-            });
+            const len = sourceData.length;
+            newValues = new Array(len);
+            for (let i = 0; i < len; i++) {
+                const val = sourceData[i];
+                if (isNanNullUndefined(val)) {
+                    newValues[i] = val;
+                } else {
+                    newValues[i] = fn(val as any);
+                }
+            }
         } catch {
             throw new Error(`The transformation function failed on column "${this._colInfos[index].label}"!`);
         }
@@ -824,7 +856,12 @@ export default class Table {
             ? getColType(nonNullValues)
             : this._colInfos[index].type;
 
-        this._values[index] = newValues;
+        if (newType === 'number' || newType === 'date') {
+            this._values[index] = new Float64Array(newValues);
+        } else {
+            this._values[index] = newValues;
+        }
+
         this._colInfos[index].type = newType;
 
         return this;
@@ -856,20 +893,20 @@ export default class Table {
         });
 
         const rowCount = this.rowCount;
-        const newValues: number[] = [];
+        const newValues = new Float64Array(rowCount);
 
         for (let row = 0; row < rowCount; row++) {
-            let result = this._values[colIndices[0]][row] as number;
+            let result = (this._values[colIndices[0]] as Float64Array)[row];
 
             if (isNanNullUndefined(result)) {
-                newValues.push(NaN);
+                newValues[row] = NaN;
                 continue;
             }
 
             let hasError = false;
 
             for (let c = 1; c < colIndices.length; c++) {
-                const nextVal = this._values[colIndices[c]][row];
+                const nextVal = (this._values[colIndices[c]] as Float64Array)[row];
 
                 if (isNanNullUndefined(nextVal)) {
                     hasError = true;
@@ -878,19 +915,19 @@ export default class Table {
 
                 switch (operation) {
                     case '+':
-                        (result as number) += (nextVal as number);
+                        result += nextVal;
                         break;
                     case '-':
-                        (result as number) -= (nextVal as number);
+                        result -= nextVal;
                         break;
                     case '*':
-                        (result as number) *= (nextVal as number);
+                        result *= nextVal;
                         break;
                     case '/':
-                        if ((nextVal as number) === 0) {
+                        if (nextVal === 0) {
                             hasError = true;
                         } else {
-                            (result as number) /= (nextVal as number);
+                            result /= nextVal;
                         }
                         break;
                 }
@@ -898,11 +935,11 @@ export default class Table {
                 if (hasError) break;
             }
 
-            newValues.push(hasError ? NaN : result);
+            newValues[row] = hasError ? NaN : result;
         }
 
         const newColInfo: ColInfo = { label: newLabel, type: 'number' };
-        return this.addColumnLast(newValues, newColInfo);
+        return this.addColumnLast(newValues as any, newColInfo);
     }
 
     public mergeColumns(
@@ -939,10 +976,10 @@ export default class Table {
 
     private createStatMatrix(
         labels: string[],
-        fn: (val1: number[], val2: number[]) => number,
+        fn: (val1: Float64Array, val2: Float64Array) => number,
         calculation: 'covariance' | 'correlation',
         printed: boolean = false,
-    ) {
+    ): number[][] {
         const n = labels.length;
 
         const matrix: number[][] = Array.from(
@@ -969,7 +1006,7 @@ export default class Table {
                     throw new Error(`The following column is not numeric: ${labels[i]}`);
                 }
 
-                const calculated = fn(col1.getValidValues(), col2.getValidValues());
+                const calculated = fn(col1.getValidValues() as Float64Array, col2.getValidValues() as Float64Array);
 
                 matrix[i][j] = calculated;
                 matrix[j][i] = calculated;
@@ -995,24 +1032,10 @@ export default class Table {
         return matrix;
     }
 
-    /**
-     * Calculates the covariance matrix for the specified numeric columns.
-     *
-     * @param labels - The labels of the columns to include in the matrix.
-     * @param printed - Whether to print the resulting matrix.
-     * @returns A two-dimensional array containing the covariance matrix.
-     */
     public covariance(labels: string[], printed: boolean = false): number[][] {
         return this.createStatMatrix(labels, covariance, 'covariance', printed);
     }
 
-    /**
-     * Calculates the correlation matrix for the specified numeric columns.
-     *
-     * @param labels - The labels of the columns to include in the matrix.
-     * @param printed - Whether to print the resulting matrix.
-     * @returns A two-dimensional array containing the correlation matrix.
-     */
     public correlation(labels: string[], printed: boolean = false): number[][] {
         return this.createStatMatrix(labels, correlation, 'correlation', printed);
     }
@@ -1072,13 +1095,6 @@ export default class Table {
         }
     }
 
-    /**
-     * Converts the table into an array of objects.
-     *
-     * Each object represents one row, with column labels used as property names.
-     *
-     * @returns An array of objects representing the rows of the table.
-     */
     public toObject(): Record<string, any>[] {
         const finalObj: Record<string, any>[] = [];
         const rowCount = this.rowCount;
@@ -1097,14 +1113,6 @@ export default class Table {
         return finalObj;
     }
 
-    /**
-     * Converts the table into a CSV-formatted string.
-     *
-     * Missing, NaN, and undefined values are represented as empty fields.
-     *
-     * @param separator - The character used to separate fields.
-     * @returns A string containing the table in CSV format.
-     */
     public toCSV(separator: string = ';'): string {
         const labels = this._colInfos.map(info => info.label);
         let finalStr = labels.join(separator) + "\n";
@@ -1127,14 +1135,6 @@ export default class Table {
         return finalStr;
     }
 
-    /**
-     * Converts the table into a two-dimensional matrix.
-     *
-     * Each inner array represents one row of the table, with values ordered
-     * according to the table's columns.
-     *
-     * @returns A two-dimensional array containing the table data.
-     */
     public toMatrix(): any[][] {
         const matrix: any[][] = [];
         const colCount = this._values.length;
@@ -1153,14 +1153,6 @@ export default class Table {
         return matrix;
     }
 
-    /**
-     * Constructs a contingency table (`DataMatrix`) representing the joint frequency distribution 
-     * of two categorical variables.
-     *
-     * @param colLabel - The name of the column to be used as column variables (categories).
-     * @param rowLabel - The name of the column to be used as row variables (suppliers/subcategories).
-     * @returns A `DataMatrix` containing the cross-tabulated cell frequencies with assigned row and column labels.
-     */
     public toContingencyTable(colLabel: string, rowLabel: string): DataMatrix {
         const colValues = this.getCol(colLabel).values;
         const rowValues = this.getCol(rowLabel).values;
@@ -1186,7 +1178,11 @@ export default class Table {
         const numCols = colLabels.length;
         const numRows = rowLabels.length;
 
-        const crossTable: number[][] = Array.from({ length: numCols }, () => new Array<number>(numRows).fill(0));
+        const crossTable: Float64Array[] = new Array(numCols);
+        
+        for (let c = 0; c < numCols; c++) {
+            crossTable[c] = new Float64Array(numRows);
+        }
 
         for (let i = 0; i < len; i++) {
             const cVal = colValues[i];
@@ -1202,42 +1198,54 @@ export default class Table {
         return new DataMatrix(crossTable, colLabels, rowLabels);
     }
 
-    /**
-     * Transforms grouped numerical data into an ANOVA-ready `DataMatrix`.
-     * 
-     * Groups numerical values by a specified categorical column and pads shorter groups 
-     * with zeros to ensure uniform column lengths (rectangular matrix structure) 
-     * for statistical calculations and table rendering.
-     *
-     * @param groupColLabel - The name of the categorical column used for grouping.
-     * @param valueColLabel - The name of the numerical column containing the measurement values.
-     * @returns A `DataMatrix` structured for one-way ANOVA calculations and contingency views.
-     */
     public toAnovaTable(groupColLabel: string, valueColLabel: string): DataMatrix {
         const groupValues = this.getCol(groupColLabel).values;
-        const numericValues = this.getCol(valueColLabel).values;
+        const numericCol = this.getCol(valueColLabel) as NumberColumn;
+        const numericValues = numericCol.values;
         const len = this.rowCount;
 
         const groupSet = new Set<string>();
+
         for (let i = 0; i < len; i++) {
             if (groupValues[i] != null) groupSet.add(String(groupValues[i]));
         }
+
         const colLabels = Array.from(groupSet);
+        const groupCount = colLabels.length;
 
         const groupIndexMap = new Map<string, number>();
-        for (let i = 0; i < colLabels.length; i++) {
+        for (let i = 0; i < groupCount; i++) {
             groupIndexMap.set(colLabels[i], i);
         }
 
-        const matrixValues: number[][] = Array.from({ length: colLabels.length }, () => []);
+        const groupSizes = new Int32Array(groupCount);
 
         for (let i = 0; i < len; i++) {
             const gVal = groupValues[i];
-            const nVal = Number(numericValues[i]);
+            const nVal = numericValues[i];
 
-            if (gVal != null && !isNaN(nVal)) {
+            if (gVal != null && nVal != null && !Number.isNaN(nVal)) {
                 const gIdx = groupIndexMap.get(String(gVal))!;
-                matrixValues[gIdx].push(nVal);
+                groupSizes[gIdx]++;
+            }
+        }
+
+        const matrixValues: Float64Array[] = new Array(groupCount);
+
+        for (let g = 0; g < groupCount; g++) {
+            matrixValues[g] = new Float64Array(groupSizes[g]);
+        }
+
+        const groupPointers = new Int32Array(groupCount);
+
+        for (let i = 0; i < len; i++) {
+            const gVal = groupValues[i];
+            const nVal = numericValues[i];
+
+            if (gVal != null && nVal != null && !Number.isNaN(nVal)) {
+                const gIdx = groupIndexMap.get(String(gVal))!;
+                const writeIdx = groupPointers[gIdx]++;
+                matrixValues[gIdx][writeIdx] = nVal;
             }
         }
 
@@ -1245,24 +1253,32 @@ export default class Table {
     }
 
     private locf(
-        values: number[],
+        values: Float64Array,
         validator: (val: number) => boolean = (val) => isValidNumber(val)
-    ): number[] {
+    ): Float64Array {
         if (values.length === 0) {
             throw new Error('The time series does not have values!');
         }
 
-        let finalNonEmpty = values.find(val => validator(val));
+        let firstValidIdx = -1;
+        for (let i = 0; i < values.length; i++) {
+            if (validator(values[i])) {
+                firstValidIdx = i;
+                break;
+            }
+        }
 
-        if (finalNonEmpty === undefined) {
+        if (firstValidIdx === -1) {
             throw new Error("The given dataset only has invalid values or outliers!");
         }
 
+        let lastValid = values[firstValidIdx];
+
         for (let i = 0; i < values.length; i++) {
             if (validator(values[i])) {
-                finalNonEmpty = values[i];
+                lastValid = values[i];
             } else {
-                values[i] = finalNonEmpty;
+                values[i] = lastValid;
             }
         }
 
@@ -1270,20 +1286,28 @@ export default class Table {
     }
 
     private nocb(
-        values: number[],
+        values: Float64Array,
         validator: (val: number) => boolean = (val) => isValidNumber(val)
-    ): number[] {
+    ): Float64Array {
         if (values.length === 0) {
             throw new Error('The time series does not have values!');
         }
 
         let countInvalid = 0;
-        let validValue = values.find(val => validator(val));
+        let hasValid = false;
 
-        if (validValue === undefined) {
+        for (let i = 0; i < values.length; i++) {
+            if (validator(values[i])) {
+                hasValid = true;
+                break;
+            }
+        }
+
+        if (!hasValid) {
             throw new Error("The given dataset only has invalid values or outliers!");
         }
 
+        let validValue = 0;
         const length = values.length;
 
         for (let i = 0; i < length; i++) {
@@ -1312,13 +1336,13 @@ export default class Table {
         firstValid: number,
         lastValid: number,
         steps: number
-    ): number[] {
+    ): Float64Array {
         const interPolAdd = (lastValid - firstValid) / (steps + 1);
         let interpolVal = firstValid + interPolAdd;
-        const interpolValues: number[] = [];
+        const interpolValues = new Float64Array(steps);
 
         for (let i = 0; i < steps; i++) {
-            interpolValues.push(interpolVal);
+            interpolValues[i] = interpolVal;
             interpolVal += interPolAdd;
         }
 
@@ -1326,9 +1350,9 @@ export default class Table {
     }
 
     private imputeInterpolation(
-        values: number[],
+        values: Float64Array,
         validator: (val: number) => boolean = (val) => isValidNumber(val)
-    ): number[] {
+    ): Float64Array {
         if (values.length === 0) {
             throw new Error('The time series does not have values!');
         }
@@ -1370,10 +1394,10 @@ export default class Table {
     }
 
     private movingAverageImputation(
-        values: number[],
+        values: Float64Array,
         windowSize: number = 3,
         validator: (val: number) => boolean = (val) => isValidNumber(val)
-    ): number[] {
+    ): Float64Array {
         if (values.length === 0) {
             throw new Error('The time series does not have values!');
         }
@@ -1383,9 +1407,15 @@ export default class Table {
         }
 
         const length = values.length;
-        const validFlags = values.map(val => validator(val));
+        const validFlags = new Uint8Array(length);
 
-        const hasAnyValid = validFlags.some(flag => flag);
+        let hasAnyValid = false;
+        for (let i = 0; i < length; i++) {
+            const isVal = validator(values[i]);
+            validFlags[i] = isVal ? 1 : 0;
+            if (isVal) hasAnyValid = true;
+        }
+
         if (!hasAnyValid) {
             throw new Error("The given dataset only has invalid values or outliers!");
         }
@@ -1394,7 +1424,7 @@ export default class Table {
         const rightRadius = windowSize % 2 === 0 ? leftRadius - 1 : leftRadius;
 
         for (let i = 0; i < length; i++) {
-            if (!validFlags[i]) {
+            if (validFlags[i] === 0) {
                 let sum = 0;
                 let validCount = 0;
 
@@ -1402,7 +1432,7 @@ export default class Table {
                 const end = Math.min(length - 1, i + rightRadius);
 
                 for (let j = start; j <= end; j++) {
-                    if (j !== i && validFlags[j]) {
+                    if (j !== i && validFlags[j] === 1) {
                         sum += values[j];
                         validCount++;
                     }
@@ -1422,11 +1452,11 @@ export default class Table {
     }
 
     private executeTimeSeriesTransformation(
-        colValues: number[],
+        colValues: Float64Array,
         imputeType: SeriesImputeType,
         movingAvgWindowSize: number,
         validator: (val: number) => boolean = (val) => isValidNumber(val)
-    ): number[] {
+    ): Float64Array {
         switch (imputeType) {
             case 'locf':
                 return this.locf(colValues, validator);
@@ -1445,19 +1475,6 @@ export default class Table {
         }
     }
 
-    /**
-     * Imputes missing (`NaN`/null) values in a time-series numeric column using time-series strategies.
-     *
-     * @remarks
-     * Supports Last Observation Carried Forward ('locf'), Next Observation Carried Backward ('nocb'),
-     * linear interpolation ('interpolation'), and centered moving average ('movingAverage').
-     *
-     * @param label - The label or index of the target numeric column.
-     * @param imputeType - The time-series imputation strategy to use ('locf', 'nocb', 'interpolation', 'movingAverage').
-     * @param movingAvgWindowSize - The window size for the moving average strategy (default is 3).
-     * @returns A new immutable `Table` instance with the imputed column values.
-     * @throws {Error} If the target column is not a numeric column or contains no values.
-     */
     public imputeTS(
         label: string | number,
         imputeType: SeriesImputeType,
@@ -1469,12 +1486,12 @@ export default class Table {
             throw new Error('The imputeTS method is only available for numeric columns!');
         }
 
-        if (targetCol.values.length === 0) {
+        if (targetCol.getValidValues().length === 0) {
             throw new Error('The time series does not have values!');
         }
 
         const targetIndex = this.getIndex(label);
-        const colValues = (targetCol.values as number[]).slice();
+        const colValues = new Float64Array(this._values[targetIndex] as Float64Array);
 
         const newCol = this.executeTimeSeriesTransformation(
             colValues,
@@ -1482,30 +1499,14 @@ export default class Table {
             movingAvgWindowSize
         );
 
-        const newValues = this._values.slice();
-        newValues[targetIndex] = newCol;
+        const newValues = this._values.map((col, idx) => {
+            if (idx === targetIndex) return newCol;
+            return col instanceof Float64Array ? new Float64Array(col) : [...col];
+        });
 
-        return new Table(newValues, this._colInfos, true);
+        return new Table(newValues as any[][], this._colInfos, true);
     }
 
-    /**
-     * Replaces outliers in a time-series numeric column based on fixed min/max boundaries
-     * using time-series interpolation/imputation strategies.
-     *
-     * @remarks
-     * **Note:** This method implicitly imputes missing (`NaN`/null) values as well.
-     * Because the internal validator marks both missing values and out-of-boundary outliers
-     * as invalid in a single pass, both are replaced simultaneously using the local
-     * time-series context without distorting neighboring values.
-     *
-     * @param label - The label or index of the target numeric column.
-     * @param imputeType - The time-series imputation strategy to use ('locf', 'nocb', 'interpolation', 'movingAverage').
-     * @param boundaries - An object containing `min` and/or `max` threshold values.
-     * @param movingAvgWindowSize - The window size for the moving average strategy (default is 3).
-     * @param targetColInstance - Optional pre-fetched `NumberColumn` instance to optimize repeated lookups.
-     * @returns A new immutable `Table` instance with the cleaned column values.
-     * @throws {Error} If the column is not numeric, contains no values, or if neither min nor max boundary is provided.
-     */
     public replaceTSOutliers(
         label: string | number,
         imputeType: SeriesImputeType,
@@ -1519,7 +1520,7 @@ export default class Table {
             throw new Error('The replaceTSOutliers method is only available for numeric columns!');
         }
 
-        if (targetCol.values.length === 0) {
+        if (targetCol.getValidValues().length === 0) {
             throw new Error('The time series does not have values!');
         }
 
@@ -1530,7 +1531,7 @@ export default class Table {
         }
 
         const targetIndex = this.getIndex(label);
-        const colValues = (targetCol.values as number[]).slice();
+        const colValues = new Float64Array(this._values[targetIndex] as Float64Array);
 
         const validator = (val: number): boolean => {
             if (!isValidNumber(val)) {
@@ -1555,29 +1556,14 @@ export default class Table {
             validator
         );
 
-        const newValues = this._values.slice();
-        newValues[targetIndex] = newCol;
+        const newValues = this._values.map((col, idx) => {
+            if (idx === targetIndex) return newCol;
+            return col instanceof Float64Array ? new Float64Array(col) : [...col];
+        });
 
-        return new Table(newValues, this._colInfos, true);
+        return new Table(newValues as any[][], this._colInfos, true);
     }
 
-    /**
-     * Replaces outliers in a time-series numeric column based on dynamic Interquartile Range (IQR) boundaries
-     * using time-series interpolation/imputation strategies.
-     *
-     * @remarks
-     * **Note:** This method implicitly imputes missing (`NaN`/null) values as well.
-     * Outliers detected by the IQR rule and missing values are both marked as invalid simultaneously,
-     * allowing a single-pass time-series replacement that prevents outlier distortion during imputation.
-     *
-     * @param label - The label or index of the target numeric column.
-     * @param imputeType - The time-series imputation strategy to use ('locf', 'nocb', 'interpolation', 'movingAverage').
-     * @param multiplier - The IQR multiplier used to calculate outlier thresholds (default is 1.5).
-     * @param movingAvgWindowSize - The window size for the moving average strategy (default is 3).
-     * @param percentMode - The percentile calculation method used for IQR bounds (default is 'interpolated').
-     * @returns A new immutable `Table` instance with the cleaned column values.
-     * @throws {Error} If the target column is not a numeric column or contains no values.
-     */
     public replaceTSOutliersIqr(
         label: string | number,
         imputeType: SeriesImputeType,
@@ -1591,7 +1577,7 @@ export default class Table {
             throw new Error('The replaceTSOutliersIqr method is only available for numeric columns!');
         }
 
-        const rawValues = targetCol.values as number[];
+        const rawValues = targetCol.getValidValues() as Float64Array;
 
         const iqrBounds = getIqrBoundaries(
             rawValues,

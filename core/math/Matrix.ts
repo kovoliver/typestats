@@ -1,9 +1,9 @@
 export default class Matrix {
-    private _matrix: number[][];
+    private _matrix: Float64Array[];
     private _rows: number;
     private _cols: number;
 
-    constructor(values: number[][]) {
+    constructor(values: Float64Array[]) {
         if (!values || values.length === 0) {
             throw new Error('Matrix cannot be empty.');
         }
@@ -12,19 +12,27 @@ export default class Matrix {
             throw new Error('Matrix rows cannot be empty.');
         }
 
-        const sameDim = values.every((row) => row.length === values[0].length);
-
-        if (!sameDim) {
-            throw new Error('All rows in the matrix must have the same length.');
+        const colsLength = values[0].length;
+        for (let i = 0; i < values.length; i++) {
+            if (values[i].length !== colsLength) {
+                throw new Error('All rows in the matrix must have the same length.');
+            }
         }
 
-        this._matrix = values.map((row) => [...row]);
+        this._matrix = new Array(values.length);
+        for (let i = 0; i < values.length; i++) {
+            this._matrix[i] = new Float64Array(values[i]);
+        }
         this._rows = values.length;
-        this._cols = values[0].length;
+        this._cols = colsLength;
     }
 
-    public get values(): number[][] {
-        return this._matrix.map((row) => [...row]);
+    public get values(): Float64Array[] {
+        const copy: Float64Array[] = new Array(this._rows);
+        for (let i = 0; i < this._rows; i++) {
+            copy[i] = new Float64Array(this._matrix[i]);
+        }
+        return copy;
     }
 
     public get rows(): number {
@@ -58,10 +66,16 @@ export default class Matrix {
         return this._matrix[rowIndex][colIndex];
     }
 
-    private get transposedVals(): number[][] {
-        return Array.from({ length: this._cols }, (_, col) =>
-            Array.from({ length: this._rows }, (_, row) => this._matrix[row][col])
-        );
+    private get transposedVals(): Float64Array[] {
+        const result: Float64Array[] = new Array(this._cols);
+        for (let col = 0; col < this._cols; col++) {
+            const rowArr = new Float64Array(this._rows);
+            for (let row = 0; row < this._rows; row++) {
+                rowArr[row] = this._matrix[row][col];
+            }
+            result[col] = rowArr;
+        }
+        return result;
     }
 
     public get transposed(): Matrix {
@@ -74,7 +88,11 @@ export default class Matrix {
         }
 
         const n = this._rows;
-        const A = this._matrix.map((row) => [...row]);
+        const A: Float64Array[] = new Array(n);
+        for (let i = 0; i < n; i++) {
+            A[i] = new Float64Array(this._matrix[i]);
+        }
+
         let det = 1;
         let swapCount = 0;
 
@@ -91,7 +109,9 @@ export default class Matrix {
             }
 
             if (pivotRow !== i) {
-                [A[i], A[pivotRow]] = [A[pivotRow], A[i]];
+                const temp = A[i];
+                A[i] = A[pivotRow];
+                A[pivotRow] = temp;
                 swapCount++;
             }
 
@@ -114,11 +134,14 @@ export default class Matrix {
         }
 
         const n = this._rows;
+        const aug: Float64Array[] = new Array(n);
 
-        const aug = this._matrix.map((row, i) => [
-            ...row,
-            ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)),
-        ]);
+        for (let i = 0; i < n; i++) {
+            const row = new Float64Array(2 * n);
+            row.set(this._matrix[i], 0);
+            row[n + i] = 1;
+            aug[i] = row;
+        }
 
         for (let i = 0; i < n; i++) {
             let pivotRow = i;
@@ -133,7 +156,9 @@ export default class Matrix {
             }
 
             if (pivotRow !== i) {
-                [aug[i], aug[pivotRow]] = [aug[pivotRow], aug[i]];
+                const temp = aug[i];
+                aug[i] = aug[pivotRow];
+                aug[pivotRow] = temp;
             }
 
             const pivot = aug[i][i];
@@ -151,11 +176,14 @@ export default class Matrix {
             }
         }
 
-        const invValues = aug.map((row) => row.slice(n));
+        const invValues: Float64Array[] = new Array(n);
+        for (let i = 0; i < n; i++) {
+            invValues[i] = aug[i].subarray(n);
+        }
         return new Matrix(invValues);
     }
 
-    public eigen(maxIterations = 100, tolerance = 1e-10): { values: number[]; vectors: Matrix } {
+    public eigen(maxIterations = 100, tolerance = 1e-10): { values: Float64Array; vectors: Matrix } {
         if (!this.isSquare) {
             throw new Error('Eigenvalues are only defined for square matrices.');
         }
@@ -165,11 +193,14 @@ export default class Matrix {
         }
 
         const n = this._rows;
-        const A = this._matrix.map((row) => [...row]);
+        const A: Float64Array[] = new Array(n);
+        const V: Float64Array[] = new Array(n);
 
-        let V: number[][] = Array.from({ length: n }, (_, r) =>
-            Array.from({ length: n }, (_, c) => (r === c ? 1 : 0))
-        );
+        for (let i = 0; i < n; i++) {
+            A[i] = new Float64Array(this._matrix[i]);
+            V[i] = new Float64Array(n);
+            V[i][i] = 1;
+        }
 
         for (let iter = 0; iter < maxIterations; iter++) {
             let maxOffDiag = 0;
@@ -223,7 +254,10 @@ export default class Matrix {
             }
         }
 
-        const eigenValues = Array.from({ length: n }, (_, i) => A[i][i]);
+        const eigenValues = new Float64Array(n);
+        for (let i = 0; i < n; i++) {
+            eigenValues[i] = A[i][i];
+        }
 
         return {
             values: eigenValues,
@@ -241,7 +275,10 @@ export default class Matrix {
             throw new Error(`Pivot element at [${pivotRow}, ${pivotCol}] cannot be zero.`);
         }
 
-        const result = this._matrix.map((row) => [...row]);
+        const result: Float64Array[] = new Array(this._rows);
+        for (let i = 0; i < this._rows; i++) {
+            result[i] = new Float64Array(this._matrix[i]);
+        }
 
         for (let j = 0; j < this._cols; j++) {
             result[pivotRow][j] /= pivotValue;
@@ -259,12 +296,19 @@ export default class Matrix {
         return new Matrix(result);
     }
 
-    public solve(b: number[]): number[] {
+    public solve(b: Float64Array): Float64Array {
         if (b.length !== this._rows) {
             throw new Error(`A b vektor hossza (${b.length}) nem egyezik meg a mátrix sorainak számával (${this._rows}).`);
         }
 
-        const augValues = this._matrix.map((row, i) => [...row, b[i]]);
+        const augValues: Float64Array[] = new Array(this._rows);
+        for (let i = 0; i < this._rows; i++) {
+            const row = new Float64Array(this._cols + 1);
+            row.set(this._matrix[i], 0);
+            row[this._cols] = b[i];
+            augValues[i] = row;
+        }
+
         let aug = new Matrix(augValues);
 
         const m = aug.rows;
@@ -286,7 +330,9 @@ export default class Matrix {
 
             if (maxRow !== pivotRow) {
                 const vals = aug.values;
-                [vals[pivotRow], vals[maxRow]] = [vals[maxRow], vals[pivotRow]];
+                const temp = vals[pivotRow];
+                vals[pivotRow] = vals[maxRow];
+                vals[maxRow] = temp;
                 aug = new Matrix(vals);
             }
 
@@ -297,7 +343,13 @@ export default class Matrix {
 
         const finalVals = aug.values;
         for (let r = 0; r < m; r++) {
-            const allZerosA = finalVals[r].slice(0, n).every((val) => Math.abs(val) < 1e-10);
+            let allZerosA = true;
+            for (let c = 0; c < n; c++) {
+                if (Math.abs(finalVals[r][c]) >= 1e-10) {
+                    allZerosA = false;
+                    break;
+                }
+            }
             const constantNonZero = Math.abs(finalVals[r][n]) > 1e-10;
 
             if (allZerosA && constantNonZero) {
@@ -309,7 +361,7 @@ export default class Matrix {
             throw new Error('Az egyenletrendszernek végtelen sok megoldása van (szabad paraméterek vannak).');
         }
 
-        const x = new Array(n).fill(0);
+        const x = new Float64Array(n);
         for (let i = 0; i < pivotCols.length; i++) {
             const col = pivotCols[i];
             x[col] = finalVals[i][n];
@@ -318,7 +370,7 @@ export default class Matrix {
         return x;
     }
 
-    public multiply(matrixA:Matrix, matrixB:Matrix): Matrix {
+    public multiply(matrixA: Matrix, matrixB: Matrix): Matrix {
         const a = matrixA.values;
         const b = matrixB.values;
 
@@ -326,9 +378,10 @@ export default class Matrix {
         const colsA = a[0].length;
         const colsB = b[0].length;
 
-        const result = Array.from(
-            { length: rowsA }, () => new Array(colsB).fill(0)
-        );
+        const result: Float64Array[] = new Array(rowsA);
+        for (let i = 0; i < rowsA; i++) {
+            result[i] = new Float64Array(colsB);
+        }
 
         for (let i = 0; i < rowsA; i++) {
             for (let j = 0; j < colsB; j++) {

@@ -44,7 +44,7 @@ export function getPassed(
  * @throws {Error} Throws an error if the sample is empty or if sigma is less than or equal to 0.
  */
 export function zTest(
-    sample: number[],
+    sample: Float64Array,
     sigma: number,
     alpha: number,
     mu: number,
@@ -83,7 +83,7 @@ export function zTest(
  * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda352.htm NIST e-Handbook: One-Sample t-Test}
  */
 export function tTest(
-    sample: number[],
+    sample: Float64Array,
     alpha: number,
     mu: number,
     testDirection: 'left' | 'right' | 'two-sided'
@@ -185,7 +185,7 @@ export function zTestProportion(
  * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda358.htm NIST e-Handbook: Chi-Square Test for Variance}
  */
 export function chi2Test(
-    sample: number[],
+    sample: Float64Array,
     hypotheticalVar: number,
     alpha: number,
     testDirection: 'left' | 'right' | 'two-sided'
@@ -246,8 +246,8 @@ export function chi2Test(
  * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda35f.htm NIST e-handbook: Chi-Square Goodness-of-Fit Test }
  */
 export function chi2FitTest(
-    observed: number[],
-    expected: number[],
+    observed: Float64Array,
+    expected: Float64Array,
     alpha: number,
     numEstimatedParams: number = 0
 ) {
@@ -317,7 +317,7 @@ export function chi2FitTest(
  * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda35e.htm NIST e-Handbook: Chi-Square Two-Sample Test / Contingency Table}
  */
 export function chiSquaredIndependenceTest(
-    contingencyTable: number[][],
+    contingencyTable: Float64Array[],
     alpha: number
 ) {
     const numCols = contingencyTable.length;
@@ -331,15 +331,16 @@ export function chiSquaredIndependenceTest(
     }
 
     let grandTotal = 0;
-    const rowTotals = new Array(numRows).fill(0);
-    const colTotals = new Array(numCols).fill(0);
+    const rowTotals = new Float64Array(numRows);
+    const colTotals = new Float64Array(numCols);
 
     for (let c = 0; c < numCols; c++) {
-        if (contingencyTable[c].length !== numRows) {
+        const col = contingencyTable[c];
+        if (col.length !== numRows) {
             throw new Error("All columns in the contingency table must have the same number of rows.");
         }
         for (let r = 0; r < numRows; r++) {
-            const val = contingencyTable[c][r];
+            const val = col[r];
 
             if (val < 0) {
                 throw new Error("Observed frequencies cannot be negative.");
@@ -357,15 +358,17 @@ export function chiSquaredIndependenceTest(
 
     let chi2 = 0;
     for (let c = 0; c < numCols; c++) {
+        const col = contingencyTable[c];
         for (let r = 0; r < numRows; r++) {
-            const observed = contingencyTable[c][r];
+            const observed = col[r];
             const expected = (rowTotals[r] * colTotals[c]) / grandTotal;
 
             if (expected <= 0) {
                 throw new Error("Expected frequencies must be strictly greater than 0.");
             }
 
-            chi2 += Math.pow(observed - expected, 2) / expected;
+            const diff = observed - expected;
+            chi2 += (diff * diff) / expected;
         }
     }
 
@@ -405,8 +408,8 @@ export function chiSquaredIndependenceTest(
  * @throws {Error} If either population variance is less than or equal to 0.
  */
 export function zTestTwoSamples(
-    sample1: number[],
-    sample2: number[],
+    sample1: Float64Array,
+    sample2: Float64Array,
     popVar1: number,
     popVar2: number,
     alpha: number,
@@ -466,8 +469,8 @@ export function zTestTwoSamples(
  * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda353.htm NIST e-Handbook: Two-Sample t-Test}
  */
 export function tTestTwoSamples(
-    sample1: number[],
-    sample2: number[],
+    sample1: Float64Array,
+    sample2: Float64Array,
     alpha: number,
     testDirection: 'left' | 'right' | 'two-sided',
     assumeEqualVariances: boolean = false,
@@ -539,8 +542,8 @@ export function tTestTwoSamples(
  * @throws {Error} If the standard error is zero (e.g., both sample variances are 0).
  */
 export function twoSampleAsymptoticZMeanTest(
-    sample1: number[],
-    sample2: number[],
+    sample1: Float64Array,
+    sample2: Float64Array,
     alpha: number,
     testDirection: 'left' | 'right' | 'two-sided',
     meanDifference: number = 0
@@ -668,8 +671,8 @@ export function zTestProportionTwoSamples(
  * @see {@link https://www.itl.nist.gov/div898/handbook/eda/section3/eda359.htm NIST: F-Test for Equality of Two Variances }
  */
 export function fTestTwoSamples(
-    sample1: number[],
-    sample2: number[],
+    sample1: Float64Array,
+    sample2: Float64Array,
     alpha: number,
     testDirection: 'left' | 'right' | 'two-sided'
 ) {
@@ -723,8 +726,8 @@ export function fTestTwoSamples(
  * @throws {Error} Throws an error if samples have fewer than 2 items or if the pooled standard deviation is zero.
  */
 export function tTestIndependent(
-    sample1: number[],
-    sample2: number[],
+    sample1: Float64Array,
+    sample2: Float64Array,
     alpha: number,
     testDirection: 'left' | 'right' | 'two-sided'
 ) {
@@ -767,7 +770,7 @@ export function tTestIndependent(
  * @throws {Error} If the within-group variance (msWithin) is zero.
  */
 export function oneWayAnova(
-    groups: number[][],
+    groups: Float64Array[],
     alpha: number
 ) {
     const k = groups.length;
@@ -860,7 +863,7 @@ export function oneWayAnova(
  * @throws {Error} If the calculated variance for any group is 0 or negative (logarithm is undefined).
  */
 export function bartlett(
-    groups: number[][],
+    groups: Float64Array[],
     alpha: number
 ) {
     const k = groups.length;

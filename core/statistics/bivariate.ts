@@ -8,7 +8,7 @@ import { getDegreesOfFreedom } from "../statistics/univariate.js";
  * @param table - 2D matrix representing the contingency table.
  * @throws {Error} If the table is null/empty or contains empty rows.
  */
-function validateTable(table: number[][]): void {
+function validateTable(table: Float64Array[]): void {
     if (!table || table.length === 0) {
         throw new Error('The data table should contain at least one row!');
     }
@@ -25,12 +25,16 @@ function validateTable(table: number[][]): void {
  * @returns The total sum of all elements in the table.
  * @throws {Error} If the table structure is invalid.
  */
-export function totalCount(table: number[][]): number {
+export function totalCount(table: Float64Array[]): number {
     validateTable(table);
-    return table.reduce(
-        (acc, row) => acc + row.reduce((rSum, val) => rSum + val, 0),
-        0
-    );
+    let total = 0;
+    for (let r = 0; r < table.length; r++) {
+        const row = table[r];
+        for (let c = 0; c < row.length; c++) {
+            total += row[c];
+        }
+    }
+    return total;
 }
 
 /**
@@ -41,17 +45,17 @@ export function totalCount(table: number[][]): number {
  * @returns Array containing the values of the specified column.
  * @throws {Error} If the table structure is invalid or the column index is out of bounds.
  */
-export function getColumn(table: number[][], colNumber: number): number[] {
+export function getColumn(table: Float64Array[], colNumber: number): Float64Array {
     validateTable(table);
 
     if (colNumber >= table[0].length) {
         throw new Error('The given column does not exist!');
     }
 
-    const column: number[] = [];
+    const column = new Float64Array(table.length);
 
     for (let row = 0; row < table.length; row++) {
-        column.push(table[row][colNumber]);
+        column[row] = table[row][colNumber];
     }
 
     return column;
@@ -64,14 +68,14 @@ export function getColumn(table: number[][], colNumber: number): number[] {
  * @returns 2D array where each inner array represents a column from the input table.
  * @throws {Error} If the table structure is invalid.
  */
-export default function getColumns(table: number[][]): number[][] {
+export default function getColumns(table: Float64Array[]): Float64Array[] {
     validateTable(table);
 
     const colsLength = table[0].length;
-    const columns: number[][] = [];
+    const columns: Float64Array[] = new Array(colsLength);
 
     for (let col = 0; col < colsLength; col++) {
-        columns.push(getColumn(table, col));
+        columns[col] = getColumn(table, col);
     }
 
     return columns;
@@ -84,30 +88,39 @@ export default function getColumns(table: number[][]): number[][] {
  * @returns A new 2D matrix extended with row and column total sums.
  * @throws {Error} If the table structure is invalid.
  */
-export function calcCombinationTable(table: number[][]): number[][] {
+export function calcCombinationTable(table: Float64Array[]): Float64Array[] {
     validateTable(table);
     const rows = table.length;
     const cols = table[0].length;
 
-    const combTable: number[][] = table.map(row => {
-        const rowSum = row.reduce((sum, val) => sum + val, 0);
-        return [...row, rowSum];
-    });
+    const combTable: Float64Array[] = new Array(rows + 1);
 
-    const colTotals: number[] = [];
+    for (let row = 0; row < rows; row++) {
+        const newRow = new Float64Array(cols + 1);
+        let rowSum = 0;
+        for (let col = 0; col < cols; col++) {
+            const val = table[row][col];
+            newRow[col] = val;
+            rowSum += val;
+        }
+        newRow[cols] = rowSum;
+        combTable[row] = newRow;
+    }
+
+    const colTotals = new Float64Array(cols + 1);
     for (let col = 0; col <= cols; col++) {
         let colSum = 0;
         for (let row = 0; row < rows; row++) {
             colSum += combTable[row][col];
         }
-        colTotals.push(colSum);
+        colTotals[col] = colSum;
     }
 
-    combTable.push(colTotals);
+    combTable[rows] = colTotals;
     return combTable;
 }
 
-export function chiSquare(table: number[][], digits?: number): number {
+export function chiSquare(table: Float64Array[], digits?: number): number {
     validateTable(table);
 
     const numCols = table.length;
@@ -184,7 +197,7 @@ export function chiSquare(table: number[][], digits?: number): number {
  * @returns Cramér's V association coefficient (between 0 and 1).
  * @throws {Error} If the table structure is invalid.
  */
-export function cramerV(table: number[][], digits?: number): number {
+export function cramerV(table: Float64Array[], digits?: number): number {
     validateTable(table);
     const rows = table.length;
     const cols = table[0].length;
@@ -210,15 +223,15 @@ export function cramerV(table: number[][], digits?: number): number {
  * @throws {Error} If the table structure is invalid.
  */
 export function withinSSD(
-    table: number[][],
+    table: Float64Array[],
     digits?: number
 ): number {
     validateTable(table);
 
     let totalSsd = 0;
 
-    for (const group of table) {
-        totalSsd += ssd(group);
+    for (let i = 0; i < table.length; i++) {
+        totalSsd += ssd(table[i]);
     }
 
     return round(totalSsd, digits);
@@ -232,10 +245,22 @@ export function withinSSD(
  * @returns The grand total sum of squared deviations.
  * @throws {Error} If the table structure is invalid.
  */
-export function totalSSD(table: number[][], digits?: number): number {
+export function totalSSD(table: Float64Array[], digits?: number): number {
     validateTable(table);
 
-    const totalSsd = ssd(table.flat());
+    let totalLength = 0;
+    for (let i = 0; i < table.length; i++) {
+        totalLength += table[i].length;
+    }
+
+    const flattened = new Float64Array(totalLength);
+    let offset = 0;
+    for (let i = 0; i < table.length; i++) {
+        flattened.set(table[i], offset);
+        offset += table[i].length;
+    }
+
+    const totalSsd = ssd(flattened);
 
     return round(totalSsd, digits);
 }
@@ -249,7 +274,7 @@ export function totalSSD(table: number[][], digits?: number): number {
  * @throws {Error} If the table structure is invalid.
  */
 export function betweenSSD(
-    table: number[][],
+    table: Float64Array[],
     digits?: number
 ): number {
     validateTable(table);
@@ -314,14 +339,14 @@ export function betweenSSD(
  * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The Eta Squared value (between 0 and 1).
  */
-export function etaSquared(table: number[][], digits?: number) {
+export function etaSquared(table: Float64Array[], digits?: number): number {
     const between = betweenSSD(table);
     const total = totalSSD(table);
 
     return round(total === 0 ? 0 : between / total, digits);
 }
 
-function scd(xValues: number[], yValues: number[]) {
+function scd(xValues: Float64Array, yValues: Float64Array): number {
     let avgX = 0;
     let avgY = 0;
     let sumCross = 0;
@@ -350,7 +375,7 @@ function scd(xValues: number[], yValues: number[]) {
  * @returns The calculated covariance.
  * @throws {Error} If arrays are invalid, empty, unequal in length, or sample size is less than 2.
  */
-export function covariance(values1: number[], values2: number[],
+export function covariance(values1: Float64Array, values2: Float64Array,
     isSample: boolean = true, digits?: number): number {
     if (!values1 || values1.length === 0 || !values2 || values2.length === 0) {
         throw new Error('Invalid values!');
@@ -380,8 +405,8 @@ export function covariance(values1: number[], values2: number[],
  * @returns The Pearson correlation coefficient, clamped to [-1, 1]. Returns 0 if standard deviation of either array is zero.
  */
 export function correlation(
-    values1: number[],
-    values2: number[],
+    values1: Float64Array,
+    values2: Float64Array,
     isSample: boolean = true,
     digits?: number
 ): number {
@@ -406,23 +431,20 @@ export function correlation(
  * @returns A Map mapping each unique numerical value to its calculated fractional rank.
  * @throws {Error} If `values` is empty or contains fewer than 2 numbers.
  */
-export function getRanks(values: number[]): Map<number, number> {
+export function getRanks(values: Float64Array): Map<number, number> {
     if (!values || values.length < 2) {
         throw new Error('Values array must contain at least 2 numbers!');
     }
 
-    const uniqueVals = orderAsc([...values]);
-    const stats = new Map();
+    const uniqueVals = orderAsc(values);
+    const stats = new Map<number, number>();
 
-    for (const val of uniqueVals) {
-        if (stats.has(val)) {
-            stats.set(val, stats.get(val) + 1);
-        } else {
-            stats.set(val, 1);
-        }
+    for (let i = 0; i < uniqueVals.length; i++) {
+        const val = uniqueVals[i];
+        stats.set(val, (stats.get(val) || 0) + 1);
     }
 
-    const ranks = new Map();
+    const ranks = new Map<number, number>();
     let serial = 1;
 
     for (const [key, value] of stats) {
@@ -445,16 +467,21 @@ export function getRanks(values: number[]): Map<number, number> {
  * @returns The Spearman rank correlation coefficient.
  */
 export function rankCorrelation(
-    values1: number[],
-    values2: number[],
+    values1: Float64Array,
+    values2: Float64Array,
     isSample: boolean = true,
     digits?: number
-) {
+): number {
     const ranks1 = getRanks(values1);
     const ranks2 = getRanks(values2);
 
-    const rankValues1 = values1.map(val => ranks1.get(val)!);
-    const rankValues2 = values2.map(val => ranks2.get(val)!);
+    const rankValues1 = new Float64Array(values1.length);
+    const rankValues2 = new Float64Array(values2.length);
+
+    for (let i = 0; i < values1.length; i++) {
+        rankValues1[i] = ranks1.get(values1[i])!;
+        rankValues2[i] = ranks2.get(values2[i])!;
+    }
 
     return correlation(rankValues1, rankValues2, isSample, digits);
 }

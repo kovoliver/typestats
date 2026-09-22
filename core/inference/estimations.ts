@@ -15,7 +15,7 @@ from '../utils/testAndEstimationUtils.js';
  * @throws Error if values array is empty or parameters are out of valid range.
  */
 function meanMarginOfErrorWithSTD(
-    values: number[],
+    values: Float64Array,
     alpha: number,
     sigma: number
 ): number {
@@ -40,7 +40,7 @@ function meanMarginOfErrorWithSTD(
  * @throws Error if sample contains fewer than 2 items or alpha is out of range.
  */
 function meanMarginOfErrorWithoutSTD(
-    values: number[],
+    values: Float64Array,
     alpha: number
 ): number {
     if (values.length < 2) {
@@ -137,7 +137,7 @@ function calculateVarianceCIFromSampleVar(
  * @returns An object containing the lower and upper bounds of the confidence interval.
  */
 export function meanEstimationIIDwithSTD(
-    values: number[],
+    values: Float64Array,
     alpha: number,
     sigma: number
 ): ConfidenceInterval {
@@ -159,7 +159,7 @@ export function meanEstimationIIDwithSTD(
  * @returns Object containing the lower and upper bounds of the confidence interval.
  */
 export function meanEstimationIIDwithoutSTD(
-    values: number[],
+    values: Float64Array,
     alpha: number
 ): ConfidenceInterval {
     const avg = mean(values);
@@ -229,7 +229,7 @@ export function proportionEstimationSRS(
  * @returns An object containing the lower and upper bounds adjusted with FPC.
  */
 export function meanEstimationSRSwithSTD(
-    values: number[],
+    values: Float64Array,
     alpha: number,
     sigma: number,
     N: number
@@ -254,7 +254,7 @@ export function meanEstimationSRSwithSTD(
  * @returns An object containing the lower and upper bounds adjusted with FPC.
  */
 export function meanEstimationSRSwithoutSTD(
-    values: number[],
+    values: Float64Array,
     alpha: number,
     N: number
 ): ConfidenceInterval {
@@ -277,7 +277,7 @@ export function meanEstimationSRSwithoutSTD(
  * @returns An object containing the lower and upper bounds of the variance confidence interval.
  */
 export function varianceEstimationIID(
-    values: number[],
+    values: Float64Array,
     alpha: number
 ): ConfidenceInterval {
     const sampleVar = variance(values, true);
@@ -294,7 +294,7 @@ export function varianceEstimationIID(
  * @returns An object containing the lower and upper bounds of the variance confidence interval.
  */
 export function varianceEstimationSRS(
-    values: number[],
+    values: Float64Array,
     alpha: number,
     N: number
 ): ConfidenceInterval {
@@ -410,8 +410,8 @@ export function estimateStratifiedVariance(strata: Stratum[]): number {
  * @throws {Error} If alpha is not strictly between 0 and 1.
  */
 export function getMeanDiffKnownVariance(
-    sample1: number[],
-    sample2: number[],
+    sample1: Float64Array,
+    sample2: Float64Array,
     var1: number,
     var2: number,
     alpha: number
@@ -454,8 +454,8 @@ export function getMeanDiffKnownVariance(
  * @throws {Error} If alpha is not strictly between 0 and 1.
  */
 export function getMeanDiffPooledCI(
-    sample1: number[],
-    sample2: number[],
+    sample1: Float64Array,
+    sample2: Float64Array,
     alpha: number
 ): ConfidenceInterval {
     const { df, meanDiff, standardError } = getPooledTContext(sample1, sample2);
@@ -532,8 +532,8 @@ export function getProportionDiff(
  * @throws {Error} If alpha is not strictly between 0 and 1.
  */
 export function getPairedMeanDiff(
-    sample1: number[],
-    sample2: number[],
+    sample1: Float64Array,
+    sample2: Float64Array,
     alpha: number
 ): ConfidenceInterval {
     if (sample1.length === 0 || sample2.length === 0) {

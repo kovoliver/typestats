@@ -54,7 +54,7 @@ export default class NumberColumn extends Column<number> {
      * @param {unknown[]} rawValues - The raw input values.
      * @returns {(number | NaN)[]} An array of processed numeric values or nulls for missing/invalid entries.
      */
-    protected prepareData(rawValues: unknown[]): number[] {
+    protected prepareData(rawValues: unknown[]): Float64Array {
         return toNumberArray(rawValues);
     }
 
@@ -74,7 +74,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The minimum numeric value.
      */
     public min(): number {
-        return this.getCached('min', () => getMin(this.getValidValues()));
+        return this.getCached('min', () => getMin(this.getValidValues() as Float64Array));
     }
 
     /**
@@ -83,7 +83,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The maximum numeric value.
      */
     public max(): number {
-        return this.getCached('max', () => getMax(this.getValidValues()));
+        return this.getCached('max', () => getMax(this.getValidValues() as Float64Array));
     }
 
     /**
@@ -92,7 +92,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The mean of the column values.
      */
     public mean(): number {
-        return this.getCached('mean', () => mean(this.getValidValues()));
+        return this.getCached('mean', () => mean(this.getValidValues() as Float64Array));
     }
 
     /**
@@ -101,7 +101,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The variance of the column values.
      */
     public variance(): number {
-        return this.getCached('variance', () => variance(this.getValidValues()));
+        return this.getCached('variance', () => variance(this.getValidValues() as Float64Array));
     }
 
     /**
@@ -110,7 +110,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The variance of the column values.
      */
     public std(): number {
-        return this.getCached('variance', () => std(this.getValidValues()));
+        return this.getCached('variance', () => std(this.getValidValues() as Float64Array));
     }
 
     /**
@@ -119,7 +119,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The sum of squared deviations.
      */
     public ssd(): number {
-        return this.getCached('ssd', () => ssd(this.getValidValues()));
+        return this.getCached('ssd', () => ssd(this.getValidValues() as Float64Array));
     }
 
     /**
@@ -128,7 +128,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The numeric range of the column.
      */
     public range(): number {
-        return this.getCached('range', () => range(this.getValidValues()));
+        return this.getCached('range', () => range(this.getValidValues() as Float64Array));
     }
 
     /**
@@ -137,7 +137,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The skewness value.
      */
     public skewness(): number {
-        return this.getCached('skewness', () => skewness(this.getValidValues()));
+        return this.getCached('skewness', () => skewness(this.getValidValues() as Float64Array));
     }
 
     /**
@@ -146,7 +146,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The excess kurtosis value.
      */
     public kurtosis(): number {
-        return this.getCached('kurtosis', () => excessKurtosis(this.getValidValues()));
+        return this.getCached('kurtosis', () => excessKurtosis(this.getValidValues() as Float64Array));
     }
 
     /**
@@ -158,7 +158,7 @@ export default class NumberColumn extends Column<number> {
      */
     public percentile(percent: number, percentMode: PercentMode = 'interpolated'): number {
         return this.getCached(`percentile_${percent}_${percentMode}`, () =>
-            percentile(this.getValidValues(), percent, percentMode)
+            percentile(this.getValidValues() as Float64Array, percent, percentMode)
         );
     }
 
@@ -169,7 +169,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The first quartile value.
      */
     public q1(percentMode: PercentMode = 'interpolated'): number {
-        return this.getCached(`q1_${percentMode}`, () => q1(this.getValidValues(), percentMode));
+        return this.getCached(`q1_${percentMode}`, () => q1(this.getValidValues() as Float64Array, percentMode));
     }
 
     /**
@@ -179,7 +179,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The median value.
      */
     public median(percentMode: PercentMode = 'interpolated'): number {
-        return this.getCached(`median_${percentMode}`, () => median(this.getValidValues(), percentMode));
+        return this.getCached(`median_${percentMode}`, () => median(this.getValidValues() as Float64Array, percentMode));
     }
 
     /**
@@ -189,7 +189,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The third quartile value.
      */
     public q3(percentMode: PercentMode = 'interpolated'): number {
-        return this.getCached(`q3_${percentMode}`, () => q3(this.getValidValues(), percentMode));
+        return this.getCached(`q3_${percentMode}`, () => q3(this.getValidValues() as Float64Array, percentMode));
     }
 
     /**
@@ -199,7 +199,7 @@ export default class NumberColumn extends Column<number> {
      * @returns {number} The calculated interquartile range.
      */
     public iqr(percentMode: PercentMode = 'interpolated'): number {
-        return this.getCached(`iqr_${percentMode}`, () => iqr(this.getValidValues(), percentMode));
+        return this.getCached(`iqr_${percentMode}`, () => iqr(this.getValidValues() as Float64Array, percentMode));
     }
 
     /**
@@ -281,18 +281,25 @@ export default class NumberColumn extends Column<number> {
      * @returns The total count of values outside the specified boundaries.
      * @throws {Error} Throws an error if both `boundaries.min` and `boundaries.max` are empty.
      */
-    public countOutliers(boundaries: Boundaries) {
+    public countOutliers(boundaries: Boundaries): number {
         if (isEmpty(boundaries.min) && isEmpty(boundaries.max)) {
             throw new Error('You must define at least the minimum or maximum value of the boundaries!');
         }
 
-        boundaries.min = !isEmpty(boundaries.min) ? boundaries.min : Number.NEGATIVE_INFINITY;
-        boundaries.max = !isEmpty(boundaries.max) ? boundaries.max : Number.POSITIVE_INFINITY;
+        const min = !isEmpty(boundaries.min) ? boundaries.min! : Number.NEGATIVE_INFINITY;
+        const max = !isEmpty(boundaries.max) ? boundaries.max! : Number.POSITIVE_INFINITY;
 
-        return this.getValidValues().reduce(
-            (total, val) => val < boundaries.min!
-                || val > boundaries.max! ? total + 1 : total, 0
-        );
+        const valid = this.getValidValues();
+        let count = 0;
+
+        for (let i = 0; i < valid.length; i++) {
+            const val = valid[i];
+            if (val < min || val > max) {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /**
@@ -307,13 +314,23 @@ export default class NumberColumn extends Column<number> {
     public countOutliersIqr(
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
-    ) {
+    ): number {
         const boundaries: Boundaries = this.getIqrBoundaries(multiplier, percentMode);
 
-        return this.getValidValues().reduce(
-            (total, val) => val < boundaries.min!
-                || val > boundaries.max! ? total + 1 : total, 0
-        );
+        const min = !isEmpty(boundaries.min) ? boundaries.min! : Number.NEGATIVE_INFINITY;
+        const max = !isEmpty(boundaries.max) ? boundaries.max! : Number.POSITIVE_INFINITY;
+
+        const valid = this.getValidValues();
+        let count = 0;
+
+        for (let i = 0; i < valid.length; i++) {
+            const val = valid[i];
+            if (val < min || val > max) {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /**
@@ -394,7 +411,7 @@ export default class NumberColumn extends Column<number> {
      * @throws {Error} Throws an error if array lengths do not match or if missing values are present.
      */
     public covariance(column: NumberColumn): number {
-        return covariance(this._values as number[], column.values as number[]);
+        return covariance(this._values as Float64Array, column.values as Float64Array);
     }
 
     /**
@@ -405,7 +422,7 @@ export default class NumberColumn extends Column<number> {
      * @throws {Error} Throws an error if array lengths do not match or if missing values are present.
      */
     public correlation(column: NumberColumn): number {
-        return correlation(this._values as number[], column.values as number[]);
+        return correlation(this._values as Float64Array, column.values as Float64Array);
     }
 
     /**
@@ -425,8 +442,8 @@ export default class NumberColumn extends Column<number> {
         }
 
         const calc = new Regression(
-            this._values as number[],
-            column.values as number[]
+            this._values as Float64Array,
+            column.values as Float64Array
         );
 
         const model = intercept
@@ -462,8 +479,8 @@ export default class NumberColumn extends Column<number> {
         }
 
         const calc = new Regression(
-            this._values as number[],
-            column.values as number[]
+            this._values as Float64Array,
+            column.values as Float64Array
         );
 
         const model = intercept
@@ -499,8 +516,8 @@ export default class NumberColumn extends Column<number> {
         }
 
         const calc = new Regression(
-            this._values as number[],
-            column.values as number[]
+            this._values as Float64Array,
+            column.values as Float64Array
         );
 
         const model = intercept
@@ -527,7 +544,7 @@ export default class NumberColumn extends Column<number> {
      */
     public linearTrend(): TrendModel {
         if (this.trend === null) {
-            this.trend = new Trend(this.getValidValues());
+            this.trend = new Trend(this.getValidValues() as Float64Array);
         }
 
         return this.getCached('linear_trend', () => {
@@ -548,7 +565,7 @@ export default class NumberColumn extends Column<number> {
      */
     public exponentialTrend(): TrendModel {
         if (this.trend === null) {
-            this.trend = new Trend(this.getValidValues());
+            this.trend = new Trend(this.getValidValues() as Float64Array);
         }
 
         return this.getCached('exponential_trend', () => {
@@ -569,7 +586,7 @@ export default class NumberColumn extends Column<number> {
      */
     public logarithmicTrend(): TrendModel {
         if (this.trend === null) {
-            this.trend = new Trend(this.getValidValues());
+            this.trend = new Trend(this.getValidValues() as Float64Array);
         }
 
         return this.getCached('logarithmic_trend', () => {
@@ -588,7 +605,7 @@ export default class NumberColumn extends Column<number> {
      */
     public polynomialTrend(degree: number) {
         if (this.trend === null) {
-            this.trend = new Trend(this.getValidValues());
+            this.trend = new Trend(this.getValidValues() as Float64Array);
         }
 
         return this.getCached(`polynomial_trend_${degree}`, () => {
@@ -604,8 +621,7 @@ export default class NumberColumn extends Column<number> {
      * Clears cached calculations.
      */
     public orderAsc(): NumberColumn {
-        const copyValues = [...this._values];
-        const values: number[] = orderAsc(copyValues as number[]);
+        const values: Float64Array = orderAsc(this._values as Float64Array);
         return new NumberColumn(values, this._label);
     }
 
@@ -614,8 +630,7 @@ export default class NumberColumn extends Column<number> {
      * Clears cached calculations.
      */
     public orderDesc(): NumberColumn {
-        const copyValues = [...this._values];
-        const values: number[] = orderDesc(copyValues as number[]);
+        const values: Float64Array = orderDesc(this._values as Float64Array);
         return new NumberColumn(values, this._label);
     }
 
@@ -629,7 +644,7 @@ export default class NumberColumn extends Column<number> {
      */
     public meanEstimationIIDwithSTD(alpha: number, sigma: number): ConfidenceInterval {
         return this.getCached(`meanEstimationIIDwithSTD_${alpha}_${sigma}`, () =>
-            meanEstimationIIDwithSTD(this.getValidValues(), alpha, sigma)
+            meanEstimationIIDwithSTD(this.getValidValues() as Float64Array, alpha, sigma)
         );
     }
 
@@ -642,7 +657,7 @@ export default class NumberColumn extends Column<number> {
      */
     public meanEstimationIIDwithoutSTD(alpha: number): ConfidenceInterval {
         return this.getCached(`meanEstimationIIDwithoutSTD_${alpha}`, () =>
-            meanEstimationIIDwithoutSTD(this.getValidValues(), alpha)
+            meanEstimationIIDwithoutSTD(this.getValidValues() as Float64Array, alpha)
         );
     }
 
@@ -686,7 +701,7 @@ export default class NumberColumn extends Column<number> {
      */
     public meanEstimationSRSwithSTD(alpha: number, sigma: number, N: number): ConfidenceInterval {
         return this.getCached(`meanEstimationSRSwithSTD_${alpha}_${sigma}_${N}`, () =>
-            meanEstimationSRSwithSTD(this.getValidValues(), alpha, sigma, N)
+            meanEstimationSRSwithSTD(this.getValidValues() as Float64Array, alpha, sigma, N)
         );
     }
 
@@ -700,7 +715,7 @@ export default class NumberColumn extends Column<number> {
      */
     public meanEstimationSRSwithoutSTD(alpha: number, N: number): ConfidenceInterval {
         return this.getCached(`meanEstimationSRSwithoutSTD_${alpha}_${N}`, () =>
-            meanEstimationSRSwithoutSTD(this.getValidValues(), alpha, N)
+            meanEstimationSRSwithoutSTD(this.getValidValues() as Float64Array, alpha, N)
         );
     }
 
@@ -713,7 +728,7 @@ export default class NumberColumn extends Column<number> {
      */
     public varianceEstimationIID(alpha: number): ConfidenceInterval {
         return this.getCached(`varianceEstimationIID_${alpha}`, () =>
-            varianceEstimationIID(this.getValidValues(), alpha)
+            varianceEstimationIID(this.getValidValues() as Float64Array, alpha)
         );
     }
 
@@ -727,7 +742,7 @@ export default class NumberColumn extends Column<number> {
      */
     public varianceEstimationSRS(alpha: number, N: number): ConfidenceInterval {
         return this.getCached(`varianceEstimationSRS_${alpha}_${N}`, () =>
-            varianceEstimationSRS(this.getValidValues(), alpha, N)
+            varianceEstimationSRS(this.getValidValues() as Float64Array, alpha, N)
         );
     }
 
@@ -785,8 +800,8 @@ export default class NumberColumn extends Column<number> {
     ): ConfidenceInterval {
         return this.getCached(`getMeanDiffKnownVariance_${otherColumn}_${var1}_${var2}_${alpha}`, () =>
             getMeanDiffKnownVariance(
-                this.getValidValues(),
-                otherColumn.getValidValues(),
+                this.getValidValues() as Float64Array,
+                otherColumn.getValidValues() as Float64Array,
                 var1,
                 var2,
                 alpha
@@ -804,7 +819,7 @@ export default class NumberColumn extends Column<number> {
      */
     public getMeanDiffPooledCI(otherColumn: NumberColumn, alpha: number): ConfidenceInterval {
         return this.getCached(`getMeanDiffPooledCI_${otherColumn}_${alpha}`, () =>
-            getMeanDiffPooledCI(this.getValidValues(), otherColumn.getValidValues(), alpha)
+            getMeanDiffPooledCI(this.getValidValues() as Float64Array, otherColumn.getValidValues() as Float64Array, alpha)
         );
     }
 
@@ -845,7 +860,7 @@ export default class NumberColumn extends Column<number> {
      */
     public getPairedMeanDiff(otherColumn: NumberColumn, alpha: number): ConfidenceInterval {
         return this.getCached(`getPairedMeanDiff_${otherColumn}_${alpha}`, () =>
-            getPairedMeanDiff(this.getValidValues(), otherColumn.getValidValues(), alpha)
+            getPairedMeanDiff(this.getValidValues() as Float64Array, otherColumn.getValidValues() as Float64Array, alpha)
         );
     }
 
@@ -865,7 +880,7 @@ export default class NumberColumn extends Column<number> {
         testDirection: 'left' | 'right' | 'two-sided'
     ): { z: number; Z: number; passed: boolean } {
         return this.getCached(`zTest_${sigma}_${alpha}_${mu}_${testDirection}`, () =>
-            zTest(this.getValidValues(), sigma, alpha, mu, testDirection)
+            zTest(this.getValidValues() as Float64Array, sigma, alpha, mu, testDirection)
         );
     }
 
@@ -883,7 +898,7 @@ export default class NumberColumn extends Column<number> {
         testDirection: 'left' | 'right' | 'two-sided'
     ): { t: number; T: number; passed: boolean } {
         return this.getCached(`tTest_${alpha}_${mu}_${testDirection}`, () =>
-            tTest(this.getValidValues(), alpha, mu, testDirection)
+            tTest(this.getValidValues() as Float64Array, alpha, mu, testDirection)
         );
     }
 
@@ -921,7 +936,7 @@ export default class NumberColumn extends Column<number> {
         testDirection: 'left' | 'right' | 'two-sided'
     ): { chi2: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
         return this.getCached(`chi2Test_${hypotheticalVar}_${alpha}_${testDirection}`, () =>
-            chi2Test(this.getValidValues(), hypotheticalVar, alpha, testDirection)
+            chi2Test(this.getValidValues() as Float64Array, hypotheticalVar, alpha, testDirection)
         );
     }
 
@@ -934,12 +949,12 @@ export default class NumberColumn extends Column<number> {
      * @returns An object containing chi2 statistic, degrees of freedom, critical bounds, and boolean result passed.
      */
     public chi2FitTest(
-        expected: number[],
+        expected: Float64Array,
         alpha: number,
         numEstimatedParams: number = 0
     ): { chi2: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
         return this.getCached(`chi2FitTest_${JSON.stringify(expected)}_${alpha}_${numEstimatedParams}`, () =>
-            chi2FitTest(this.getValidValues(), expected, alpha, numEstimatedParams)
+            chi2FitTest(this.getValidValues() as Float64Array, expected, alpha, numEstimatedParams)
         );
     }
 
@@ -951,7 +966,7 @@ export default class NumberColumn extends Column<number> {
      * @returns An object containing chi2 statistic, degrees of freedom, critical bounds, and boolean result passed.
      */
     public chiSquaredIndependenceTest(
-        contingencyTable: number[][],
+        contingencyTable: Float64Array[],
         alpha: number
     ): { chi2: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
         return this.getCached(`chiSquaredIndependenceTest_${JSON.stringify(contingencyTable)}_${alpha}`, () =>
@@ -980,8 +995,8 @@ export default class NumberColumn extends Column<number> {
     ): { z: number; Z: number; passed: boolean } {
         return this.getCached(`zTestTwoSamples_${otherColumn}_${popVar1}_${popVar2}_${alpha}_${testDirection}_${meanDifference}`, () =>
             zTestTwoSamples(
-                this.getValidValues(),
-                otherColumn.getValidValues(),
+                this.getValidValues() as Float64Array,
+                otherColumn.getValidValues() as Float64Array,
                 popVar1,
                 popVar2,
                 alpha,
@@ -1010,8 +1025,8 @@ export default class NumberColumn extends Column<number> {
     ): { t: number; T: number; passed: boolean } {
         return this.getCached(`tTestTwoSamples_${otherColumn}_${alpha}_${testDirection}_${assumeEqualVariances}_${meanDifference}`, () =>
             tTestTwoSamples(
-                this.getValidValues(),
-                otherColumn.getValidValues(),
+                this.getValidValues() as Float64Array,
+                otherColumn.getValidValues() as Float64Array,
                 alpha,
                 testDirection,
                 assumeEqualVariances,
@@ -1037,8 +1052,8 @@ export default class NumberColumn extends Column<number> {
     ): { z: number; Z: number; passed: boolean } {
         return this.getCached(`twoSampleAsymptoticZMeanTest_${otherColumn}_${alpha}_${testDirection}_${meanDifference}`, () =>
             twoSampleAsymptoticZMeanTest(
-                this.getValidValues(),
-                otherColumn.getValidValues(),
+                this.getValidValues() as Float64Array,
+                otherColumn.getValidValues() as Float64Array,
                 alpha,
                 testDirection,
                 meanDifference
@@ -1092,7 +1107,7 @@ export default class NumberColumn extends Column<number> {
         testDirection: 'left' | 'right' | 'two-sided'
     ): { F: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
         return this.getCached(`fTestTwoSamples_${otherColumn}_${alpha}_${testDirection}`, () =>
-            fTestTwoSamples(this.getValidValues(), otherColumn.getValidValues(), alpha, testDirection)
+            fTestTwoSamples(this.getValidValues() as Float64Array, otherColumn.getValidValues() as Float64Array, alpha, testDirection)
         );
     }
 
@@ -1110,7 +1125,11 @@ export default class NumberColumn extends Column<number> {
         testDirection: 'left' | 'right' | 'two-sided'
     ): { T: number; t: number; passed: boolean } {
         return this.getCached(`tTestIndependent_${otherColumn}_${alpha}_${testDirection}`, () =>
-            tTestIndependent(this.getValidValues(), otherColumn.getValidValues(), alpha, testDirection)
+            tTestIndependent(
+                this.getValidValues() as Float64Array,
+                otherColumn.getValidValues() as Float64Array,
+                alpha, testDirection
+            )
         );
     }
 
@@ -1125,8 +1144,13 @@ export default class NumberColumn extends Column<number> {
         otherColumns: NumberColumn[],
         alpha: number
     ): { F: number; msBetween: number; msWithin: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
-        const groups = [this.getValidValues(), ...otherColumns.map(col => col.getValidValues())];
-        return this.getCached(`oneWayAnova_${otherColumns.join('_')}_${alpha}`, () =>
+        const groups: Float64Array[] = [
+            this.getValidValues() as Float64Array,
+            ...otherColumns.map(col => col.getValidValues() as Float64Array)
+        ];
+
+        const cacheKey = `oneWayAnova_${otherColumns.map(c => c.label).join('_')}_${alpha}`;
+        return this.getCached(cacheKey, () =>
             oneWayAnova(groups, alpha)
         );
     }
@@ -1142,8 +1166,13 @@ export default class NumberColumn extends Column<number> {
         otherColumns: NumberColumn[],
         alpha: number
     ): { chi2: number; criticalBounds: { lower?: number; upper?: number }; passed: boolean } {
-        const groups = [this.getValidValues(), ...otherColumns.map(col => col.getValidValues())];
-        return this.getCached(`bartlett_${otherColumns.join('_')}_${alpha}`, () =>
+        const groups: Float64Array[] = [
+            this.getValidValues() as Float64Array,
+            ...otherColumns.map(col => col.getValidValues() as Float64Array)
+        ];
+
+        const cacheKey = `bartlett_${otherColumns.map(c => c.label).join('_')}_${alpha}`;
+        return this.getCached(cacheKey, () =>
             bartlett(groups, alpha)
         );
     }
@@ -1155,7 +1184,7 @@ export default class NumberColumn extends Column<number> {
             return { missing: 0, valid: 0, mean: NaN, std: NaN, min: NaN, median: NaN, max: NaN };
         }
 
-        const validValues = new Array<number>(len);
+        const validValues = new Float64Array(len);
         let missing = 0;
         let validCount = 0;
 
@@ -1167,20 +1196,21 @@ export default class NumberColumn extends Column<number> {
         for (let i = 0; i < len; i++) {
             const val = this._values[i];
 
-            if (val === null || val === undefined || val !== val) {
+            if (!this.isValid(val)) {
                 missing++;
                 continue;
             }
 
-            validValues[validCount] = val as number;
+            const numVal = val as number;
+            validValues[validCount] = numVal;
             validCount++;
 
-            if (val < min) min = val as number;
-            if (val > max) max = val as number;
+            if (numVal < min) min = numVal;
+            if (numVal > max) max = numVal;
 
-            const delta = (val as number) - meanAcc;
+            const delta = numVal - meanAcc;
             meanAcc += delta / validCount;
-            const delta2 = (val as number) - meanAcc;
+            const delta2 = numVal - meanAcc;
             M2 += delta * delta2;
         }
 
@@ -1188,12 +1218,12 @@ export default class NumberColumn extends Column<number> {
             return { missing, valid: 0, mean: NaN, std: NaN, min: NaN, median: NaN, max: NaN };
         }
 
-        validValues.length = validCount;
+        const trimmedValidValues = validValues.subarray(0, validCount);
 
         const variance = validCount > 1 ? M2 / (validCount - 1) : 0;
         const stdVal = Math.sqrt(variance);
 
-        const median = round(percentile(validValues, 0.5, 'interpolated'), 3);
+        const median = round(percentile(trimmedValidValues, 0.5, 'interpolated'), 3);
 
         return {
             label: this._label,

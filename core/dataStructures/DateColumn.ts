@@ -2,6 +2,7 @@ import { TimeUnit } from "../types/types.js";
 import { isInteger } from "../utils/numberUtils.js";
 import { displayDateString, isValidTimestamp, toUnixTimestampArray } from "../utils/utils.js";
 import Column from "./Column.js";
+
 /**
  * Represents a column of Date values optimized for statistical analysis and data transformation.
  * 
@@ -10,7 +11,7 @@ import Column from "./Column.js";
  * strictly use **UTC** time to ensure consistent and reproducible analytical results across 
  * different server environments and client timezones.
  */
-export default class DateColumn extends Column<number | Date> {
+export default class DateColumn extends Column<Date> {
     private readonly _months = [
         'January',
         'February',
@@ -36,17 +37,29 @@ export default class DateColumn extends Column<number | Date> {
         'Saturday'
     ] as const;
 
-    public get values(): (Date | null)[] {
-        return this._values.map(ts =>
-            (ts === null || ts === undefined || Number.isNaN(ts) ? null : new Date(ts))
-        );
+    private get _typedValues(): Float64Array {
+        return this._values as Float64Array;
     }
 
-    protected prepareData(rawValues: unknown[]): (number | null)[] {
+    public override get values(): (Date | null)[] {
+        const values = this._typedValues;
+        const len = values.length;
+        const result: (Date | null)[] = new Array(len);
+
+        for (let i = 0; i < len; i++) {
+            const ts = values[i];
+            result[i] = Number.isNaN(ts) ? null : new Date(ts);
+        }
+
+        return result;
+    }
+
+    protected prepareData(rawValues: unknown[]): Float64Array {
         return toUnixTimestampArray(rawValues);
     }
 
-    public isValid(value: number): boolean {
+    public isValid(value: unknown): boolean {
+        if (typeof value !== 'number' || Number.isNaN(value)) return false;
         return isValidTimestamp(value);
     }
 
@@ -57,13 +70,13 @@ export default class DateColumn extends Column<number | Date> {
      * @throws {Error} If the index is not a valid integer or out of bounds.
      */
     public getElementByIndex(index: number): Date | null {
-        if (!isInteger(index) || index < 0 || index >= this._values.length) {
+        const values = this._typedValues;
+        if (!isInteger(index) || index < 0 || index >= values.length) {
             throw new Error('You must provide a valid index!');
         }
 
-        const timestamp = this._values[index];
-        return !Number.isNaN(timestamp) && timestamp !== null
-            ? new Date(timestamp!) : null;
+        const timestamp = values[index];
+        return !Number.isNaN(timestamp) ? new Date(timestamp) : null;
     }
 
     /**
@@ -129,7 +142,7 @@ export default class DateColumn extends Column<number | Date> {
      */
     public getDayOfTheWeek(index: number): string | null {
         const d = this.getElementByIndex(index);
-        return d ? this._daysOfWeek[d.getDay()] : null;
+        return d ? this._daysOfWeek[d.getUTCDay()] : null;
     }
 
     /**
@@ -140,7 +153,7 @@ export default class DateColumn extends Column<number | Date> {
      */
     public getHours(index: number): number | null {
         const d = this.getElementByIndex(index);
-        return d ? d.getHours() : null;
+        return d ? d.getUTCHours() : null;
     }
 
     /**
@@ -151,7 +164,7 @@ export default class DateColumn extends Column<number | Date> {
      */
     public getMinutes(index: number): number | null {
         const d = this.getElementByIndex(index);
-        return d ? d.getMinutes() : null;
+        return d ? d.getUTCMinutes() : null;
     }
 
     /**
@@ -162,7 +175,7 @@ export default class DateColumn extends Column<number | Date> {
      */
     public getSeconds(index: number): number | null {
         const d = this.getElementByIndex(index);
-        return d ? d.getSeconds() : null;
+        return d ? d.getUTCSeconds() : null;
     }
 
     /**
@@ -173,7 +186,7 @@ export default class DateColumn extends Column<number | Date> {
      */
     public getMilliseconds(index: number): number | null {
         const d = this.getElementByIndex(index);
-        return d ? d.getMilliseconds() : null;
+        return d ? d.getUTCMilliseconds() : null;
     }
 
     /**
@@ -183,7 +196,7 @@ export default class DateColumn extends Column<number | Date> {
      * @returns -1 if d1 < d2, 1 if d1 > d2, or 0 if equal.
      * @throws {Error} If either date is null.
      */
-    public compareTwoDates(d1: Date | null, d2: Date | null) {
+    public compareTwoDates(d1: Date | null, d2: Date | null): number {
         if (d1 === null || d2 === null) {
             throw new Error('One of the dates are invalid!');
         }
@@ -213,12 +226,12 @@ export default class DateColumn extends Column<number | Date> {
      * @returns -1 if column date < d2, 1 if column date > d2, or 0 if equal.
      * @throws {Error} If either date is null.
      */
-    public compareDates(index1: number, d2: Date) {
+    public compareDates(index1: number, d2: Date): number {
         const d1 = this.getElementByIndex(index1);
         return this.compareTwoDates(d1, d2);
     }
 
-    private toMs(unit: TimeUnit) {
+    private toMs(unit: TimeUnit): number {
         switch (unit) {
             case 'seconds':
                 return 1000;
@@ -241,7 +254,7 @@ export default class DateColumn extends Column<number | Date> {
      * @returns Truncated integer difference in specified unit.
      * @throws {Error} If either date is null or unit is invalid.
      */
-    public getDiff(index1: number, index2: number, unit: TimeUnit) {
+    public getDiff(index1: number, index2: number, unit: TimeUnit): number {
         const d1 = this.getElementByIndex(index1);
         const d2 = this.getElementByIndex(index2);
 
@@ -258,12 +271,12 @@ export default class DateColumn extends Column<number | Date> {
         switch (unit) {
             case 'months':
                 return (
-                    (d1.getFullYear() - d2.getFullYear()) * 12 +
-                    (d1.getMonth() - d2.getMonth())
+                    (d1.getUTCFullYear() - d2.getUTCFullYear()) * 12 +
+                    (d1.getUTCMonth() - d2.getUTCMonth())
                 );
 
             case 'years':
-                return d1.getFullYear() - d2.getFullYear();
+                return d1.getUTCFullYear() - d2.getUTCFullYear();
         }
 
         throw new Error("Invalid 'unit' argument: '" + unit + "'");
@@ -287,26 +300,26 @@ export default class DateColumn extends Column<number | Date> {
 
         switch (unit) {
             case 'months':
-                return new Date(
-                    d.getFullYear(),
-                    d.getMonth() + amount,
-                    d.getDate(),
-                    d.getHours(),
-                    d.getMinutes(),
-                    d.getSeconds(),
-                    d.getMilliseconds()
-                );
+                return new Date(Date.UTC(
+                    d.getUTCFullYear(),
+                    d.getUTCMonth() + amount,
+                    d.getUTCDate(),
+                    d.getUTCHours(),
+                    d.getUTCMinutes(),
+                    d.getUTCSeconds(),
+                    d.getUTCMilliseconds()
+                ));
 
             case 'years':
-                return new Date(
-                    d.getFullYear() + amount,
-                    d.getMonth(),
-                    d.getDate(),
-                    d.getHours(),
-                    d.getMinutes(),
-                    d.getSeconds(),
-                    d.getMilliseconds()
-                );
+                return new Date(Date.UTC(
+                    d.getUTCFullYear() + amount,
+                    d.getUTCMonth(),
+                    d.getUTCDate(),
+                    d.getUTCHours(),
+                    d.getUTCMinutes(),
+                    d.getUTCSeconds(),
+                    d.getUTCMilliseconds()
+                ));
         }
 
         throw new Error("Invalid 'unit' argument: '" + unit + "'");
@@ -397,16 +410,32 @@ export default class DateColumn extends Column<number | Date> {
     }
 
     private order(mode: 'asc' | 'desc'): DateColumn {
-        const dates = [...this._values].sort((a, b) => {
-            if (a === null && b === null) return 0;
-            if (a === null) return 1;
-            if (b === null) return -1;
+        const values = this._typedValues;
+        const len = values.length;
+        const validIndices = this.getValidIndices();
+        const invalidIndices = this.getInvalidIndices();
 
-            const diff = (a as number) - (b as number);
-            return mode === 'asc' ? diff : -diff;
-        });
+        const validCount = validIndices.length;
+        const validTs = new Float64Array(validCount);
 
-        return new DateColumn(dates, this._label, true);
+        for (let i = 0; i < validCount; i++) {
+            validTs[i] = values[validIndices[i]];
+        }
+
+        validTs.sort();
+
+        if (mode === 'desc') {
+            validTs.reverse();
+        }
+
+        const resultTs = new Float64Array(len);
+        resultTs.set(validTs, 0);
+
+        for (let i = 0; i < invalidIndices.length; i++) {
+            resultTs[validCount + i] = NaN;
+        }
+
+        return new DateColumn(resultTs, this._label, true);
     }
 
     /**
@@ -433,12 +462,13 @@ export default class DateColumn extends Column<number | Date> {
      */
     public min(): Date | null {
         let minTs: number | null = null;
-        const len: number = this._values.length;
+        const values = this._typedValues;
+        const len = values.length;
 
         for (let i = 0; i < len; i++) {
-            const ts: number | null = this._values[i] as (number | null);
+            const ts = values[i];
 
-            if (ts === null || ts === undefined || Number.isNaN(ts)) continue;
+            if (Number.isNaN(ts)) continue;
 
             if (minTs === null || ts < minTs) {
                 minTs = ts;
@@ -453,20 +483,21 @@ export default class DateColumn extends Column<number | Date> {
      * @returns The latest Date instance or null if no valid dates exist.
      */
     public max(): Date | null {
-        let minTs: number | null = null;
-        const len: number = this._values.length;
+        let maxTs: number | null = null;
+        const values = this._typedValues;
+        const len = values.length;
 
         for (let i = 0; i < len; i++) {
-            const ts: number | null = this._values[i] as (number | null);
+            const ts = values[i];
 
-            if (ts === null || ts === undefined || Number.isNaN(ts)) continue;
+            if (Number.isNaN(ts)) continue;
 
-            if (minTs === null || ts > minTs) {
-                minTs = ts;
+            if (maxTs === null || ts > maxTs) {
+                maxTs = ts;
             }
         }
 
-        return minTs === null ? null : new Date(minTs);
+        return maxTs === null ? null : new Date(maxTs);
     }
 
     /**
@@ -476,12 +507,13 @@ export default class DateColumn extends Column<number | Date> {
     public range(): { min: Date | null; max: Date | null } {
         let minTs: number | null = null;
         let maxTs: number | null = null;
-        const len: number = this._values.length;
+        const values = this._typedValues;
+        const len = values.length;
 
         for (let i = 0; i < len; i++) {
-            const ts: number | null = this._values[i] as (number|null);
+            const ts = values[i];
 
-            if (ts === null || ts === undefined || Number.isNaN(ts)) continue;
+            if (Number.isNaN(ts)) continue;
 
             if (minTs === null || ts < minTs) minTs = ts;
             if (maxTs === null || ts > maxTs) maxTs = ts;
@@ -500,14 +532,29 @@ export default class DateColumn extends Column<number | Date> {
      * @returns A new DateColumn with matching rows.
      */
     public filterRange(start: Date, end: Date): DateColumn {
-        const startTs = (start as Date).getTime();
-        const endTs = (end as Date).getTime();
+        const startTs = start.getTime();
+        const endTs = end.getTime();
+        const values = this._typedValues;
+        const len = values.length;
 
-        const filtered = this._values.filter(
-            d => !Number.isNaN(d) && (d as number) >= startTs && (d as number) <= endTs
-        );
+        const indices = new Int32Array(len);
+        let count = 0;
 
-        return new DateColumn(filtered, this._label);
+        for (let i = 0; i < len; i++) {
+            const ts = values[i];
+            if (!Number.isNaN(ts)) {
+                if (ts >= startTs && ts <= endTs) {
+                    indices[count++] = i;
+                }
+            }
+        }
+
+        const filtered = new Float64Array(count);
+        for (let i = 0; i < count; i++) {
+            filtered[i] = values[indices[i]];
+        }
+
+        return new DateColumn(filtered, this._label, true);
     }
 
     /**
@@ -516,10 +563,18 @@ export default class DateColumn extends Column<number | Date> {
      * @returns A new DateColumn with floored dates.
      */
     public floor(unit: TimeUnit): DateColumn {
-        const newValues = this._values.map(timestamp => {
-            if (Number.isNaN(timestamp)) return NaN;
+        const values = this._typedValues;
+        const len = values.length;
+        const newValues = new Float64Array(len);
 
-            const res = new Date(timestamp!);
+        for (let i = 0; i < len; i++) {
+            const timestamp = values[i];
+            if (Number.isNaN(timestamp)) {
+                newValues[i] = NaN;
+                continue;
+            }
+
+            const res = new Date(timestamp);
 
             if (unit === 'seconds') res.setUTCMilliseconds(0);
             else if (unit === 'minutes') res.setUTCSeconds(0, 0);
@@ -528,10 +583,10 @@ export default class DateColumn extends Column<number | Date> {
             else if (unit === 'months') { res.setUTCDate(1); res.setUTCHours(0, 0, 0, 0); }
             else if (unit === 'years') { res.setUTCMonth(0, 1); res.setUTCHours(0, 0, 0, 0); }
 
-            return res.getTime();
-        });
+            newValues[i] = res.getTime();
+        }
 
-        return new DateColumn(newValues, this._label);
+        return new DateColumn(newValues, this._label, true);
     }
 
     /**
@@ -541,33 +596,59 @@ export default class DateColumn extends Column<number | Date> {
      * @returns Array containing numeric differences or null values.
      * @throws {Error} If column lengths do not match.
      */
-    public diffColumn(other: DateColumn, unit: TimeUnit): (number | null)[] {
-        if (this._values.length !== other._values.length) {
+    public diffColumn(other: DateColumn, unit: TimeUnit): (number | null)[] | Float64Array {
+        const values1 = this._typedValues;
+        const values2 = other._typedValues;
+
+        if (values1.length !== values2.length) {
             throw new Error('Columns must have the same length!');
         }
 
-        return this._values.map((_, i) => {
+        const len = values1.length;
+
+        if (['milliseconds', 'seconds', 'minutes', 'hours', 'days'].includes(unit)) {
+            const result = new Float64Array(len);
+            const divider = this.toMs(unit);
+
+            for (let i = 0; i < len; i++) {
+                const ts1 = values1[i];
+                const ts2 = values2[i];
+
+                if (Number.isNaN(ts1) || Number.isNaN(ts2)) {
+                    result[i] = NaN;
+                } else {
+                    result[i] = Math.trunc((ts1 - ts2) / divider);
+                }
+            }
+            return result;
+        }
+
+        const result: (number | null)[] = new Array(len);
+        for (let i = 0; i < len; i++) {
             const d1 = this.getElementByIndex(i);
             const d2 = other.getElementByIndex(i);
 
-            if (!d1 || !d2) return null;
-
-            if (['milliseconds', 'seconds', 'minutes', 'hours', 'days'].includes(unit)) {
-                return Math.trunc((d1.getTime() - d2.getTime()) / this.toMs(unit));
+            if (!d1 || !d2) {
+                result[i] = null;
+                continue;
             }
 
             switch (unit) {
                 case 'months':
-                    return (
-                        (d1.getFullYear() - d2.getFullYear()) * 12 +
-                        (d1.getMonth() - d2.getMonth())
+                    result[i] = (
+                        (d1.getUTCFullYear() - d2.getUTCFullYear()) * 12 +
+                        (d1.getUTCMonth() - d2.getUTCMonth())
                     );
+                    break;
                 case 'years':
-                    return d1.getFullYear() - d2.getFullYear();
+                    result[i] = d1.getUTCFullYear() - d2.getUTCFullYear();
+                    break;
+                default:
+                    result[i] = null;
             }
+        }
 
-            return null;
-        });
+        return result;
     }
 
     public displayString(index: number): string | null {

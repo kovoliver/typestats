@@ -127,7 +127,7 @@ export type DbConfig = {
 
 export type Stratum = {
     label?: string;
-    samples: number[];
+    samples: Float64Array;
     stratumSize: number;
 }
 

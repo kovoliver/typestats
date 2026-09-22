@@ -5,43 +5,17 @@ export function round(value: number, decimals?: number): number {
     return Math.round(value * factor) / factor;
 }
 
-export function orderAsc(values: number[]): number[] {
-    const len = values.length;
-    if (len <= 1) return values.slice();
 
-    if (len >= 10000) {
-        const typed = new Float64Array(values);
-        typed.sort();
 
-        const sortedArray = new Array<number>(len);
-
-        for (let i = 0; i < len; i++) {
-            sortedArray[i] = typed[i];
-        }
-
-        return sortedArray;
-    }
-
-    return values.slice().sort((a, b) => a - b);
+export function orderAsc(values: Float64Array): Float64Array {
+    return values.sort();
 }
 
-export function orderDesc(values: number[]): number[] {
+export function orderDesc(values: Float64Array): Float64Array {
     const len = values.length;
     if (len <= 1) return values.slice();
-
-    if (len >= 10000) {
-        const typed = new Float64Array(values);
-        typed.sort();
-
-        const sortedArray = new Array<number>(len);
-        for (let i = 0; i < len; i++) {
-            sortedArray[i] = typed[len - 1 - i];
-        }
-
-        return sortedArray;
-    }
-
-    return values.slice().sort((a, b) => b - a);
+    const sorted = values.slice().sort();
+    return sorted.reverse();
 }
 
 export function isInteger(value: number): boolean {
@@ -113,7 +87,7 @@ export function lre(computed: number, certified: number): number {
     return Math.min(-Math.log10(relError), 15);
 }
 
-export function kahanSum(numbers: number[]): number {
+export function kahanSum(numbers: Float64Array): number {
     let sum = 0.0;
     let c = 0.0;
 
@@ -127,7 +101,7 @@ export function kahanSum(numbers: number[]): number {
     return sum;
 }
 
-export function kahanSumDotProduct(x: number[], y: number[]): number {
+export function kahanSumDotProduct(x: Float64Array, y: Float64Array): number {
     let sum = 0.0;
     let c = 0.0;
 
@@ -142,7 +116,7 @@ export function kahanSumDotProduct(x: number[], y: number[]): number {
     return sum;
 }
 
-export function kahanSumPow(x: number[], pow: number): number {
+export function kahanSumPow(x: Float64Array, pow: number): number {
     let sum = 0.0;
     let c = 0.0;
 
@@ -157,7 +131,7 @@ export function kahanSumPow(x: number[], pow: number): number {
     return sum;
 }
 
-export function neumaierSum(numbers: number[]): number {
+export function neumaierSum(numbers: Float64Array): number {
     let sum = 0.0;
     let c = 0.0;
 
@@ -177,7 +151,7 @@ export function neumaierSum(numbers: number[]): number {
     return sum + c;
 }
 
-export function neumaierSumDotProduct(x: number[], y: number[]): number {
+export function neumaierSumDotProduct(x: Float64Array, y: Float64Array): number {
     let sum = 0.0;
     let c = 0.0;
 
@@ -197,7 +171,7 @@ export function neumaierSumDotProduct(x: number[], y: number[]): number {
     return sum + c;
 }
 
-export function neumaierSumPow(x: number[], pow: number): number {
+export function neumaierSumPow(x: Float64Array, pow: number): number {
     let sum = 0.0;
     let c = 0.0;
 
@@ -217,9 +191,8 @@ export function neumaierSumPow(x: number[], pow: number): number {
     return sum + c;
 }
 
-
 export function varianceAndCovariance(
-    x: number[], y: number[], xMean: number, yMean: number): { xVar: number; cov: number } {
+    x: Float64Array, y: Float64Array, xMean: number, yMean: number): { xVar: number; cov: number } {
     const len = x.length;
     let varSum = 0;
     let varC = 0;
@@ -264,7 +237,7 @@ export function varianceAndCovariance(
     };
 }
 
-export function neumaierDotProductAndSumPow2(x: number[], y: number[]): { xySum: number; x2Sum: number } {
+export function neumaierDotProductAndSumPow2(x: Float64Array, y: Float64Array): { xySum: number; x2Sum: number } {
     const len = x.length;
     let xySum = 0;
     let xyC = 0;

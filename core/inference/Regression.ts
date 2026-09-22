@@ -9,10 +9,10 @@ import { varianceAndCovariance, neumaierDotProductAndSumPow2, calculateMSE }
  * Calculates and caches the coefficients based on the provided independent and dependent variables.
  */
 export default class Regression extends Cache {
-    private _x: number[];
-    private _y: number[];
-    private _lnY: number[] | null = null;
-    private _lnX: number[] | null = null;
+    private _x: Float64Array;
+    private _y: Float64Array;
+    private _lnY: Float64Array | null = null;
+    private _lnX: Float64Array | null = null;
     private _xMean: number;
     private _yMean: number;
     private _lnxMean: number | null = null;
@@ -20,7 +20,7 @@ export default class Regression extends Cache {
     private _xHasNonPositive: boolean = false;
     private _yHasNonPositive: boolean = false;
 
-    constructor(x: number[], y: number[]) {
+    constructor(x: Float64Array, y: Float64Array) {
         super();
 
         const len = x.length;
@@ -50,10 +50,10 @@ export default class Regression extends Cache {
         this._yMean = mean(this._y);
     }
 
-    private getLnX(): { arr: number[]; mean: number } {
+    private getLnX(): { arr: Float64Array; mean: number } {
         if (!this._lnX) {
             const len = this._x.length;
-            const lnX = new Array<number>(len);
+            const lnX = new Float64Array(len);
             for (let i = 0; i < len; i++) {
                 lnX[i] = Math.log(this._x[i]);
             }
@@ -63,10 +63,10 @@ export default class Regression extends Cache {
         return { arr: this._lnX, mean: this._lnxMean! };
     }
 
-    private getLnY(): { arr: number[]; mean: number } {
+    private getLnY(): { arr: Float64Array; mean: number } {
         if (!this._lnY) {
             const len = this._y.length;
-            const lnY = new Array<number>(len);
+            const lnY = new Float64Array(len);
             for (let i = 0; i < len; i++) {
                 lnY[i] = Math.log(this._y[i]);
             }
@@ -77,8 +77,8 @@ export default class Regression extends Cache {
     }
 
     private calculate(
-        x: number[],
-        y: number[],
+        x: Float64Array,
+        y: Float64Array,
         type: RegressionType
     ): { b0: number; b1: number } {
         const xMean = type === 'power' ? this.getLnX().mean : this._xMean;
@@ -98,7 +98,7 @@ export default class Regression extends Cache {
         return { b0, b1 };
     }
 
-    private calculateNoIntercept(x: number[], y: number[]): number {
+    private calculateNoIntercept(x: Float64Array, y: Float64Array): number {
         const { xySum, x2Sum } = neumaierDotProductAndSumPow2(x, y);
 
         if (x2Sum === 0) {

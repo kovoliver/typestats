@@ -1,11 +1,10 @@
 import type { TrendType } from "../types/types.js";
 import { Cache } from "../abstractions/abstractClasses.js";
 import Matrix from "../math/Matrix.js";
-import { neumaierSum, neumaierSumPow, neumaierSumDotProduct, calculateMSE } from "../utils/numberUtils.js";
-import { mse } from "../statistics/univariate.js";
+import { calculateMSE } from "../utils/numberUtils.js";
 
 export default class Trend extends Cache {
-    private _y: number[];
+    private _y: Float64Array;
     private _n: number;
     private _hasNonPositive: boolean = false;
 
@@ -14,7 +13,7 @@ export default class Trend extends Cache {
     private _ySum: number = 0;
     private _xySum: number = 0;
 
-    private _lnY: number[] | null = null;
+    private _lnY: Float64Array | null = null;
     private _lnySum: number | null = null;
     private _lnxySum: number | null = null;
 
@@ -24,7 +23,7 @@ export default class Trend extends Cache {
      * @param values Array of numerical observations where indices represent sequential time units (x = 0, 1, ..., n-1). Must contain at least 2 items.
      * @throws {Error} If the input array contains fewer than 2 elements.
      */
-    constructor(values: number[]) {
+    constructor(values: Float64Array) {
         super();
 
         if (values.length < 2) {
@@ -84,7 +83,7 @@ export default class Trend extends Cache {
         }
 
         if (this._lnY === null) {
-            this._lnY = new Array(this._n);
+            this._lnY = new Float64Array(this._n);
             let lnySum = 0, lnyC = 0;
             let lnxySum = 0, lnxyC = 0;
 
@@ -191,11 +190,11 @@ export default class Trend extends Cache {
         }
 
         return this.getCached(`polynomial_${degree}`, () => {
-            const eqComps: number[] = [];
-            const resultComps: number[] = [];
+            const eqComps = new Float64Array(degree * 2 + 1);
+            const resultComps = new Float64Array(degree + 1);
 
-            resultComps.push(this._ySum);
-            const equation: number[][] = [];
+            resultComps[0] = this._ySum;
+            const equation: Float64Array[] = new Array(degree + 1);
 
             for (let deg = 0; deg <= degree * 2; deg++) {
                 let compX = this._n;
@@ -211,7 +210,7 @@ export default class Trend extends Cache {
                     compX = sum + c;
                 }
 
-                eqComps.push(compX);
+                eqComps[deg] = compX;
 
                 if (deg <= degree && deg !== 0) {
                     let compRes = 0, cRes = 0;
@@ -222,27 +221,29 @@ export default class Trend extends Cache {
                         compRes = t;
                     }
 
-                    resultComps.push(compRes + cRes);
+                    resultComps[deg] = compRes + cRes;
                 }
             }
 
             for (let i = 0; i <= degree; i++) {
-                const eqLine: number[] = [];
+                const eqLine = new Float64Array(degree + 1);
 
-                for (let j = i; j < degree + i + 1; j++) {
-                    eqLine.push(eqComps[j]);
+                for (let j = 0; j <= degree; j++) {
+                    eqLine[j] = eqComps[i + j];
                 }
 
-                equation.push(eqLine);
+                equation[i] = eqLine;
             }
 
             const m: Matrix = new Matrix(equation);
-            const solved: number[] = m.solve(resultComps);
+            const solved: Float64Array = m.solve(resultComps);
 
-            return solved.reduce<Record<string, number>>((acc, val, i) => {
-                acc[`a${i}`] = val;
-                return acc;
-            }, {});
+            const result: Record<string, number> = {};
+            for (let i = 0; i < solved.length; i++) {
+                result[`a${i}`] = solved[i];
+            }
+
+            return result;
         });
     }
 
@@ -310,7 +311,7 @@ export default class Trend extends Cache {
         return a * Math.pow(b, x);
     }
 
-    private getYHatPolynomial(variables: number[], x: number): number {
+    private getYHatPolynomial(variables: Float64Array, x: number): number {
         return variables.reduce((total, val, exp) => total + val * Math.pow(x, exp), 0);
     }
 
@@ -359,7 +360,12 @@ export default class Trend extends Cache {
      */
     public MSEPolynomial(degree: number, degreesOfFreedom: number = 0): number {
         const coeffsObj = this.polynomial(degree);
-        const coeffs = Object.values(coeffsObj);
+        const keys = Object.keys(coeffsObj);
+        const coeffs = new Float64Array(keys.length);
+        
+        for (let i = 0; i < keys.length; i++) {
+            coeffs[i] = coeffsObj[keys[i]];
+        }
 
         return calculateMSE(
             this._y,

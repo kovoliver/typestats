@@ -10,11 +10,12 @@ import {
     from "../utils/utils.js";
 
 function getSubstitute(
-    values: number[],
+    values: Float64Array,
     type: ImputeType,
     boundaries?: Boundaries
-) {
-    let len = values.length;
+): number {
+    let currentValues = values;
+    let len = currentValues.length;
 
     if (len === 0) {
         throw new Error('Cannot calculate substitution value for empty or all-missing data!');
@@ -23,17 +24,24 @@ function getSubstitute(
     if (boundaries && (boundaries.min !== undefined || boundaries.max !== undefined)) {
         const min = boundaries.min ?? -Infinity;
         const max = boundaries.max ?? Infinity;
-        const filtered: number[] = [];
+
+        const indices = new Int32Array(len);
+        let count = 0;
 
         for (let i = 0; i < len; i++) {
-            const val = values[i];
-
+            const val = currentValues[i];
             if (val >= min && val <= max) {
-                filtered.push(val);
+                indices[count++] = i;
             }
         }
-        values = filtered;
-        len = values.length;
+
+        const filtered = new Float64Array(count);
+        for (let i = 0; i < count; i++) {
+            filtered[i] = currentValues[indices[i]];
+        }
+
+        currentValues = filtered;
+        len = currentValues.length;
     }
 
     if (len === 0) {
@@ -42,11 +50,11 @@ function getSubstitute(
 
     switch (type) {
         case 'mean':
-            return mean(values);
+            return mean(currentValues);
         case 'median':
-            return median(values);
+            return median(currentValues);
         case 'mode': {
-            const modes = mode(values);
+            const modes = mode(currentValues);
 
             if (!modes || modes.length === 0) {
                 throw new Error('Mode cannot be calculated based on the values provided.');
@@ -60,12 +68,12 @@ function getSubstitute(
 }
 
 export function getIqrBoundaries(
-    values: (number | null)[],
+    values: Float64Array,
     multiplier: number = 1.5,
     percentMode: PercentMode = 'interpolated',
-    preparedValues?: number[]
+    preparedValues?: Float64Array
 ): Boundaries {
-    const validValues = !preparedValues ? getNonEmptyValues(values) : preparedValues;
+    const validValues = preparedValues ?? getNonEmptyValues(values);
     const q1Val = q1(validValues, percentMode);
     const q3Val = q3(validValues, percentMode);
     const iqrVal = q3Val - q1Val;
@@ -153,10 +161,10 @@ export function decodeOneHot(matrix: number[][], categories: string[]): string[]
  * @throws {Error} Throws if the array is empty, non-2D structures are passed, or `colIndex` is missing for a 2D matrix.
  */
 export function replaceValues(
-    values: number[],
+    values: Float64Array,
     type: ImputeType,
     boundaries?: Boundaries,
-    preparedValues?:number[]
+    preparedValues?:Float64Array
 ): number[] {
     const len = values.length;
 
@@ -205,10 +213,10 @@ export function replaceValues(
  * @throws {Error} Throws if `boundaries` is missing or contains neither a `min` nor a `max` value.
  */
 export function replaceOutliers(
-    values: number[],
+    values: Float64Array,
     type: ImputeType,
     boundaries: Boundaries,
-    preparedValues?:number[]
+    preparedValues?:Float64Array
 ): number[] {
     if (!boundaries || (boundaries.min === undefined && boundaries.max === undefined)) {
         throw new Error('You must provide at least a minimum or a maximum boundary to replace outliers!');
@@ -297,11 +305,11 @@ export function removeInvalidRows(
  * @throws {Error} If `values` contains invalid, non-numeric, or `NaN` elements.
  */
 export function scaleValues(
-    values: number[] | any[][],
+    values: Float64Array | any[][],
     type: ScaleType,
     colIndex?: number,
     isSample: boolean = true
-): number[] | any[][] {
+): Float64Array | any[][] {
     if (values.length === 0) {
         throw new Error('You must add at least one value!');
     }
@@ -312,30 +320,36 @@ export function scaleValues(
         throw new Error('You must provide column index when the given values are in a 2d array!');
     }
 
-    let rawColumn: unknown[];
+    let column: Float64Array;
 
     if (is2D) {
         if (!(values as unknown[]).every(arr => Array.isArray(arr))) {
             throw new Error('You must provide a strictly two-dimensional array!');
         }
-        rawColumn = getColumn(values as number[][], colIndex!);
+        const rawColumn = getColumn(values as any[], colIndex!);
+        column = toNumberArray(rawColumn as any);
     } else {
-        rawColumn = values as number[];
+        column = values as Float64Array;
     }
 
-    const column = toNumberArray(rawColumn);
-
-    if (column.some(val => Number.isNaN(val))) {
-        throw new Error(
-            'The given dataset has invalid values. You can use, e.g., the replaceEmptyValues function.'
-        );
+    for (let i = 0; i < column.length; i++) {
+        if (Number.isNaN(column[i])) {
+            throw new Error(
+                'The given dataset has invalid values. You can use, e.g., the replaceEmptyValues function.'
+            );
+        }
     }
 
     const param1 = type === 'normalize' ? getMin(column) : mean(column);
     const param2 = type === 'normalize' ? getMax(column) : std(column, isSample);
 
     const scaleFn = type === 'normalize' ? normalize : standardize;
-    const scaledColumn = column.map(val => scaleFn(val, param1, param2));
+    const len = column.length;
+    const scaledColumn = new Float64Array(len);
+
+    for (let i = 0; i < len; i++) {
+        scaledColumn[i] = scaleFn(column[i], param1, param2);
+    }
 
     if (is2D) {
         const matrix = values as number[][];
@@ -352,13 +366,12 @@ export function scaleValues(
 /**
  * Normalizes a 1D array of numbers or a specific column of a 2D matrix using Min-Max scaling.
  *
- * @param values - A 1D array of numbers or a 2D matrix of numbers.
+ * @param values - A 1D Float64Array of numbers or a 2D matrix.
  * @param colIndex - The target column index to normalize (required for 2D arrays).
- * @param isSample - Whether the provided data is a sample or not.
- * @returns A new 1D array or 2D matrix containing the normalized values.
+ * @returns A new 1D Float64Array or 2D matrix containing the normalized values.
  */
 export function normalizeValues(
-    values: number[] | any[][],
+    values: Float64Array | any[][],
     colIndex?: number
 ) {
     return scaleValues(values, 'normalize', colIndex);
@@ -367,13 +380,13 @@ export function normalizeValues(
 /**
  * Standardizes a 1D array of numbers or a specific column of a 2D matrix using Z-score standardization.
  *
- * @param values - A 1D array or a 2D matrix.
+ * @param values - A 1D Float64Array or a 2D matrix.
  * @param colIndex - The target column index to standardize (required for 2D arrays).
  * @param isSample - Whether the provided data is a sample or not.
- * @returns A new 1D array or 2D matrix containing the standardized values.
+ * @returns A new 1D Float64Array or 2D matrix containing the standardized values.
  */
 export function standardizeValues(
-    values: number[] | any[][],
+    values: Float64Array | any[][],
     colIndex?: number,
     isSample: boolean = true
 ) {
@@ -412,8 +425,8 @@ export function labelEncoding(
         throw new Error('You must provide a strictly two-dimensional array!');
     }
 
-    const column: unknown[] = is2D ?
-        getColumn((values as any[][]), colIndex!) : values;
+    const column: any = is2D ?
+        getColumn((values as any), colIndex!) : values;
 
     if (!(column as any[]).every(val => typeof val === 'string')) {
         throw new Error(
@@ -437,9 +450,9 @@ export function labelEncoding(
     });
 }
 
-export function replaceEmptyValues(values: number[], imputType: ImputeType): number[] {
+export function replaceEmptyValues(values: Float64Array, imputType: ImputeType): Float64Array {
     const len = values.length;
-    if (len === 0) return [];
+    if (len === 0) return new Float64Array();
 
     const substitute = getSubstitute(getNonEmptyValues(values), imputType);
     const result = new Float64Array(len);
@@ -449,5 +462,5 @@ export function replaceEmptyValues(values: number[], imputType: ImputeType): num
         result[i] = isEmpty(val) ? substitute : val;
     }
 
-    return Array.from(result);
+    return result;
 }

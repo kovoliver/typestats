@@ -3,7 +3,7 @@ import NumberColumn from "./NumberColumn.js";
 import { toBoolArray } from "../utils/utils.js";
 
 export default class BoolColumn extends Column<boolean> {
-    public isValid(val: boolean | null): boolean {
+    public isValid(val: unknown): boolean {
         return typeof val === 'boolean';
     }
 
@@ -25,7 +25,14 @@ export default class BoolColumn extends Column<boolean> {
      */
     public countTrue(): number {
         return this.getCached('countTrue', () => {
-            return this.getValidValues().reduce((total, val) => val ? total + 1 : total, 0);
+            const values = this._values as (boolean | null)[];
+            let count = 0;
+            for (let i = 0; i < values.length; i++) {
+                if (values[i] === true) {
+                    count++;
+                }
+            }
+            return count;
         });
     }
 
@@ -36,7 +43,8 @@ export default class BoolColumn extends Column<boolean> {
      */
     public countFalse(): number {
         return this.getCached('countFalse', () => {
-            return this.getValidValues().length - this.countTrue();
+            const validCount = (this.getValidValues() as boolean[]).length;
+            return validCount - this.countTrue();
         });
     }
 
@@ -47,7 +55,7 @@ export default class BoolColumn extends Column<boolean> {
      */
     public trueRatio(): number {
         return this.getCached('trueRatio', () => {
-            const validCount = this.getValidValues().length;
+            const validCount = (this.getValidValues() as boolean[]).length;
             if (validCount === 0) return 0;
             return this.countTrue() / validCount;
         });
@@ -60,24 +68,28 @@ export default class BoolColumn extends Column<boolean> {
      */
     public falseRatio(): number {
         return this.getCached('falseRatio', () => {
-            const validCount = this.getValidValues().length;
+            const validCount = (this.getValidValues() as boolean[]).length;
             if (validCount === 0) return 0;
             return this.countFalse() / validCount;
         });
     }
 
     /**
-     * Converts the boolean column into a new NumberColumn (true -> 1, false -> 0, null -> null).
+     * Converts the boolean column into a new NumberColumn (true -> 1, false -> 0, null -> NaN).
      *
      * @returns {NumberColumn} A new NumberColumn instance with numeric binary values.
      */
     public toNumberColumn(): NumberColumn {
-        const numericValues = this._values.map(val => {
-            if (val === null) return NaN;
-            return val ? 1 : 0;
-        });
+        const values = this._values as (boolean | null)[];
+        const len = values.length;
+        const numericValues = new Float64Array(len);
 
-        return new NumberColumn(numericValues, `${this._label}_numeric`);
+        for (let i = 0; i < len; i++) {
+            const val = values[i];
+            numericValues[i] = val === null ? NaN : (val ? 1 : 0);
+        }
+
+        return new NumberColumn(numericValues, `${this._label}_numeric`, true);
     }
 
     /**
@@ -85,8 +97,16 @@ export default class BoolColumn extends Column<boolean> {
      * Preserves null values. Clears cached calculations.
      */
     public invert(): BoolColumn {
-        const values = this._values.map(val => (val === null ? null : !val));
-        return new BoolColumn(values, this._label);
+        const values = this._values as (boolean | null)[];
+        const len = values.length;
+        const newValues: (boolean | null)[] = new Array(len);
+
+        for (let i = 0; i < len; i++) {
+            const val = values[i];
+            newValues[i] = val === null ? null : !val;
+        }
+
+        return new BoolColumn(newValues, this._label, true);
     }
 
     /**
@@ -97,17 +117,28 @@ export default class BoolColumn extends Column<boolean> {
      * @throws {Error} Throws if column lengths do not match.
      */
     public and(column: BoolColumn): BoolColumn {
-        if (this._values.length !== column.values.length) {
+        const values1 = this._values as (boolean | null)[];
+        const values2 = column.values as (boolean | null)[];
+
+        if (values1.length !== values2.length) {
             throw new Error('Column lengths must match to perform logical AND operation!');
         }
 
-        const newValues = this._values.map((val, idx) => {
-            const otherVal = column.values[idx];
-            if (val === null || otherVal === null) return null;
-            return val && otherVal;
-        });
+        const len = values1.length;
+        const newValues: (boolean | null)[] = new Array(len);
 
-        return new BoolColumn(newValues, `${this._label}_AND_${column.label}`);
+        for (let i = 0; i < len; i++) {
+            const val1 = values1[i];
+            const val2 = values2[i];
+
+            if (val1 === null || val2 === null) {
+                newValues[i] = null;
+            } else {
+                newValues[i] = val1 && val2;
+            }
+        }
+
+        return new BoolColumn(newValues, `${this._label}_AND_${column.label}`, true);
     }
 
     /**
@@ -118,39 +149,61 @@ export default class BoolColumn extends Column<boolean> {
      * @throws {Error} Throws if column lengths do not match.
      */
     public or(column: BoolColumn): BoolColumn {
-        if (this._values.length !== column.values.length) {
+        const values1 = this._values as (boolean | null)[];
+        const values2 = column.values as (boolean | null)[];
+
+        if (values1.length !== values2.length) {
             throw new Error('Column lengths must match to perform logical OR operation!');
         }
 
-        const newValues = this._values.map((val, idx) => {
-            const otherVal = column.values[idx];
-            if (val === null || otherVal === null) return null;
-            return val || otherVal;
-        });
+        const len = values1.length;
+        const newValues: (boolean | null)[] = new Array(len);
 
-        return new BoolColumn(newValues, `${this._label}_OR_${column.label}`);
+        for (let i = 0; i < len; i++) {
+            const val1 = values1[i];
+            const val2 = values2[i];
+
+            if (val1 === null || val2 === null) {
+                newValues[i] = null;
+            } else {
+                newValues[i] = val1 || val2;
+            }
+        }
+
+        return new BoolColumn(newValues, `${this._label}_OR_${column.label}`, true);
     }
 
     /**
- * Performs an element-wise logical XOR (exclusive OR) operation with another BoolColumn.
- * Returns true if and only if one of the values is true and the other is false.
- * Preserves null values if either operand is null.
- *
- * @param {BoolColumn} column - The target BoolColumn to combine with.
- * @returns {BoolColumn} A new BoolColumn containing the logical XOR results.
- * @throws {Error} Throws if column lengths do not match.
- */
+     * Performs an element-wise logical XOR (exclusive OR) operation with another BoolColumn.
+     * Returns true if and only if one of the values is true and the other is false.
+     * Preserves null values if either operand is null.
+     *
+     * @param {BoolColumn} column - The target BoolColumn to combine with.
+     * @returns {BoolColumn} A new BoolColumn containing the logical XOR results.
+     * @throws {Error} Throws if column lengths do not match.
+     */
     public xor(column: BoolColumn): BoolColumn {
-        if (this._values.length !== column.values.length) {
+        const values1 = this._values as (boolean | null)[];
+        const values2 = column.values as (boolean | null)[];
+
+        if (values1.length !== values2.length) {
             throw new Error('Column lengths must match to perform logical XOR operation!');
         }
 
-        const newValues = this._values.map((val, idx) => {
-            const otherVal = column.values[idx];
-            if (val === null || otherVal === null) return null;
-            return val !== otherVal;
-        });
+        const len = values1.length;
+        const newValues: (boolean | null)[] = new Array(len);
 
-        return new BoolColumn(newValues, `${this._label}_XOR_${column.label}`);
+        for (let i = 0; i < len; i++) {
+            const val1 = values1[i];
+            const val2 = values2[i];
+
+            if (val1 === null || val2 === null) {
+                newValues[i] = null;
+            } else {
+                newValues[i] = val1 !== val2;
+            }
+        }
+
+        return new BoolColumn(newValues, `${this._label}_XOR_${column.label}`, true);
     }
 }

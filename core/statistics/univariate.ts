@@ -10,7 +10,7 @@ import { hasEmptyValues } from "../utils/utils.js";
  * @throws {Error} If the array is empty/null, or if sample validation fails (fewer than 2 values).
  * @throws {Error} If the array contains empty (null|undefined|NaN) values.
  */
-function validateValues(values: number[], isSample: boolean = true): void {
+function validateValues(values: Float64Array, isSample: boolean = true): void {
     if (!values || values.length === 0) {
         throw new Error('You should give at least one number!');
     }
@@ -34,7 +34,7 @@ function validateValues(values: number[], isSample: boolean = true): void {
  * @param [isSample=false] - Whether the dataset represents a sample (N - 1) or a population (N).
  * @returns The degrees of freedom.
  */
-export function getDegreesOfFreedom(values: number[], isSample: boolean = true): number {
+export function getDegreesOfFreedom(values: ArrayLike<number>, isSample: boolean = true): number {
     return !isSample ? values.length : values.length - 1;
 }
 
@@ -46,7 +46,7 @@ export function getDegreesOfFreedom(values: number[], isSample: boolean = true):
  * @returns The arithmetic mean.
  * @throws {Error} If `values` is empty.
  */
-export function mean(values: number[], digits?: number): number {
+export function mean(values: Float64Array, digits?: number): number {
     if (!values || values.length === 0) {
         throw new Error('You should give at least one number!');
     }
@@ -76,7 +76,7 @@ export function mean(values: number[], digits?: number): number {
  * @returns The geometric mean.
  * @throws {Error} If `values` is empty or contains non-positive numbers (<= 0).
  */
-export function geometricMean(values: number[], digits?: number): number {
+export function geometricMean(values: Float64Array, digits?: number): number {
     validateValues(values);
     if (values.some(v => v <= 0)) {
         throw new Error('Geometric mean requires strictly positive numbers!');
@@ -96,8 +96,9 @@ export function geometricMean(values: number[], digits?: number): number {
  * @returns The weighted arithmetic mean.
  * @throws {Error} If array lengths do not match, `values` is empty, or the sum of weights is zero.
  */
-export function weightedMean(values: number[], weights: number[], digits?: number): number {
+export function weightedMean(values: Float64Array, weights: Float64Array, digits?: number): number {
     validateValues(values);
+
     if (weights.length !== values.length) {
         throw new Error('The number of weights should be the same as the number of values!');
     }
@@ -121,7 +122,7 @@ export function weightedMean(values: number[], weights: number[], digits?: numbe
  * @returns The weighted harmonic mean.
  * @throws {Error} If array lengths do not match, `values` is empty, or any value/weight is non-positive.
  */
-export function harmonicMean(values: number[], weights: number[], digits?: number): number {
+export function harmonicMean(values: Float64Array, weights: Float64Array, digits?: number): number {
     validateValues(values);
     if (weights.length !== values.length) {
         throw new Error('The number of weights should be the same as the number of values!');
@@ -152,7 +153,7 @@ export function harmonicMean(values: number[], weights: number[], digits?: numbe
  * @returns The sum of squared deviations.
  * @throws {Error} If `values` is empty.
  */
-export function ssd(values: number[], digits?: number): number {
+export function ssd(values: Float64Array, digits?: number): number {
     let avg = 0;
     let sumSquares = 0;
 
@@ -175,7 +176,7 @@ export function ssd(values: number[], digits?: number): number {
  * @returns The dataset's variance.
  * @throws {Error} If `values` is empty or invalid for sample statistics.
  */
-export function variance(values: number[], isSample: boolean = true, digits?: number): number {
+export function variance(values: Float64Array, isSample: boolean = true, digits?: number): number {
     validateValues(values, isSample);
     const sumSq = ssd(values);
     const length = getDegreesOfFreedom(values, isSample);
@@ -191,13 +192,13 @@ export function variance(values: number[], isSample: boolean = true, digits?: nu
  * @returns The standard deviation.
  * @throws {Error} If `values` is empty or invalid for sample statistics.
  */
-export function std(values: number[], isSample: boolean = true, digits?: number): number {
+export function std(values: Float64Array, isSample: boolean = true, digits?: number): number {
     validateValues(values, isSample);
     const v = variance(values, isSample); // nyers variancia
     return round(Math.sqrt(v), digits);
 }
 
-function quickselect(arr: number[], k: number, left = 0, right = arr.length - 1): number {
+function quickselect(arr: Float64Array, k: number, left = 0, right = arr.length - 1): number {
     while (left < right) {
         const pivotIndex = (left + right) >> 1;
         const pivotValue = arr[pivotIndex];
@@ -239,7 +240,7 @@ function quickselect(arr: number[], k: number, left = 0, right = arr.length - 1)
  * @throws {Error} If `values` is empty or `percent` is out of bounds [0, 1].
  */
 export function percentile(
-    values: number[],
+    values: Float64Array,
     percent: number,
     mode: PercentMode = 'interpolated',
     digits?: number,
@@ -327,7 +328,7 @@ export function percentile(
  * @returns The median value.
  */
 export function median(
-    values: number[],
+    values: Float64Array,
     mode: PercentMode = 'interpolated',
     digits?: number,
     isSorted: boolean = false
@@ -344,7 +345,7 @@ export function median(
  * @returns The first quartile value.
  */
 export function q1(
-    values: number[],
+    values: Float64Array,
     mode: PercentMode = 'interpolated',
     digits?: number,
     isSorted: boolean = false
@@ -361,7 +362,7 @@ export function q1(
  * @returns The second quartile (median) value.
  */
 export function q2(
-    values: number[],
+    values: Float64Array,
     mode: PercentMode = 'interpolated',
     digits?: number,
     isSorted: boolean = false
@@ -378,7 +379,7 @@ export function q2(
  * @returns The third quartile value.
  */
 export function q3(
-    values: number[],
+    values: Float64Array,
     mode: PercentMode = 'interpolated',
     digits?: number,
     isSorted: boolean = false
@@ -394,7 +395,7 @@ export function q3(
  * @param [digits] - Number of decimal places to round the result to. If omitted, the result is returned without rounding.
  * @returns The maximum percentile value.
  */
-export function q4(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
+export function q4(values: Float64Array, mode: PercentMode = 'interpolated', digits?: number): number {
     return percentile(values, 1, mode, digits);
 }
 
@@ -406,12 +407,13 @@ export function q4(values: number[], mode: PercentMode = 'interpolated', digits?
  * @returns An array containing the mode value(s). Returns an empty array if all elements appear with equal frequency.
  * @throws {Error} If `values` is empty.
  */
-export function mode(values: number[], digits?: number): number[] {
+export function mode(values: Float64Array, digits?: number): Float64Array {
     validateValues(values);
     const counts = new Map<number, number>();
     let maxCount = 0;
 
-    for (const val of values) {
+    for (let i = 0; i < values.length; i++) {
+        const val = values[i];
         const count = (counts.get(val) || 0) + 1;
         counts.set(val, count);
 
@@ -421,13 +423,22 @@ export function mode(values: number[], digits?: number): number[] {
     }
 
     if (counts.size > 1 && counts.size * maxCount === values.length) {
-        return [];
+        return new Float64Array(0);
     }
 
-    const modes: number[] = [];
+    let modeCount = 0;
+    for (const count of counts.values()) {
+        if (count === maxCount) {
+            modeCount++;
+        }
+    }
+
+    const modes = new Float64Array(modeCount);
+    let index = 0;
+
     for (const [val, count] of counts.entries()) {
         if (count === maxCount) {
-            modes.push(round(val, digits));
+            modes[index++] = round(val, digits);
         }
     }
 
@@ -446,7 +457,7 @@ export function mode(values: number[], digits?: number): number[] {
  * @throws {Error} If the denominator evaluates to zero.
  */
 function quantileSkewness(
-    values: number[],
+    values: Float64Array,
     pLower: number,
     pUpper: number,
     mode: PercentMode = 'interpolated',
@@ -477,7 +488,7 @@ function quantileSkewness(
  * @throws {Error} If standard deviation is zero.
  */
 export function pearsonMeSkewness(
-    values: number[],
+    values: Float64Array,
     isSample: boolean = true,
     mode: PercentMode = 'interpolated',
     digits?: number
@@ -501,7 +512,7 @@ export function pearsonMeSkewness(
  * @returns The Bowley skewness coefficient.
  * @throws {Error} If `values` is empty or calculation results in a zero denominator.
  */
-export function bowleySkewness(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
+export function bowleySkewness(values: Float64Array, mode: PercentMode = 'interpolated', digits?: number): number {
     validateValues(values);
     return quantileSkewness(values, 0.25, 0.75, mode, digits);
 }
@@ -515,12 +526,12 @@ export function bowleySkewness(values: number[], mode: PercentMode = 'interpolat
  * @returns The Kelly skewness coefficient.
  * @throws {Error} If `values` is empty or calculation results in a zero denominator.
  */
-export function kellySkewness(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
+export function kellySkewness(values: Float64Array, mode: PercentMode = 'interpolated', digits?: number): number {
     validateValues(values);
     return quantileSkewness(values, 0.1, 0.9, mode, digits);
 }
 
-export function centralMoment2(values: number[]): number {
+export function centralMoment2(values: Float64Array): number {
     const N = values.length;
 
     if (N === 0) return 0;
@@ -542,7 +553,7 @@ export function centralMoment2(values: number[]): number {
     return M2;
 }
 
-export function centralMoment3(values: number[]): number {
+export function centralMoment3(values: Float64Array): number {
     const N = values.length;
 
     if (N === 0) return 0;
@@ -567,7 +578,7 @@ export function centralMoment3(values: number[]): number {
     return M3;
 }
 
-export function centralMoment4(values: number[]): number {
+export function centralMoment4(values: Float64Array): number {
     const N = values.length;
 
     if (N === 0) return 0;
@@ -595,7 +606,7 @@ export function centralMoment4(values: number[]): number {
     return M4;
 }
 
-export const naiveCentralDeviationsSum = (values: number[], k: number) => {
+export const naiveCentralDeviationsSum = (values: Float64Array, k: number) => {
     const avg = mean(values);
     return values.reduce((total, val) => total + Math.pow(val - avg, k), 0);
 };
@@ -612,7 +623,7 @@ export const naiveCentralDeviationsSum = (values: number[], k: number) => {
  * @see {@link https://www.osti.gov/servlets/purl/1426900 | Formulas for the Computation of Higher-Order Central Moments }
  */
 export function centralMoment(
-    values: number[],
+    values: Float64Array,
     k: number,
     digits?: number
 ): number {
@@ -642,7 +653,7 @@ export function centralMoment(
  * @throws {Error} If the dataset has fewer than 3 values (for sample mode) or zero variance.
  */
 export function skewness(
-    values: number[],
+    values: Float64Array,
     isSample: boolean = true,
     digits?: number
 ): number {
@@ -686,7 +697,7 @@ export function skewness(
  * @throws {Error} If the dataset has fewer than 4 values (for sample mode) or zero variance.
  */
 export function excessKurtosis(
-    values: number[],
+    values: Float64Array,
     isSample: boolean = true,
     digits?: number
 ): number {
@@ -725,9 +736,9 @@ export function excessKurtosis(
  * @returns The range value.
  * @throws {Error} If `values` is empty.
  */
-export function range(values: number[], digits?: number): number {
+export function range(values: Float64Array, digits?: number): number {
     validateValues(values);
-    const sortedVals = orderAsc([...values]);
+    const sortedVals = orderAsc(values);
     const difference = sortedVals[sortedVals.length - 1] - sortedVals[0];
     return round(difference, digits);
 }
@@ -741,7 +752,7 @@ export function range(values: number[], digits?: number): number {
  * @returns The interquartile range.
  * @throws {Error} If `values` is empty.
  */
-export function iqr(values: number[], mode: PercentMode = 'interpolated', digits?: number): number {
+export function iqr(values: Float64Array, mode: PercentMode = 'interpolated', digits?: number): number {
     validateValues(values);
     const result = percentile(values, 0.75, mode) - percentile(values, 0.25, mode);
     return round(result, digits);
@@ -756,7 +767,7 @@ export function iqr(values: number[], mode: PercentMode = 'interpolated', digits
  * @returns The relative standard deviation (standard deviation divided by mean).
  * @throws {Error} If the mean of `values` is zero.
  */
-export function rsd(values: number[], isSample: boolean = true, digits?: number): number {
+export function rsd(values: Float64Array, isSample: boolean = true, digits?: number): number {
     validateValues(values, isSample);
     const m = mean(values);
 
@@ -787,12 +798,12 @@ export function mse(
         return NaN;
     }
 
-    if(n !== yPredicted.length) {
+    if (n !== yPredicted.length) {
         throw new Error('The number of actual values must match the number of predicted values.');
     }
 
     const divisor = n - degreesOfFreedom;
-    
+
     if (divisor <= 0) {
         throw new RangeError(
             `Degrees of freedom corrected divisor (${divisor}) cannot be zero or negative.`

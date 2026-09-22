@@ -4,6 +4,15 @@ import fs from 'node:fs';
 import readline from 'node:readline';
 import { getColType, isEmpty, parseValue } from "../utils/utils.js";
 
+function castColumnsToTypedArrays(cols: any[][], colInfos: ColInfo[]): (any[] | Float64Array)[] {
+    return cols.map((col, i) => {
+        if (colInfos[i].type === 'number') {
+            return new Float64Array(col as number[]);
+        }
+        return col;
+    });
+}
+
 export function processCSVData(
     lines: string[],
     separator: string,
@@ -116,7 +125,7 @@ export function processJSONDataChunk(
         for (let j = 0; j < validLength; j++) {
             const rawVal = row[labels[j]];
             const parsedVal = parseValue(rawVal, colInfos[j].type);
- 
+
             tempValues[j] = parsedVal;
 
             if (isEmpty(parsedVal)) {
@@ -337,8 +346,8 @@ export async function processCSVStreamLines(
     skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     quoteChar?: string
-): Promise<{ tableData: any[][]; colInfos: ColInfo[] }> {
-    const tableData: any[][] = [];
+): Promise<{ tableData: (any[] | Float64Array)[]; colInfos: ColInfo[] }> {
+    const rawTableData: any[][] = [];
     let labels: string[] | null = null;
     let colTypes: ColType[] = [];
     let isTypeDetermined = false;
@@ -371,7 +380,7 @@ export async function processCSVStreamLines(
             }
 
             for (let c = 0; c < filteredLabels.length; c++) {
-                tableData.push([]);
+                rawTableData.push([]);
             }
         }
 
@@ -407,11 +416,11 @@ export async function processCSVStreamLines(
             );
 
             for (let i = 0; i < typedFirstChunk.length; i++) {
-                tableData[i].push(...typedFirstChunk[i]);
+                rawTableData[i].push(...typedFirstChunk[i]);
             }
         } else {
             for (let i = 0; i < unprocessed.length; i++) {
-                tableData[i].push(...unprocessed[i]);
+                rawTableData[i].push(...unprocessed[i]);
             }
         }
     }
@@ -425,6 +434,8 @@ export async function processCSVStreamLines(
         type: colTypes[i]
     }));
 
+    const tableData = castColumnsToTypedArrays(rawTableData, colInfos);
+
     return { tableData, colInfos };
 }
 
@@ -433,7 +444,7 @@ export function processParsedJSONData(
     skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute',
     chunkSize: number = 50_000
-): { cols: any[][]; colInfos: ColInfo[] } {
+): { cols: (any[] | Float64Array)[]; colInfos: ColInfo[] } {
     let data: any[] = [];
 
     if (Array.isArray(rawData)) {
@@ -464,7 +475,7 @@ export function processParsedJSONData(
         throw new Error('No valid headers remaining after applying skippedHeaders filter!');
     }
 
-    const cols: any[][] = Array.from({ length: labels.length }, () => []);
+    const rawCols: any[][] = Array.from({ length: labels.length }, () => []);
     const sampleSize = Math.min(data.length, 50);
 
     const colInfos: ColInfo[] = labels.map(label => {
@@ -477,8 +488,10 @@ export function processParsedJSONData(
 
     for (let i = 0; i < data.length; i += chunkSize) {
         const chunk = data.slice(i, i + chunkSize);
-        processJSONDataChunk(chunk, labels, cols, colInfos, skipSet, invalidLine);
+        processJSONDataChunk(chunk, labels, rawCols, colInfos, skipSet, invalidLine);
     }
+
+    const cols = castColumnsToTypedArrays(rawCols, colInfos);
 
     return { cols, colInfos };
 }
@@ -487,8 +500,8 @@ export async function processNDJSONStreamLines(
     chunkStream: AsyncIterable<string[]>,
     skippedHeaders: string[] = [],
     invalidLine: 'drop' | 'throw' | 'impute' = 'impute'
-): Promise<{ tableData: any[][]; colInfos: ColInfo[] }> {
-    const tableData: any[][] = [];
+): Promise<{ tableData: (any[] | Float64Array)[]; colInfos: ColInfo[] }> {
+    const rawTableData: any[][] = [];
     let labels: string[] = [];
     let colTypes: ColType[] = [];
     let isInitialized = false;
@@ -535,13 +548,13 @@ export async function processNDJSONStreamLines(
             });
 
             for (let i = 0; i < labels.length; i++) {
-                tableData.push([]);
+                rawTableData.push([]);
             }
 
             isInitialized = true;
         }
 
-        processNDJSONLines(rawLines, labels, colTypes, tableData, invalidLine);
+        processNDJSONLines(rawLines, labels, colTypes, rawTableData, invalidLine);
     }
 
     if (!isInitialized) {
@@ -552,6 +565,8 @@ export async function processNDJSONStreamLines(
         label,
         type: colTypes[i]
     }));
+
+    const tableData = castColumnsToTypedArrays(rawTableData, colInfos);
 
     return { tableData, colInfos };
 }

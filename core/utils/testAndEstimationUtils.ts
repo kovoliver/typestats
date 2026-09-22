@@ -35,7 +35,7 @@ export function getPooledStd(
     return Math.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / df);
 }
 
-export function getPooledTContext(sample1: number[], sample2: number[]) {
+export function getPooledTContext(sample1: Float64Array, sample2: Float64Array) {
     if (sample1.length < 2 || sample2.length < 2) {
         throw new Error('Both samples must contain at least 2 elements.');
     }

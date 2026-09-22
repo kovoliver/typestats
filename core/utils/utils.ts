@@ -42,9 +42,16 @@ export function getFirstNonEmtpy(values: any[]): any {
  * @param {T[]} values - The array to evaluate for empty values.
  * @returns {boolean} `true` if at least one element is empty or invalid, `false` otherwise (or if the array is empty/falsy).
  */
-export function hasEmptyValues<T>(values: T[]): boolean {
+export function hasEmptyValues<T>(values: ArrayLike<T>): boolean {
     if (!values || values.length === 0) return false;
-    return values.some(val => isEmpty(val));
+
+    for (let i = 0; i < values.length; i++) {
+        if (isEmpty(values[i])) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -65,16 +72,26 @@ export function defaultValue<T>(value: T, defaultVal: T): T {
  * @param {number[] | number[][]} values - A 1D or 2D array of numeric values.
  * @returns {number[]} A flat array containing only non-empty, valid numbers.
  */
-export function getNonEmptyValues(values: any[]): any[] {
-    const validValues: number[] = [];
+export function getNonEmptyValues(values: Float64Array): Float64Array {
+    const len = values.length;
+    if (len === 0) return new Float64Array(0);
 
-    for (let i = 0; i < values.length; i++) {
-        if (!isEmpty(values[i])) {
-            validValues.push(values[i]);
+    const validIndices = new Int32Array(len);
+    let count = 0;
+
+    for (let i = 0; i < len; i++) {
+        const val = values[i];
+        if (!isEmpty(val)) {
+            validIndices[count++] = i;
         }
     }
 
-    return validValues;
+    const result = new Float64Array(count);
+    for (let i = 0; i < count; i++) {
+        result[i] = values[validIndices[i]];
+    }
+
+    return result;
 }
 
 /**
@@ -282,19 +299,19 @@ export function firstNTypeCheck(
  * @param {unknown[]} values - The array of raw string values to convert.
  * @returns {number[]} A new array containing numbers or `NaN` for invalid/empty inputs.
  */
-export function toNumberArray(values: unknown[]): number[] {
+export function toNumberArray(values: unknown[]): Float64Array {
     const len = values.length;
-    const result: number[] = [];
+    const result = new Float64Array(len);
 
     for (let i = 0; i < len; i++) {
         const val = values[i];
 
         if (typeof val === 'number') {
-            result.push(val);
+            result[i] = val;
         } else if (typeof val === 'string' && val.length > 0) {
-            result.push(+val);
+            result[i] = +val;
         } else {
-            result.push(NaN);
+            result[i] = NaN;
         }
     }
 
@@ -401,32 +418,32 @@ export function toDateArray(values: unknown[]): (Date | null)[] {
     return result;
 }
 
-export function toUnixTimestampArray(values: unknown[]): (number | null)[] {
+export function toUnixTimestampArray(values: unknown[]): Float64Array {
     const len = values.length;
-    const result: (number | null)[] = new Array(len);
+    const result = new Float64Array(len);
 
     for (let i = 0; i < len; i++) {
         const val = values[i];
 
         if (val === null || val === undefined || val === '') {
-            result[i] = null;
+            result[i] = NaN;
             continue;
         }
 
         if (val instanceof Date) {
             const time = val.getTime();
-            result[i] = Number.isNaN(time) ? null : time;
+            result[i] = Number.isNaN(time) ? NaN : time;
             continue;
         }
 
         if (typeof val === 'string' || typeof val === 'number') {
             const d = new Date(val);
             const time = d.getTime();
-            result[i] = Number.isNaN(time) ? null : time;
+            result[i] = Number.isNaN(time) ? NaN : time;
             continue;
         }
 
-        result[i] = null;
+        result[i] = NaN;
     }
 
     return result;
@@ -478,7 +495,7 @@ export function standardize(value: number, avg: number, sigma: number) {
  * @returns {number} The smallest number in the array.
  * @throws {Error} Throws an error if the input array is empty.
  */
-export function getMin(values: number[]): number {
+export function getMin(values: Float64Array): number {
     if (values.length === 0) {
         throw new Error('Cannot get minimum of an empty array!');
     }
@@ -501,7 +518,7 @@ export function getMin(values: number[]): number {
  * @returns {number} The largest number in the array.
  * @throws {Error} Throws an error if the input array is empty.
  */
-export function getMax(values: number[]): number {
+export function getMax(values: Float64Array): number {
     if (values.length === 0) {
         throw new Error('Cannot get maximum of an empty array!');
     }
