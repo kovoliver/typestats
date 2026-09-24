@@ -305,59 +305,32 @@ export function removeInvalidRows(
  * @throws {Error} If `values` contains invalid, non-numeric, or `NaN` elements.
  */
 export function scaleValues(
-    values: Float64Array | any[][],
+    values: Float64Array,
     type: ScaleType,
-    colIndex?: number,
     isSample: boolean = true
-): Float64Array | any[][] {
+): Float64Array {
     if (values.length === 0) {
         throw new Error('You must add at least one value!');
     }
 
-    const is2D = Array.isArray(values[0]);
+    const len = values.length;
 
-    if (is2D && colIndex === undefined) {
-        throw new Error('You must provide column index when the given values are in a 2d array!');
-    }
-
-    let column: Float64Array;
-
-    if (is2D) {
-        if (!(values as unknown[]).every(arr => Array.isArray(arr))) {
-            throw new Error('You must provide a strictly two-dimensional array!');
-        }
-        const rawColumn = getColumn(values as any[], colIndex!);
-        column = toNumberArray(rawColumn as any);
-    } else {
-        column = values as Float64Array;
-    }
-
-    for (let i = 0; i < column.length; i++) {
-        if (Number.isNaN(column[i])) {
+    for (let i = 0; i < len; i++) {
+        if (Number.isNaN(values[i])) {
             throw new Error(
                 'The given dataset has invalid values. You can use, e.g., the replaceEmptyValues function.'
             );
         }
     }
 
-    const param1 = type === 'normalize' ? getMin(column) : mean(column);
-    const param2 = type === 'normalize' ? getMax(column) : std(column, isSample);
+    const param1 = type === 'normalize' ? getMin(values) : mean(values);
+    const param2 = type === 'normalize' ? getMax(values) : std(values, isSample);
 
     const scaleFn = type === 'normalize' ? normalize : standardize;
-    const len = column.length;
     const scaledColumn = new Float64Array(len);
 
     for (let i = 0; i < len; i++) {
-        scaledColumn[i] = scaleFn(column[i], param1, param2);
-    }
-
-    if (is2D) {
-        const matrix = values as number[][];
-        return matrix.map((row, rIdx) => {
-            const newRow = [...row];
-            newRow[colIndex!] = scaledColumn[rIdx];
-            return newRow;
-        });
+        scaledColumn[i] = scaleFn(values[i], param1, param2);
     }
 
     return scaledColumn;
@@ -371,10 +344,9 @@ export function scaleValues(
  * @returns A new 1D Float64Array or 2D matrix containing the normalized values.
  */
 export function normalizeValues(
-    values: Float64Array | any[][],
-    colIndex?: number
+    values: Float64Array
 ) {
-    return scaleValues(values, 'normalize', colIndex);
+    return scaleValues(values, 'normalize');
 }
 
 /**
@@ -386,11 +358,10 @@ export function normalizeValues(
  * @returns A new 1D Float64Array or 2D matrix containing the standardized values.
  */
 export function standardizeValues(
-    values: Float64Array | any[][],
-    colIndex?: number,
+    values: Float64Array,
     isSample: boolean = true
 ) {
-    return scaleValues(values, 'standardize', colIndex, isSample);
+    return scaleValues(values, 'standardize', isSample);
 }
 
 /**

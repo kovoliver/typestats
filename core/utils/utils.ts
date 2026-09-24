@@ -784,3 +784,22 @@ export function isValidTimestamp(value: unknown): boolean {
 export function isValidBool(val: unknown): boolean {
     return typeof val === 'boolean';
 }
+
+export function flattenArray(table: Float64Array[]): Float64Array {
+    let totalLength = 0;
+
+    for (let i = 0; i < table.length; i++) {
+        totalLength += table[i].length;
+    }
+
+    const flattened = new Float64Array(totalLength);
+
+    let offset = 0;
+
+    for (let i = 0; i < table.length; i++) {
+        flattened.set(table[i], offset);
+        offset += table[i].length;
+    }
+
+    return flattened;
+}

@@ -1,19 +1,22 @@
 import { Cache } from "../abstractions/abstractClasses.js";
 
-export default abstract class Column<T extends number | boolean | string | Date> extends Cache {
-    protected readonly _values: ReadonlyArray<T | null> | Float64Array;
+export default abstract class Column<
+    T extends number | boolean | string | Date,
+    V extends ReadonlyArray<T | null> | Float64Array = ReadonlyArray<T | null>
+> extends Cache {
+    protected readonly _values: V;
     protected _label: string;
 
     constructor(
-        values: unknown[] | (T | null)[] | Float64Array,
+        values: unknown[] | V,
         label: string,
         isProcessed: boolean = false
     ) {
         super();
         this._label = label;
-        this._values = !isProcessed ? this.prepareData(values as unknown[]) : values as (T | null)[] | Float64Array;
+        this._values = (!isProcessed ? this.prepareData(values as unknown[]) : values) as V;
     }
-
+    
     protected abstract prepareData(rawValues: unknown[]): (T | null)[] | Float64Array;
 
     public abstract isValid(value: unknown): boolean;

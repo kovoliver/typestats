@@ -185,3 +185,10 @@ export const SeriesImputeType = {
 } as const;
 
 export type SeriesImputeType = typeof SeriesImputeType[keyof typeof SeriesImputeType];
+
+export type ColumnData =
+    | Float64Array
+    | (string | null)[]
+    | (boolean | null)[];
+
+export type TableData = ColumnData[];

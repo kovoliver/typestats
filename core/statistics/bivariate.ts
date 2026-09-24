@@ -1,6 +1,7 @@
 import { clampSymmetric, orderAsc, rangeSequence, round } from "../utils/numberUtils.js";
 import { mean, ssd, std } from "../statistics/univariate.js";
 import { getDegreesOfFreedom } from "../statistics/univariate.js";
+import { flattenArray } from "../utils/utils.js";
 
 /**
  * Validates a 2D contingency table matrix to ensure it contains at least one row and one column.
@@ -254,7 +255,9 @@ export function totalSSD(table: Float64Array[], digits?: number): number {
     }
 
     const flattened = new Float64Array(totalLength);
+
     let offset = 0;
+
     for (let i = 0; i < table.length; i++) {
         flattened.set(table[i], offset);
         offset += table[i].length;
@@ -484,4 +487,28 @@ export function rankCorrelation(
     }
 
     return correlation(rankValues1, rankValues2, isSample, digits);
+}
+
+export function empiricalBayesianMeans(groups: Float64Array[]): Float64Array {
+    const k = groups.length;
+    if (k === 0) return new Float64Array(0);
+
+    const flattenedGroups = flattenArray(groups);
+    const N = flattenedGroups.length;
+    const mainMean = mean(flattenedGroups);
+
+    const withinVar = withinSSD(groups) / N;
+    const betweenVar = betweenSSD(groups) / k;
+
+    const posteriors = new Float64Array(k);
+    const varRatio = betweenVar > 0 ? withinVar / betweenVar : Infinity;
+
+    for (let i = 0; i < k; i++) {
+        const n_i = groups[i].length;
+        const w = n_i / (n_i + varRatio);
+        const groupMean = mean(groups[i]);
+        posteriors[i] = w * groupMean + (1 - w) * mainMean;
+    }
+
+    return posteriors;
 }

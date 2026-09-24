@@ -11,7 +11,7 @@ import Column from "./Column.js";
  * strictly use **UTC** time to ensure consistent and reproducible analytical results across 
  * different server environments and client timezones.
  */
-export default class DateColumn extends Column<Date> {
+export default class DateColumn extends Column<Date, Float64Array> {
     private readonly _months = [
         'January',
         'February',

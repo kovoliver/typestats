@@ -1,10 +1,10 @@
-import { ColInfo, ColType } from "../types/types.js";
+import { ColInfo, ColType, TableData } from "../types/types.js";
 import { writeFile } from 'fs/promises';
 import fs from 'node:fs';
 import readline from 'node:readline';
 import { getColType, isEmpty, parseValue } from "../utils/utils.js";
 
-function castColumnsToTypedArrays(cols: any[][], colInfos: ColInfo[]): (any[] | Float64Array)[] {
+function castColumnsToTypedArrays(cols: any[][], colInfos: ColInfo[]): TableData {
     return cols.map((col, i) => {
         if (colInfos[i].type === 'number') {
             return new Float64Array(col as number[]);

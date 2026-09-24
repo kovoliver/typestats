@@ -43,7 +43,7 @@ import {
     bartlett
 } from "../inference/hypothesis.js";
 
-export default class NumberColumn extends Column<number> {
+export default class NumberColumn extends Column<number, Float64Array> {
     private regression: Regression | null = null;
     private trend: Trend | null = null;
 
@@ -230,7 +230,7 @@ export default class NumberColumn extends Column<number> {
      * @throws {Error} Throws an error if the column contains invalid or missing values (`NaN`/`null`).
      */
     public standardize(): NumberColumn {
-        const values: number[] = standardizeValues(this._values as number[]) as number[];
+        const values: Float64Array = standardizeValues(this._values as Float64Array);
         return new NumberColumn(values, this._label);
     }
 
@@ -241,7 +241,7 @@ export default class NumberColumn extends Column<number> {
      * @throws {Error} Throws an error if the column contains invalid or missing values (`NaN`/`null`).
      */
     public normalize(): NumberColumn {
-        const values: number[] = normalizeValues(this._values as number[]) as number[];
+        const values = normalizeValues(this._values as Float64Array);
         return new NumberColumn(values, this._label);
     }
 
@@ -253,7 +253,7 @@ export default class NumberColumn extends Column<number> {
      * @param {Boundaries} boundaries - The threshold boundaries (`min` and/or `max`) for identifying outliers.
      */
     public replaceOutliers(type: ImputeType, boundaries: Boundaries): NumberColumn {
-        const values: number[] = replaceOutliers(this._values as number[], type, boundaries);
+        const values: number[] = replaceOutliers(this._values as Float64Array, type, boundaries);
         return new NumberColumn(values, this._label);
     }
 
@@ -340,12 +340,12 @@ export default class NumberColumn extends Column<number> {
      * @param {ImputeType} type - The imputation method ('MEAN', 'MEDIAN', 'MODE').
      */
     public replaceEmptyValues(type: ImputeType): NumberColumn {
-        const values: number[] = replaceEmptyValues(this._values as number[], type) as number[];
+        const values = replaceEmptyValues(this._values as Float64Array, type);
         return new NumberColumn(values, this._label);
     }
 
     public getImputedValues(type: ImputeType) {
-        return replaceEmptyValues(this._values as number[], type) as number[];
+        return replaceEmptyValues(this._values as Float64Array, type);
     }
 
     /**

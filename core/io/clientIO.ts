@@ -1,8 +1,9 @@
 import Table from "../dataStructures/Table.js";
 import { 
-    processCSVStreamLines, processNDJSONLines, 
+    processCSVStreamLines,
     processNDJSONStreamLines, 
-    processParsedJSONData, readClientChunks 
+    processParsedJSONData, 
+    readClientChunks 
 } from "./ioutils.js";
 
 /**

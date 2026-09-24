@@ -1,4 +1,4 @@
-import { Boundaries, ColInfo, ColumnInfo, ColumnLabel, ImputeType, PercentMode, SeriesImputeType }
+import { Boundaries, ColInfo, ColumnData, ColumnInfo, ColumnLabel, ImputeType, PercentMode, SeriesImputeType, TableData }
     from '../types/types.js';
 import {
     displayDateString,
@@ -25,29 +25,28 @@ import { correlation, covariance } from '../statistics/bivariate.js';
 import DataMatrix from './DataMatrix.js';
 import { round } from '../utils/numberUtils.js';
 
-type ColumnArrayData = Float64Array | (boolean | null)[] | (string | null)[];
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
 export default class Table {
-    private readonly _values: ColumnArrayData[];
+    private readonly _values: TableData;
     private readonly _colInfos: ColInfo[];
 
     constructor(
-        values: any[][],
+        values: any[][]|TableData,
         colInfos: ColInfo[],
         isTrustedSource: boolean = false,
     ) {
         this._colInfos = colInfos;
-        this._values = isTrustedSource ? values : this.processValues(values, colInfos);
+        this._values = isTrustedSource ? values : this.processValues(values as any[][], colInfos);
     }
 
-    public get originalTable(): ColumnArrayData[] {
+    public get originalTable(): ColumnData[] {
         return this._values.map(col => {
             if (col instanceof Float64Array) {
                 return new Float64Array(col);
             }
             return [...col];
-        }) as ColumnArrayData[];
+        }) as ColumnData[];
     }
 
     public get table(): AnyColumn[] {
@@ -65,9 +64,9 @@ export default class Table {
         };
     }
 
-    private processValues(values: any[][], colInfos: ColInfo[]): ColumnArrayData[] {
+    private processValues(values: any[][], colInfos: ColInfo[]): ColumnData[] {
         const colCount = values.length;
-        const processedValues: ColumnArrayData[] = new Array(colCount);
+        const processedValues: ColumnData[] = new Array(colCount);
 
         for (let i = 0; i < colCount; i++) {
             const rawCol = values[i];
@@ -94,7 +93,7 @@ export default class Table {
         return processedValues;
     }
 
-    private createColumnFromData(values: ColumnArrayData, colInfo: ColInfo): AnyColumn {
+    private createColumnFromData(values: ColumnData, colInfo: ColInfo): AnyColumn {
         const type = colInfo.type ?? getColType(values as any);
 
         switch (type) {
@@ -272,7 +271,7 @@ export default class Table {
         });
 
         const rowCount = this.rowCount;
-        const groups: Record<string, Record<string, ColumnArrayData>> = {};
+        const groups: Record<string, Record<string, ColumnData>> = {};
 
         for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
             const compositeKey = targetCols
@@ -315,7 +314,7 @@ export default class Table {
         const rowCount = indices.length;
         const colCount = this._values.length;
 
-        const newValues: ColumnArrayData[] = new Array(colCount);
+        const newValues: ColumnData[] = new Array(colCount);
 
         for (let c = 0; c < colCount; c++) {
             const procCol = this._values[c];
@@ -336,7 +335,7 @@ export default class Table {
         }
 
         const colInfos = this._colInfos.map(info => ({ ...info }));
-        return new Table(newValues as any[][], colInfos, true);
+        return new Table(newValues as TableData, colInfos, true);
     }
 
     private orderBy(labels: string[], type: 'asc' | 'desc'): Table {
@@ -406,7 +405,7 @@ export default class Table {
             return this.newTableByIndices(new Int32Array(0));
         }
 
-        const targetCols: ColumnArrayData[] = new Array(labelCount);
+        const targetCols: ColumnData[] = new Array(labelCount);
         for (let i = 0; i < labelCount; i++) {
             const colIdx = this.getIndex(labels[i]);
             targetCols[i] = this._values[colIdx];
@@ -514,7 +513,7 @@ export default class Table {
         });
         const colInfos = indices.map(index => ({ ...this._colInfos[index] }));
 
-        return new Table(procCols as any[][], colInfos, true);
+        return new Table(procCols as TableData, colInfos, true);
     }
 
     public select(...labels: (string | number)[]): Table {
@@ -566,7 +565,7 @@ export default class Table {
         const newValues = this._values.map(c => c instanceof Float64Array ? new Float64Array(c) : [...c]);
         const newInfos = this._colInfos.map(i => ({ ...i }));
 
-        let processedVal: ColumnArrayData;
+        let processedVal: ColumnData;
         if (info.type === 'number') processedVal = toNumberArray(values);
         else if (info.type === 'date') processedVal = toUnixTimestampArray(values);
         else if (info.type === 'bool') processedVal = toBoolArray(values);
@@ -575,7 +574,7 @@ export default class Table {
         newValues.splice(index, 0, processedVal as Float64Array<ArrayBuffer>);
         newInfos.splice(index, 0, info);
 
-        return new Table(newValues as any[][], newInfos, true);
+        return new Table(newValues as TableData, newInfos, true);
     }
 
     public dropNa(
@@ -706,7 +705,7 @@ export default class Table {
             return col instanceof Float64Array ? new Float64Array(col) : [...col];
         });
 
-        return new Table(newValues as any[][], this._colInfos, true);
+        return new Table(newValues as TableData, this._colInfos, true);
     }
 
     public replaceOutliers(
@@ -736,7 +735,7 @@ export default class Table {
             return col instanceof Float64Array ? new Float64Array(col) : [...col];
         });
 
-        return new Table(newValues as any[][], this._colInfos, true);
+        return new Table(newValues as TableData, this._colInfos, true);
     }
 
     public replaceOutliersIQR(
@@ -789,7 +788,7 @@ export default class Table {
             return col instanceof Float64Array ? new Float64Array(col) : [...col];
         });
 
-        return new Table(newValues as any[][], this._colInfos, true);
+        return new Table(newValues as TableData, this._colInfos, true);
     }
 
     public mapColumn(
@@ -1504,7 +1503,7 @@ export default class Table {
             return col instanceof Float64Array ? new Float64Array(col) : [...col];
         });
 
-        return new Table(newValues as any[][], this._colInfos, true);
+        return new Table(newValues as TableData, this._colInfos, true);
     }
 
     public replaceTSOutliers(
@@ -1561,7 +1560,7 @@ export default class Table {
             return col instanceof Float64Array ? new Float64Array(col) : [...col];
         });
 
-        return new Table(newValues as any[][], this._colInfos, true);
+        return new Table(newValues as TableData, this._colInfos, true);
     }
 
     public replaceTSOutliersIqr(
