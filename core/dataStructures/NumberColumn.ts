@@ -253,7 +253,7 @@ export default class NumberColumn extends Column<number, Float64Array> {
      * @param {Boundaries} boundaries - The threshold boundaries (`min` and/or `max`) for identifying outliers.
      */
     public replaceOutliers(type: ImputeType, boundaries: Boundaries): NumberColumn {
-        const values: number[] = replaceOutliers(this._values as Float64Array, type, boundaries);
+        const values = replaceOutliers(this._values as Float64Array, type, boundaries);
         return new NumberColumn(values, this._label);
     }
 
