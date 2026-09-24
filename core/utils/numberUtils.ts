@@ -5,10 +5,10 @@ export function round(value: number, decimals?: number): number {
     return Math.round(value * factor) / factor;
 }
 
-
-
 export function orderAsc(values: Float64Array): Float64Array {
-    return values.sort();
+    const len = values.length;
+    if (len <= 1) return values.slice();
+    return values.slice().sort();
 }
 
 export function orderDesc(values: Float64Array): Float64Array {

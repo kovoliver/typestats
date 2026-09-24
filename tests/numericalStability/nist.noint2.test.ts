@@ -11,8 +11,8 @@ import { lre } from '../../core/utils/numberUtils.js';
  *         4       5
  *         4       6
  */
-const yValues = [3, 4, 4];
-const xValues = [4, 5, 6];
+const yValues = new Float64Array([3, 4, 4]);
+const xValues = new Float64Array([4, 5, 6]);
 
 const CERTIFIED_NO_INTERCEPT = {
     b1: 0.727272727272727,

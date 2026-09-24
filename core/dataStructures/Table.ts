@@ -32,7 +32,7 @@ export default class Table {
     private readonly _colInfos: ColInfo[];
 
     constructor(
-        values: any[][]|TableData,
+        values: any[][] | TableData,
         colInfos: ColInfo[],
         isTrustedSource: boolean = false,
     ) {
@@ -690,22 +690,33 @@ export default class Table {
         return col.countOutliersIqr(multiplier, percentMode);
     }
 
+    private replaceColumnAtIndex(targetIndex: number, newColumnData: any): Table {
+        const newValues = this._values.map((col, idx) => {
+            if (idx === targetIndex) return newColumnData;
+
+            return col instanceof Float64Array
+                ? new Float64Array(col)
+                : col.slice();
+        });
+
+        return new Table(newValues as TableData, this._colInfos, true);
+    }
+
     public fillNaNumeric(label: string | number, type: ImputeType): Table {
         const targetCol = this.getCol(label) as NumberColumn;
 
         if (!(targetCol instanceof NumberColumn)) {
-            throw new Error('Statistical imputation (MEAN, MEDIAN, MODE) is only applicable to numeric columns!');
+            throw new Error('Statistical imputation (mean, median, mode) is only applicable to numeric columns!');
         }
 
         const targetIndex = this.getIndex(label);
-        const imputedValues = replaceEmptyValues(targetCol.getValidValues() as Float64Array, type);
 
-        const newValues = this._values.map((col, idx) => {
-            if (idx === targetIndex) return new Float64Array(imputedValues);
-            return col instanceof Float64Array ? new Float64Array(col) : [...col];
-        });
+        const newCol = replaceEmptyValues(
+            targetCol.values as Float64Array, type,
+            targetCol.getValidValues() as Float64Array
+        );
 
-        return new Table(newValues as TableData, this._colInfos, true);
+        return this.replaceColumnAtIndex(targetIndex, newCol);
     }
 
     public replaceOutliers(
@@ -730,12 +741,7 @@ export default class Table {
             rawValidValues as Float64Array
         );
 
-        const newValues = this._values.map((col, idx) => {
-            if (idx === targetIndex) return new Float64Array(newCol);
-            return col instanceof Float64Array ? new Float64Array(col) : [...col];
-        });
-
-        return new Table(newValues as TableData, this._colInfos, true);
+        return this.replaceColumnAtIndex(targetIndex, newCol);
     }
 
     public replaceOutliersIQR(
@@ -783,12 +789,7 @@ export default class Table {
         const targetIndex = this.getIndex(label);
         const filledValues = targetCol.getFilledValues(value as any);
 
-        const newValues = this._values.map((col, idx) => {
-            if (idx === targetIndex) return filledValues;
-            return col instanceof Float64Array ? new Float64Array(col) : [...col];
-        });
-
-        return new Table(newValues as TableData, this._colInfos, true);
+        return this.replaceColumnAtIndex(targetIndex, filledValues);
     }
 
     public mapColumn(
@@ -1178,7 +1179,7 @@ export default class Table {
         const numRows = rowLabels.length;
 
         const crossTable: Float64Array[] = new Array(numCols);
-        
+
         for (let c = 0; c < numCols; c++) {
             crossTable[c] = new Float64Array(numRows);
         }

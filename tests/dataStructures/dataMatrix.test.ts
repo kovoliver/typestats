@@ -12,15 +12,15 @@ describe('DataMatrix', () => {
         });
 
         it('should throw an error if provided lines are empty arrays', () => {
-            expect(() => new DataMatrix([[], []], ['ColA', 'ColB'])).toThrow(
+            expect(() => new DataMatrix([new Float64Array([]), new Float64Array([])], ['ColA', 'ColB'])).toThrow(
                 'The lines you provided are empty!'
             );
         });
 
         it('should throw an error when rowLabels are provided but rows have unequal lengths', () => {
             const values = [
-                [1, 2, 3],
-                [4, 5]
+                new Float64Array([1, 2, 3]),
+                new Float64Array([4, 5])
             ];
             const colLabels = ['C1', 'C2'];
             const rowLabels = ['R1', 'R2', 'R3'];
@@ -31,7 +31,7 @@ describe('DataMatrix', () => {
         });
 
         it('should construct successfully with valid arguments', () => {
-            const values = [[1, 2], [3, 4]];
+            const values = [new Float64Array([1, 2]), new Float64Array([3, 4])];
             const colLabels = ['C1', 'C2'];
             const matrix = new DataMatrix(values, colLabels);
 
@@ -43,8 +43,8 @@ describe('DataMatrix', () => {
     describe('Getters', () => {
         it('should return correct row and col count', () => {
             const values = [
-                [10, 20, 30],
-                [40, 50, 60]
+                new Float64Array([10, 20, 30]),
+                new Float64Array([40, 50, 60])
             ];
             const matrix = new DataMatrix(values, ['Col_A', 'Col_B']);
 
@@ -54,7 +54,7 @@ describe('DataMatrix', () => {
     });
 
     describe('Statistical Methods (real values, 2x2 matrix)', () => {
-        const values = [[1, 2], [3, 4]];
+        const values = [new Float64Array([1, 2]), new Float64Array([3, 4])];
         const colLabels = ['C1', 'C2'];
         let matrix: DataMatrix;
 
@@ -99,11 +99,11 @@ describe('DataMatrix', () => {
             const consoleSpy = vi.spyOn(console, 'table');
 
             const values5x5 = [
-                [11, 12, 13, 14, 15],
-                [21, 22, 23, 24, 25],
-                [31, 32, 33, 34, 35],
-                [41, 42, 43, 44, 45],
-                [51, 52, 53, 54, 55]
+                new Float64Array([11, 12, 13, 14, 15]),
+                new Float64Array([21, 22, 23, 24, 25]),
+                new Float64Array([31, 32, 33, 34, 35]),
+                new Float64Array([41, 42, 43, 44, 45]),
+                new Float64Array([51, 52, 53, 54, 55])
             ];
             const colLabels5 = ['Col_A', 'Col_B', 'Col_C', 'Col_D', 'Col_E'];
 
@@ -118,11 +118,11 @@ describe('DataMatrix', () => {
             const consoleSpy = vi.spyOn(console, 'table');
 
             const values5x5 = [
-                [10, 20, 30, 40, 50],
-                [15, 25, 35, 45, 55],
-                [12, 22, 32, 42, 52],
-                [18, 28, 38, 48, 58],
-                [14, 24, 34, 44, 54]
+                new Float64Array([10, 20, 30, 40, 50]),
+                new Float64Array([15, 25, 35, 45, 55]),
+                new Float64Array([12, 22, 32, 42, 52]),
+                new Float64Array([18, 28, 38, 48, 58]),
+                new Float64Array([14, 24, 34, 44, 54])
             ];
             const colLabels5 = ['Cat_V1', 'Cat_V2', 'Cat_V3', 'Cat_V4', 'Cat_V5'];
             const rowLabels5 = ['Group_1', 'Group_2', 'Group_3', 'Group_4', 'Group_5'];
@@ -149,12 +149,12 @@ describe('DataMatrix', () => {
                 'SupplierA', 'SupplierB', 'SupplierB', 'SupplierC', 'SupplierC',
                 'SupplierA', 'SupplierB', 'SupplierC'
             ],
-            [
+            new Float64Array([
                 150, 80, 45, 95, 60,
                 20, 12, 110, 35,
                 200, 130, 500, 140, 400,
                 300, 250, 70
-            ]
+            ])
         ];
 
         const infos: ColInfo[] = [

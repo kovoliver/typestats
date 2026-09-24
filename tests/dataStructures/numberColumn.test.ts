@@ -13,7 +13,9 @@ describe('NumberColumn', () => {
     describe('Initialization & Data Preparation', () => {
         it('should correctly initialize label and prepare values', () => {
             expect(column.label).toBe('TestColumn');
-            expect(column.values).toEqual([10, 20, 30, 40, 50, 60, NaN, NaN, NaN]);
+            expect(column.values).toEqual(
+                new Float64Array([10, 20, 30, 40, 50, 60, NaN, NaN, NaN])
+            );
         });
 
         it('should return only valid numeric values via getValidValues()', () => {
@@ -45,8 +47,8 @@ describe('NumberColumn', () => {
             expect(column.q1()).toBeLessThan(column.median());
             expect(column.q3()).toBeGreaterThan(column.median());
             expect(column.iqr()).toBe(column.q3() - column.q1());
-            
-            expect(column.percentile(0.5)).toBe(column.median()); 
+
+            expect(column.percentile(0.5)).toBe(column.median());
         });
 
         it('should calculate correct IQR boundaries', () => {
@@ -61,7 +63,9 @@ describe('NumberColumn', () => {
     describe('Data Preparation & Transformations', () => {
         it('should remove empty rows in-place', () => {
             const newColumn = column.removeEmptyRows();
-            expect(newColumn.values).toEqual([10, 20, 30, 40, 50, 60]);
+            expect(newColumn.values).toEqual(
+                new Float64Array([10, 20, 30, 40, 50, 60])
+            );
             expect(newColumn.countMissing()).toBe(0);
         });
 
@@ -72,20 +76,29 @@ describe('NumberColumn', () => {
         });
 
         it('should replace outliers based on IQR boundaries while preserving NaNs', () => {
-            const outlierCol = new NumberColumn([10, 12, 11, 13, 1000, NaN], 'Outliers');
+            const outlierCol = new NumberColumn(
+                new Float64Array([10, 12, 11, 13, 1000, NaN]),
+                'Outliers'
+            );
             const newColumn = outlierCol.replaceOutliersIqr('median');
             expect(newColumn.values[4]).not.toBe(1000);
             expect(newColumn.values[5]).toBeNaN();
         });
 
         it('should standardize values properly on clean datasets', () => {
-            const cleanCol = new NumberColumn([10, 20, 30, 40, 50], 'Clean');
+            const cleanCol = new NumberColumn(
+                new Float64Array([10, 20, 30, 40, 50]),
+                'Clean'
+            );
             const newColumn = cleanCol.standardize();
             expect(newColumn.mean()).toBeCloseTo(0, 5);
         });
 
         it('should normalize values to [0, 1] range on clean datasets', () => {
-            const cleanCol = new NumberColumn([10, 20, 30, 40, 50], 'Clean');
+            const cleanCol = new NumberColumn(
+                new Float64Array([10, 20, 30, 40, 50]),
+                'Clean'
+            );
             const newColumn = cleanCol.normalize();
             expect(newColumn.min()).toBe(0);
             expect(newColumn.max()).toBe(1);
@@ -94,18 +107,28 @@ describe('NumberColumn', () => {
 
     describe('Sorting & Cache Invalidation', () => {
         it('should sort values in ascending order and clear cache', () => {
-            const unsorted = new NumberColumn([50, 10, 40, 20, 30], 'Unsorted');
+            const unsorted = new NumberColumn(
+                new Float64Array([50, 10, 40, 20, 30]),
+                'Unsorted'
+            );
             const meanBefore = unsorted.mean(); // Cache-eli a mean-t
-            
+
             const newColumn = unsorted.orderAsc();
-            expect(newColumn.values).toEqual([10, 20, 30, 40, 50]);
+            expect(newColumn.values).toEqual(
+                new Float64Array([10, 20, 30, 40, 50])
+            );
             expect(unsorted.mean()).toBe(meanBefore); // Újrahasználható a mean, de a cache törlődött
         });
 
         it('should sort values in descending order', () => {
-            const unsorted = new NumberColumn([10, 50, 20, 40, 30], 'Unsorted');
+            const unsorted = new NumberColumn(
+                new Float64Array([10, 50, 20, 40, 30]),
+                'Unsorted'
+            );
             const newColumn = unsorted.orderDesc();
-            expect(newColumn.values).toEqual([50, 40, 30, 20, 10]);
+            expect(newColumn.values).toEqual(
+                new Float64Array([50, 40, 30, 20, 10])
+            );
         });
     });
 
@@ -114,8 +137,8 @@ describe('NumberColumn', () => {
         let yCol: NumberColumn;
 
         beforeEach(() => {
-            xCol = new NumberColumn([1, 2, 3, 4, 5], 'X');
-            yCol = new NumberColumn([2, 4, 6, 8, 10], 'Y');
+            xCol = new NumberColumn(new Float64Array([1, 2, 3, 4, 5]), 'X');
+            yCol = new NumberColumn(new Float64Array([2, 4, 6, 8, 10]), 'Y');
         });
 
         it('should calculate covariance and correlation', () => {
@@ -133,7 +156,7 @@ describe('NumberColumn', () => {
         it('should compute exponential and power regression parameters', () => {
             const expReg = xCol.exponentialRegression(yCol);
             const powReg = xCol.powerRegression(yCol);
-            
+
             expect(expReg).toHaveProperty('b0');
             expect(powReg).toHaveProperty('b1');
         });
@@ -143,7 +166,10 @@ describe('NumberColumn', () => {
         let trendCol: NumberColumn;
 
         beforeEach(() => {
-            trendCol = new NumberColumn([10, 20, 30, 40, 50], 'TrendData');
+            trendCol = new NumberColumn(
+                new Float64Array([10, 20, 30, 40, 50]),
+                'TrendData'
+            );
         });
 
         it('should calculate linear, exponential and logarithmic trends', () => {
@@ -155,7 +181,7 @@ describe('NumberColumn', () => {
         it('should calculate polynomial trend with dynamic degree key in cache', () => {
             const poly2 = trendCol.polynomialTrend(2);
             const poly3 = trendCol.polynomialTrend(3);
-            
+
             expect(poly2).toBeDefined();
             expect(poly3).toBeDefined();
             expect(poly2).not.toEqual(poly3);

@@ -6,8 +6,8 @@ describe('Table - Column Transformations & Operations', () => {
 
     beforeEach(() => {
         const data = [
-            [10, 20, 30],
-            [2, 4, 5],
+            new Float64Array([10, 20, 30]),
+            new Float64Array([2, 4, 5]),
             ['John', 'Jane', 'Bob'],
             ['Doe', 'Smith', 'Builder']
         ];
@@ -22,19 +22,19 @@ describe('Table - Column Transformations & Operations', () => {
 
     it('should transform a column values via mapColumn', () => {
         const mapped = table.mapColumn('a', 'a_double', val => (val as number) * 2);
-        expect(mapped.getCol('a_double').values).toEqual([20, 40, 60]);
+        expect(mapped.getCol('a_double').values).toEqual(new Float64Array([20, 40, 60]));
     });
 
     it('should combine numeric columns using arithmetic operations (+, -, *, /)', () => {
         const added = table.combineColumns(['a', 'b'], '+', 'sum');
-        expect(added.getCol('sum').values).toEqual([12, 24, 35]);
+        expect(added.getCol('sum').values).toEqual(new Float64Array([12, 24, 35]));
 
         const divided = table.combineColumns(['a', 'b'], '/', 'div');
-        expect(divided.getCol('div').values).toEqual([5, 5, 6]);
+        expect(divided.getCol('div').values).toEqual(new Float64Array([5, 5, 6]));
     });
 
     it('should handle division by zero in combineColumns by assigning NaN', () => {
-        const zeroData = [[10], [0]];
+        const zeroData = [new Float64Array([10]), new Float64Array([0])];
         const zeroInfos: ColInfo[] = [
             { label: 'num', type: 'number' },
             { label: 'denom', type: 'number' }
@@ -53,7 +53,7 @@ describe('Table - Column Transformations & Operations', () => {
     describe('applyColumn', () => {
         it('should transform column values in-place', () => {
             table.applyColumn('a', val => (val as number) * 10);
-            expect(table.getCol('a').values).toEqual([100, 200, 300]);
+            expect(table.getCol('a').values).toEqual(new Float64Array([100, 200, 300]));
         });
 
         it('should work using column index identifier', () => {
@@ -64,12 +64,12 @@ describe('Table - Column Transformations & Operations', () => {
         it('should automatically change column type if function changes target data type', () => {
             table.applyColumn('firstName', val => String(val).length);
             
-            expect(table.getCol('firstName').values).toEqual([4, 4, 3]);
+            expect(table.getCol('firstName').values).toEqual(new Float64Array([4, 4, 3]));
             expect(table.colInfos.find(info => info.label === 'firstName')?.type).toBe('number');
         });
 
         it('should preserve NaN values in numeric columns during transformation', () => {
-            const nullData = [[10, null, NaN]];
+            const nullData = [new Float64Array([10, NaN, NaN])];
             const nullInfos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const nullTable = new Table(nullData, nullInfos);
 

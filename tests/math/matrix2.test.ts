@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import Matrix from '../../core/math/Matrix';
 
-function isApproxIdentity(m: number[][], tol = 1e-8): boolean {
+function isApproxIdentity(m: Float64Array[], tol = 1e-8): boolean {
     for (let i = 0; i < m.length; i++) {
         for (let j = 0; j < m[i].length; j++) {
             const expected = i === j ? 1 : 0;
@@ -13,7 +13,7 @@ function isApproxIdentity(m: number[][], tol = 1e-8): boolean {
     return true;
 }
 
-function maxAbsDiff(a: number[][], b: number[][]): number {
+function maxAbsDiff(a: Float64Array[], b: Float64Array[]): number {
     let max = 0;
 
     for (let i = 0; i < a.length; i++) {
@@ -34,38 +34,42 @@ describe('Matrix (strict suite)', () => {
         });
 
         it('throws an error for empty rows', () => {
-            expect(() => new Matrix([[], []])).toThrow();
+            expect(() => new Matrix([new Float64Array([]), new Float64Array([])])).toThrow();
         });
 
         it('throws an error if row dimensions mismatch', () => {
-            expect(() => new Matrix([[1, 2], [3]])).toThrow();
-            expect(() => new Matrix([[1], [2, 3], [4]])).toThrow();
+            expect(() => new Matrix([new Float64Array([1, 2]), new Float64Array([3])])).toThrow();
+            expect(() => new Matrix([new Float64Array([1]), new Float64Array([2, 3]), new Float64Array([4])])).toThrow();
         });
 
         it('accepts a 1x1 matrix', () => {
-            const m = new Matrix([[7]]);
+            const m = new Matrix([new Float64Array([7])]);
             expect(m.rows).toBe(1);
             expect(m.cols).toBe(1);
             expect(m.getElement(0, 0)).toBe(7);
         });
 
         it('initializes correctly and returns proper dimensions for a non-square matrix', () => {
-            const m = new Matrix([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]);
+            const m = new Matrix([
+                new Float64Array([1, 2, 3, 4]),
+                new Float64Array([5, 6, 7, 8]),
+                new Float64Array([9, 10, 11, 12]),
+            ]);
             expect(m.rows).toBe(3);
             expect(m.cols).toBe(4);
         });
 
         it('is not affected by later mutation of the constructor input array', () => {
-            const original = [[1, 2], [3, 4]];
+            const original = [new Float64Array([1, 2]), new Float64Array([3, 4])];
             const m = new Matrix(original);
             original[0][0] = 999;
-            original.push([5, 6]);
+            original.push(new Float64Array([5, 6]));
             expect(m.getElement(0, 0)).toBe(1);
             expect(m.rows).toBe(2);
         });
 
         it('returns a deep copy of values on every access', () => {
-            const m = new Matrix([[1, 2], [3, 4]]);
+            const m = new Matrix([new Float64Array([1, 2]), new Float64Array([3, 4])]);
             const first = m.values;
             const second = m.values;
 
@@ -78,21 +82,21 @@ describe('Matrix (strict suite)', () => {
 
     describe('Matrix Characteristics', () => {
         it('identifies square matrices correctly, including 1x1', () => {
-            expect(new Matrix([[5]]).isSquare).toBe(true);
-            expect(new Matrix([[1, 2], [3, 4]]).isSquare).toBe(true);
-            expect(new Matrix([[1, 2, 3], [4, 5, 6]]).isSquare).toBe(false);
+            expect(new Matrix([new Float64Array([5])]).isSquare).toBe(true);
+            expect(new Matrix([new Float64Array([1, 2]), new Float64Array([3, 4])]).isSquare).toBe(true);
+            expect(new Matrix([new Float64Array([1, 2, 3]), new Float64Array([4, 5, 6])]).isSquare).toBe(false);
         });
 
         it('identifies symmetric matrices correctly', () => {
-            expect(new Matrix([[1, 2, 3], [4, 5, 6]]).isSymmetric).toBe(false);
-            expect(new Matrix([[1, 2], [3, 4]]).isSymmetric).toBe(false);
-            expect(new Matrix([[2, 1], [1, 2]]).isSymmetric).toBe(true);
-            expect(new Matrix([[9]]).isSymmetric).toBe(true);
+            expect(new Matrix([new Float64Array([1, 2, 3]), new Float64Array([4, 5, 6])]).isSymmetric).toBe(false);
+            expect(new Matrix([new Float64Array([1, 2]), new Float64Array([3, 4])]).isSymmetric).toBe(false);
+            expect(new Matrix([new Float64Array([2, 1]), new Float64Array([1, 2])]).isSymmetric).toBe(true);
+            expect(new Matrix([new Float64Array([9])]).isSymmetric).toBe(true);
         });
 
         it('treats differences within the 1e-9 tolerance as symmetric, and beyond it as not', () => {
-            const withinTolerance = new Matrix([[1, 2 + 1e-10], [2, 3]]);
-            const beyondTolerance = new Matrix([[1, 2 + 1e-8], [2, 3]]);
+            const withinTolerance = new Matrix([new Float64Array([1, 2 + 1e-10]), new Float64Array([2, 3])]);
+            const beyondTolerance = new Matrix([new Float64Array([1, 2 + 1e-8]), new Float64Array([2, 3])]);
 
             expect(withinTolerance.isSymmetric).toBe(true);
             expect(beyondTolerance.isSymmetric).toBe(false);
@@ -100,7 +104,11 @@ describe('Matrix (strict suite)', () => {
     });
 
     describe('getElement', () => {
-        const m = new Matrix([[5, 10, 15], [20, 25, 30], [35, 40, 45]]);
+        const m = new Matrix([
+            new Float64Array([5, 10, 15]),
+            new Float64Array([20, 25, 30]),
+            new Float64Array([35, 40, 45]),
+        ]);
 
         it('returns correct elements across the matrix', () => {
             expect(m.getElement(0, 0)).toBe(5);
@@ -121,16 +129,20 @@ describe('Matrix (strict suite)', () => {
 
     describe('Transpose', () => {
         it('transposes a non-square matrix correctly', () => {
-            const m = new Matrix([[1, 2, 3], [4, 5, 6]]);
+            const m = new Matrix([new Float64Array([1, 2, 3]), new Float64Array([4, 5, 6])]);
             const transposed = m.transposed;
 
             expect(transposed.rows).toBe(3);
             expect(transposed.cols).toBe(2);
-            expect(transposed.values).toEqual([[1, 4], [2, 5], [3, 6]]);
+            expect(transposed.values).toEqual([
+                new Float64Array([1, 4]),
+                new Float64Array([2, 5]),
+                new Float64Array([3, 6]),
+            ]);
         });
 
         it('double transpose returns the original matrix', () => {
-            const m = new Matrix([[1, 2, 3], [4, 5, 6]]);
+            const m = new Matrix([new Float64Array([1, 2, 3]), new Float64Array([4, 5, 6])]);
             const doubleTransposed = m.transposed.transposed;
 
             expect(doubleTransposed.rows).toBe(m.rows);
@@ -139,23 +151,27 @@ describe('Matrix (strict suite)', () => {
         });
 
         it('leaves a symmetric matrix unchanged', () => {
-            const m = new Matrix([[4, 1, 1], [1, 3, 0], [1, 0, 2]]);
+            const m = new Matrix([
+                new Float64Array([4, 1, 1]),
+                new Float64Array([1, 3, 0]),
+                new Float64Array([1, 0, 2]),
+            ]);
             expect(m.transposed.values).toEqual(m.values);
         });
     });
 
     describe('Determinant', () => {
         it('throws an error for non-square matrices', () => {
-            const m = new Matrix([[1, 2, 3], [4, 5, 6]]);
+            const m = new Matrix([new Float64Array([1, 2, 3]), new Float64Array([4, 5, 6])]);
             expect(() => m.determinant).toThrow();
         });
 
         it('is 1 for the identity matrix (any size)', () => {
             const identity = new Matrix([
-                [1, 0, 0, 0],
-                [0, 1, 0, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1],
+                new Float64Array([1, 0, 0, 0]),
+                new Float64Array([0, 1, 0, 0]),
+                new Float64Array([0, 0, 1, 0]),
+                new Float64Array([0, 0, 0, 1]),
             ]);
 
             expect(identity.determinant).toBeCloseTo(1, 10);
@@ -163,9 +179,9 @@ describe('Matrix (strict suite)', () => {
 
         it('equals the product of the diagonal for a diagonal matrix', () => {
             const diagonal = new Matrix([
-                [2, 0, 0],
-                [0, 3, 0],
-                [0, 0, 5],
+                new Float64Array([2, 0, 0]),
+                new Float64Array([0, 3, 0]),
+                new Float64Array([0, 0, 5]),
             ]);
 
             expect(diagonal.determinant).toBeCloseTo(30, 8);
@@ -173,9 +189,9 @@ describe('Matrix (strict suite)', () => {
 
         it('equals the product of the diagonal for an upper-triangular matrix', () => {
             const upper = new Matrix([
-                [2, 3, 4],
-                [0, 5, 6],
-                [0, 0, 7],
+                new Float64Array([2, 3, 4]),
+                new Float64Array([0, 5, 6]),
+                new Float64Array([0, 0, 7]),
             ]);
 
             expect(upper.determinant).toBeCloseTo(70, 8);
@@ -183,10 +199,10 @@ describe('Matrix (strict suite)', () => {
 
         it('calculates the determinant of a 4x4 matrix correctly (numpy-verified)', () => {
             const m = new Matrix([
-                [2, 1, 0, 3],
-                [4, 3, 2, 1],
-                [0, 1, 1, 0],
-                [1, 0, 2, 3],
+                new Float64Array([2, 1, 0, 3]),
+                new Float64Array([4, 3, 2, 1]),
+                new Float64Array([0, 1, 1, 0]),
+                new Float64Array([1, 0, 2, 3]),
             ]);
 
             expect(m.determinant).toBeCloseTo(-28, 6);
@@ -194,40 +210,40 @@ describe('Matrix (strict suite)', () => {
 
         it('gives the same determinant for a matrix and its transpose', () => {
             const m = new Matrix([
-                [2, 1, 0, 3],
-                [4, 3, 2, 1],
-                [0, 1, 1, 0],
-                [1, 0, 2, 3],
+                new Float64Array([2, 1, 0, 3]),
+                new Float64Array([4, 3, 2, 1]),
+                new Float64Array([0, 1, 1, 0]),
+                new Float64Array([1, 0, 2, 3]),
             ]);
 
             expect(m.determinant).toBeCloseTo(m.transposed.determinant, 6);
         });
 
         it('flips sign under a single row swap', () => {
-            const m = new Matrix([[1, 2], [3, 4]]);
-            const swapped = new Matrix([[3, 4], [1, 2]]);
+            const m = new Matrix([new Float64Array([1, 2]), new Float64Array([3, 4])]);
+            const swapped = new Matrix([new Float64Array([3, 4]), new Float64Array([1, 2])]);
             expect(swapped.determinant).toBeCloseTo(-m.determinant, 8);
         });
 
         it('returns 0 for a singular matrix', () => {
-            const m = new Matrix([[2, 4], [1, 2]]);
+            const m = new Matrix([new Float64Array([2, 4]), new Float64Array([1, 2])]);
             expect(m.determinant).toBeCloseTo(0, 5);
         });
     });
 
     describe('Inverse', () => {
         it('throws an error for non-square matrices', () => {
-            const m = new Matrix([[1, 2, 3], [4, 5, 6]]);
+            const m = new Matrix([new Float64Array([1, 2, 3]), new Float64Array([4, 5, 6])]);
             expect(() => m.inverse()).toThrow();
         });
 
         it('throws an error for singular matrices', () => {
-            const m = new Matrix([[2, 4], [1, 2]]);
+            const m = new Matrix([new Float64Array([2, 4]), new Float64Array([1, 2])]);
             expect(() => m.inverse()).toThrow();
         });
 
         it('calculates the inverse of a 2x2 matrix correctly', () => {
-            const m = new Matrix([[4, 7], [2, 6]]);
+            const m = new Matrix([new Float64Array([4, 7]), new Float64Array([2, 6])]);
             const inv = m.inverse().values;
 
             expect(inv[0][0]).toBeCloseTo(0.6, 5);
@@ -237,13 +253,17 @@ describe('Matrix (strict suite)', () => {
         });
 
         it('calculates the inverse of a 3x3 matrix correctly (numpy-verified)', () => {
-            const m = new Matrix([[2, 1, 1], [1, 3, 2], [1, 0, 0]]);
+            const m = new Matrix([
+                new Float64Array([2, 1, 1]),
+                new Float64Array([1, 3, 2]),
+                new Float64Array([1, 0, 0]),
+            ]);
             const inv = m.inverse().values;
 
             const expected = [
-                [0, 0, 1],
-                [-2, 1, 3],
-                [3, -1, -5],
+                new Float64Array([0, 0, 1]),
+                new Float64Array([-2, 1, 3]),
+                new Float64Array([3, -1, -5]),
             ];
 
             for (let i = 0; i < 3; i++) {
@@ -254,13 +274,21 @@ describe('Matrix (strict suite)', () => {
         });
 
         it('satisfies A * A^-1 = I for a 3x3 matrix', () => {
-            const m = new Matrix([[2, 1, 1], [1, 3, 2], [1, 0, 0]]);
+            const m = new Matrix([
+                new Float64Array([2, 1, 1]),
+                new Float64Array([1, 3, 2]),
+                new Float64Array([1, 0, 0]),
+            ]);
             const product = m.multiply(m, m.inverse());
             expect(isApproxIdentity(product.values, 1e-8)).toBe(true);
         });
 
         it('satisfies (A^-1)^-1 = A within tolerance', () => {
-            const m = new Matrix([[2, 1, 1], [1, 3, 2], [1, 0, 0]]);
+            const m = new Matrix([
+                new Float64Array([2, 1, 1]),
+                new Float64Array([1, 3, 2]),
+                new Float64Array([1, 0, 0]),
+            ]);
             const doubleInverse = m.inverse().inverse();
             expect(maxAbsDiff(doubleInverse.values, m.values)).toBeLessThan(1e-6);
         });
@@ -268,28 +296,32 @@ describe('Matrix (strict suite)', () => {
 
     describe('Eigen Decomposition (Jacobi Method)', () => {
         it('throws an error for non-square matrices', () => {
-            const m = new Matrix([[1, 2, 3], [4, 5, 6]]);
+            const m = new Matrix([new Float64Array([1, 2, 3]), new Float64Array([4, 5, 6])]);
             expect(() => m.eigen()).toThrow();
         });
 
         it('throws an error for non-symmetric matrices', () => {
-            const m = new Matrix([[1, 2], [3, 4]]);
+            const m = new Matrix([new Float64Array([1, 2]), new Float64Array([3, 4])]);
             expect(() => m.eigen()).toThrow();
         });
 
         it('calculates eigenvalues for a 2x2 symmetric matrix correctly', () => {
-            const m = new Matrix([[2, 1], [1, 2]]);
+            const m = new Matrix([new Float64Array([2, 1]), new Float64Array([1, 2])]);
             const { values } = m.eigen();
-            const sortedValues = [...values].sort((a, b) => b - a);
+            const sortedValues = Array.from(values).sort((a, b) => b - a);
 
             expect(sortedValues[0]).toBeCloseTo(3, 5);
             expect(sortedValues[1]).toBeCloseTo(1, 5);
         });
 
         it('calculates eigenvalues for a 3x3 symmetric matrix correctly (numpy-verified)', () => {
-            const m = new Matrix([[4, 1, 1], [1, 3, 0], [1, 0, 2]]);
+            const m = new Matrix([
+                new Float64Array([4, 1, 1]),
+                new Float64Array([1, 3, 0]),
+                new Float64Array([1, 0, 2]),
+            ]);
             const { values } = m.eigen();
-            const sortedValues = [...values].sort((a, b) => b - a);
+            const sortedValues = Array.from(values).sort((a, b) => b - a);
 
             expect(sortedValues[0]).toBeCloseTo(4.879385241572, 6);
             expect(sortedValues[1]).toBeCloseTo(2.652703644666, 6);
@@ -297,7 +329,11 @@ describe('Matrix (strict suite)', () => {
         });
 
         it('has eigenvalues that sum to the trace of the matrix', () => {
-            const m = new Matrix([[4, 1, 1], [1, 3, 0], [1, 0, 2]]);
+            const m = new Matrix([
+                new Float64Array([4, 1, 1]),
+                new Float64Array([1, 3, 0]),
+                new Float64Array([1, 0, 2]),
+            ]);
             const { values } = m.eigen();
             const trace = m.getElement(0, 0) + m.getElement(1, 1) + m.getElement(2, 2);
             const sumEigenvalues = values.reduce((a, b) => a + b, 0);
@@ -306,7 +342,11 @@ describe('Matrix (strict suite)', () => {
         });
 
         it('has eigenvalues whose product equals the determinant', () => {
-            const m = new Matrix([[4, 1, 1], [1, 3, 0], [1, 0, 2]]);
+            const m = new Matrix([
+                new Float64Array([4, 1, 1]),
+                new Float64Array([1, 3, 0]),
+                new Float64Array([1, 0, 2]),
+            ]);
             const { values } = m.eigen();
             const productEigenvalues = values.reduce((a, b) => a * b, 1);
 
@@ -314,7 +354,11 @@ describe('Matrix (strict suite)', () => {
         });
 
         it('returns an orthogonal eigenvector matrix (V^T * V = I)', () => {
-            const m = new Matrix([[4, 1, 1], [1, 3, 0], [1, 0, 2]]);
+            const m = new Matrix([
+                new Float64Array([4, 1, 1]),
+                new Float64Array([1, 3, 0]),
+                new Float64Array([1, 0, 2]),
+            ]);
             const { vectors } = m.eigen();
             const product = m.multiply(vectors.transposed, vectors);
 
@@ -324,23 +368,23 @@ describe('Matrix (strict suite)', () => {
 
     describe('Pivot Operation', () => {
         it('throws an error for out of bound indices', () => {
-            const m = new Matrix([[1, 2], [3, 4]]);
+            const m = new Matrix([new Float64Array([1, 2]), new Float64Array([3, 4])]);
             expect(() => m.pivot(-1, 0)).toThrow();
             expect(() => m.pivot(0, 5)).toThrow();
         });
 
         it('throws an error if pivot element is zero', () => {
-            const m = new Matrix([[0, 2], [3, 4]]);
+            const m = new Matrix([new Float64Array([0, 2]), new Float64Array([3, 4])]);
             expect(() => m.pivot(0, 0)).toThrow();
         });
 
         it('throws an error if pivot element is below the numerical threshold', () => {
-            const m = new Matrix([[1e-11, 2], [3, 4]]);
+            const m = new Matrix([new Float64Array([1e-11, 2]), new Float64Array([3, 4])]);
             expect(() => m.pivot(0, 0)).toThrow();
         });
 
         it('performs pivot operation correctly on a 2x2 matrix', () => {
-            const m = new Matrix([[2, 4], [3, 1]]);
+            const m = new Matrix([new Float64Array([2, 4]), new Float64Array([3, 1])]);
             const pivoted = m.pivot(0, 0).values;
 
             expect(pivoted[0][0]).toBeCloseTo(1, 5);
@@ -350,7 +394,11 @@ describe('Matrix (strict suite)', () => {
         });
 
         it('leaves the pivot column as a unit column after pivoting on a 3x3 matrix', () => {
-            const m = new Matrix([[2, 1, 1], [1, 3, 2], [1, 0, 4]]);
+            const m = new Matrix([
+                new Float64Array([2, 1, 1]),
+                new Float64Array([1, 3, 2]),
+                new Float64Array([1, 0, 4]),
+            ]);
             const pivoted = m.pivot(1, 1).values;
 
             expect(pivoted[0][1]).toBeCloseTo(0, 8);
@@ -361,24 +409,24 @@ describe('Matrix (strict suite)', () => {
 
     describe('Linear System Solver', () => {
         it('throws an error if vector length does not match matrix rows', () => {
-            const m = new Matrix([[1, 2], [3, 4]]);
-            expect(() => m.solve([1])).toThrow();
-            expect(() => m.solve([1, 2, 3])).toThrow();
+            const m = new Matrix([new Float64Array([1, 2]), new Float64Array([3, 4])]);
+            expect(() => m.solve(new Float64Array([1]))).toThrow();
+            expect(() => m.solve(new Float64Array([1, 2, 3]))).toThrow();
         });
 
         it('throws an error for inconsistent systems (no solution)', () => {
-            const m = new Matrix([[1, 1], [1, 1]]);
-            expect(() => m.solve([1, 2])).toThrow();
+            const m = new Matrix([new Float64Array([1, 1]), new Float64Array([1, 1])]);
+            expect(() => m.solve(new Float64Array([1, 2]))).toThrow();
         });
 
         it('throws an error for underdetermined systems (infinite solutions)', () => {
-            const m = new Matrix([[1, 1], [2, 2]]);
-            expect(() => m.solve([1, 2])).toThrow();
+            const m = new Matrix([new Float64Array([1, 1]), new Float64Array([2, 2])]);
+            expect(() => m.solve(new Float64Array([1, 2]))).toThrow();
         });
 
         it('solves a valid 2x2 linear system correctly', () => {
-            const m = new Matrix([[3, 2], [1, 2]]);
-            const b = [7, 5];
+            const m = new Matrix([new Float64Array([3, 2]), new Float64Array([1, 2])]);
+            const b = new Float64Array([7, 5]);
             const x = m.solve(b);
 
             expect(x[0]).toBeCloseTo(1, 5);
@@ -386,9 +434,13 @@ describe('Matrix (strict suite)', () => {
         });
 
         it('solves a 3x3 linear system such that A * x = b (residual check)', () => {
-            const values = [[2, 1, 1], [1, 3, 2], [1, 0, 4]];
+            const values = [
+                new Float64Array([2, 1, 1]),
+                new Float64Array([1, 3, 2]),
+                new Float64Array([1, 0, 4]),
+            ];
             const m = new Matrix(values);
-            const b = [4, 5, 3];
+            const b = new Float64Array([4, 5, 3]);
             const x = m.solve(b);
 
             const residual = values.map((row) =>

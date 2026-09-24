@@ -7,9 +7,9 @@ describe('Table - Filtering, Sorting & Grouping', () => {
 
     beforeEach(() => {
         const data = [
-            [1, 2, 3, 4],
+            new Float64Array([1, 2, 3, 4]),
             ['A', 'B', 'A', 'B'],
-            [10, 20, 30, 40]
+            new Float64Array([10, 20, 30, 40])
         ];
 
         const infos: ColInfo[] = [
@@ -24,7 +24,7 @@ describe('Table - Filtering, Sorting & Grouping', () => {
     it('should filter rows based on single condition with where', () => {
         const filtered = table.where('score', val => val > 20);
         expect(filtered.rowCount).toBe(2);
-        expect(filtered.getCol('id').values).toEqual([3, 4]);
+        expect(filtered.getCol('id').values).toEqual(new Float64Array([3, 4]));
     });
 
     it('should filter rows based on two columns with where using logical AND', () => {
@@ -34,7 +34,7 @@ describe('Table - Filtering, Sorting & Grouping', () => {
         );
 
         expect(filtered.rowCount).toBe(1);
-        expect(filtered.getCol('id').values).toEqual([3]);
+        expect(filtered.getCol('id').values).toEqual(new Float64Array([3]));
     });
 
     it('should filter rows based on two columns with where using logical OR', () => {
@@ -53,15 +53,15 @@ describe('Table - Filtering, Sorting & Grouping', () => {
         );
 
         expect(filtered.rowCount).toBe(2);
-        expect(filtered.getCol('id').values).toEqual([1, 3]);
+        expect(filtered.getCol('id').values).toEqual(new Float64Array([1, 3]));
     });
 
     it('should sort table in ascending and descending order', () => {
         const asc = table.orderByAsc('score');
-        expect(asc.getCol('score').values).toEqual([10, 20, 30, 40]);
+        expect(asc.getCol('score').values).toEqual(new Float64Array([10, 20, 30, 40]));
 
         const desc = table.orderByDesc('score');
-        expect(desc.getCol('score').values).toEqual([40, 30, 20, 10]);
+        expect(desc.getCol('score').values).toEqual(new Float64Array([40, 30, 20, 10]));
     });
 
     it('should group table by given column(s) and return GroupedTable instance', () => {

@@ -24,7 +24,7 @@ describe('Table - Data Cleaning & Imputation', () => {
 
             const cleanedNum = table.dropNa('num');
             expect(cleanedNum.rowCount).toBe(2);
-            expect(cleanedNum.getCol('num').values).toEqual([1, 3]);
+            expect(cleanedNum.getCol('num').values).toEqual(new Float64Array([1, 3]));
 
             const cleanedDate = table.dropNa('date');
             expect(cleanedDate.rowCount).toBe(3);
@@ -55,7 +55,7 @@ describe('Table - Data Cleaning & Imputation', () => {
 
             const cleanedAny = table.dropNa(['num', 'str'], 'any');
             expect(cleanedAny.rowCount).toBe(2);
-            expect(cleanedAny.getCol('num').values).toEqual([1, 3]);
+            expect(cleanedAny.getCol('num').values).toEqual(new Float64Array([1, 3]));
             expect(cleanedAny.getCol('str').values).toEqual(['a', 'c']);
         });
 
@@ -78,12 +78,12 @@ describe('Table - Data Cleaning & Imputation', () => {
 
             const cleanedAll = table.dropNa(['num', 'str'], 'all');
             expect(cleanedAll.rowCount).toBe(3);
-            expect(cleanedAll.getCol('num').values).toEqual([1, 3, NaN]);
+            expect(cleanedAll.getCol('num').values).toEqual(new Float64Array([1, 3, NaN]));
             expect(cleanedAll.getCol('str').values).toEqual(['a', 'c', 'd']);
         });
 
         it('should throw an error when empty label or empty array is passed', () => {
-            const data = [[1, 2], ['a', 'b']];
+            const data = [new Float64Array([1, 2]), ['a', 'b']];
             const infos: ColInfo[] = [
                 { label: 'num', type: 'number' },
                 { label: 'str', type: 'string' }
@@ -96,17 +96,17 @@ describe('Table - Data Cleaning & Imputation', () => {
     });
 
     it('should drop outliers based on fixed Boundaries', () => {
-        const data = [[10, 20, 15, 100, 5]];
+        const data = [new Float64Array([10, 20, 15, 100, 5])];
         const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
         const table = new Table(data, infos);
 
         const cleaned = table.dropOutliers('val', { min: 8, max: 30 });
         expect(cleaned.rowCount).toBe(3);
-        expect(cleaned.getCol('val').values).toEqual([10, 20, 15]);
+        expect(cleaned.getCol('val').values).toEqual(new Float64Array([10, 20, 15]));
     });
 
     it('should drop outliers using IQR rule (dropOutliersIqr)', () => {
-        const data = [[10, 12, 14, 15, 16, 18, 100]];
+        const data = [new Float64Array([10, 12, 14, 15, 16, 18, 100])];
         const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
         const table = new Table(data, infos);
 
@@ -115,12 +115,12 @@ describe('Table - Data Cleaning & Imputation', () => {
     });
 
     it('should fill missing numeric values with MEAN/MEDIAN/MODE via fillNaNumeric', () => {
-        const data = [[2, 4, null, 6]];
+        const data = [new Float64Array([2, 4, NaN, 6])];
         const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
         const table = new Table(data, infos);
 
         const filledMean = table.fillNaNumeric('val', 'mean');
-        expect(filledMean.getCol('val').values).toEqual([2, 4, 4, 6]);
+        expect(filledMean.getCol('val').values).toEqual(new Float64Array([2, 4, 4, 6]));
     });
 
     it('should fill NA values with literal values via fillNa ensuring strict type matching', () => {
@@ -144,7 +144,7 @@ describe('Table - Data Cleaning & Imputation', () => {
             .fillNa('str', 'unknown')
             .fillNa('date', fillDate);
 
-        expect(filled.getCol('num').values).toEqual([1, 0, 3]);
+        expect(filled.getCol('num').values).toEqual(new Float64Array([1, 0, 3]));
         expect(filled.getCol('str').values).toEqual(['a', 'unknown', 'c']);
         expect(filled.getCol('date')).toBeInstanceOf(DateColumn);
         expect(filled.getCol('date').values).toEqual([
@@ -160,22 +160,22 @@ describe('Table - Data Cleaning & Imputation', () => {
     });
 
     it('should replace outliers with statistical values via replaceOutliers using Boundaries', () => {
-        const data = [[10, 20, 100, 30]];
+        const data = [new Float64Array([10, 20, 100, 30])];
         const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
         const table = new Table(data, infos);
 
         const replaced = table.replaceOutliers('val', 'mean', { min: 5, max: 50 });
-        expect(replaced.getCol('val').values).toEqual([10, 20, 20, 30]);
+        expect(replaced.getCol('val').values).toEqual(new Float64Array([10, 20, 20, 30]));
     });
 
     it('should replace outliers using IQR rule via replaceOutliersIQR', () => {
-        const data = [[10, 12, 14, 15, 16, 18, 1000]];
+        const data = [new Float64Array([10, 12, 14, 15, 16, 18, 1000])];
         const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
         const table = new Table(data, infos);
 
         const replaced = table.replaceOutliersIQR('val', 'median', 1.5);
 
-        expect(replaced.getCol('val').values).toEqual([10, 12, 14, 15, 16, 18, 14.5]);
+        expect(replaced.getCol('val').values).toEqual(new Float64Array([10, 12, 14, 15, 16, 18, 14.5]));
     });
 
     it('should throw error if replaceOutliers or replaceOutliersIQR is called on a non-numeric column', () => {
@@ -213,36 +213,35 @@ describe('Table - Data Cleaning & Imputation', () => {
             const table = new Table(data, infos);
 
             const imputed = table.imputeTS('val', 'locf');
-            expect(imputed.getCol('val').values).toEqual([10, 10, 10, 20, 20, 50, 50]);
+            expect(imputed.getCol('val').values).toEqual(new Float64Array([10, 10, 10, 20, 20, 50, 50]));
         });
 
         it('should correctly apply NOCB (Next Observation Carried Backward) strategy', () => {
-            const data = [[NaN, 10, NaN, NaN, 40, NaN]];
+            const data = [new Float64Array([NaN, 10, NaN, NaN, 40, NaN])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             const imputed = table.imputeTS('val', 'nocb');
-            expect(imputed.getCol('val').values).toEqual([10, 10, 40, 40, 40, 40]);
+            expect(imputed.getCol('val').values).toEqual(new Float64Array([10, 10, 40, 40, 40, 40]));
         });
 
         it('should correctly apply linear interpolation strategy', () => {
-            const data = [[500, NaN, NaN, NaN, 600]];
+            const data = [new Float64Array([500, NaN, NaN, NaN, 600])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             const imputed = table.imputeTS('val', 'interpolation');
 
-
-            expect(imputed.getCol('val').values).toEqual([500, 525, 550, 575, 600]);
+            expect(imputed.getCol('val').values).toEqual(new Float64Array([500, 525, 550, 575, 600]));
         });
 
         it('should correctly apply movingAverage strategy with odd and even window sizes', () => {
-            const data = [[10, 20, NaN, 40, 50]];
+            const data = [new Float64Array([10, 20, NaN, 40, 50])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             const imputedOdd = table.imputeTS('val', 'movingAverage', 3);
-            expect(imputedOdd.getCol('val').values).toEqual([10, 20, 30, 40, 50]);
+            expect(imputedOdd.getCol('val').values).toEqual(new Float64Array([10, 20, 30, 40, 50]));
 
             const imputedEven = table.imputeTS('val', 'movingAverage', 4);
             const values = imputedEven.getCol('val').values;
@@ -250,15 +249,15 @@ describe('Table - Data Cleaning & Imputation', () => {
         });
 
         it('should preserve immutability and not mutate the original table', () => {
-            const originalValues = [10, NaN, 30];
-            const data = [[...originalValues]];
+            const originalValues = new Float64Array([10, NaN, 30]);
+            const data = [originalValues];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             const imputed = table.imputeTS('val', 'locf');
 
-            expect(imputed.getCol('val').values).toEqual([10, 10, 30]);
-            expect(table.getCol('val').values).toEqual([10, NaN, 30]);
+            expect(imputed.getCol('val').values).toEqual(new Float64Array([10, 10, 30]));
+            expect(table.getCol('val').values).toEqual(new Float64Array([10, NaN, 30]));
         });
 
         it('should throw an error when called on a non-numeric column', () => {
@@ -272,7 +271,7 @@ describe('Table - Data Cleaning & Imputation', () => {
         });
 
         it('should throw an error when an invalid imputation strategy is provided', () => {
-            const data = [[10, NaN, 30]];
+            const data = [new Float64Array([10, NaN, 30])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
@@ -282,8 +281,8 @@ describe('Table - Data Cleaning & Imputation', () => {
         });
 
         it('should throw an error when interpolation is impossible due to edge NaNs', () => {
-            const dataStartNaN = [[NaN, 10, 20]];
-            const dataEndNaN = [[10, 20, NaN]];
+            const dataStartNaN = [new Float64Array([NaN, 10, 20])];
+            const dataEndNaN = [new Float64Array([10, 20, NaN])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
 
             const tableStart = new Table(dataStartNaN, infos);
@@ -298,54 +297,54 @@ describe('Table - Data Cleaning & Imputation', () => {
         });
 
         it('should throw an error when movingAverage window contains no valid values', () => {
-            const data = [[NaN, NaN, NaN, NaN]];
+            const data = [new Float64Array([NaN, NaN, NaN, NaN])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             expect(() => table.imputeTS('val', 'movingAverage', 3)).toThrow(
-                'The given dataset only has invalid values or outliers!'
+                'The time series does not have values!'
             );
         });
     });
 
     describe('Time Series Outlier Replacement', () => {
         it('should replace fixed boundary outliers using replaceTSOutliers with linear interpolation', () => {
-            const data = [[10, 999, 30, -500, 50]];
+            const data = [new Float64Array([10, 999, 30, -500, 50])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             const cleaned = table.replaceTSOutliers('val', 'interpolation', { min: 0, max: 100 });
-            expect(cleaned.getCol('val').values).toEqual([10, 20, 30, 40, 50]);
+            expect(cleaned.getCol('val').values).toEqual(new Float64Array([10, 20, 30, 40, 50]));
         });
 
         it('should replace fixed boundary outliers using replaceTSOutliers with LOCF and NOCB', () => {
-            const data = [[10, 1000, 30, 40]];
+            const data = [new Float64Array([10, 1000, 30, 40])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             const locfCleaned = table.replaceTSOutliers('val', 'locf', { max: 100 });
-            expect(locfCleaned.getCol('val').values).toEqual([10, 10, 30, 40]);
+            expect(locfCleaned.getCol('val').values).toEqual(new Float64Array([10, 10, 30, 40]));
 
             const nocbCleaned = table.replaceTSOutliers('val', 'nocb', { max: 100 });
-            expect(nocbCleaned.getCol('val').values).toEqual([10, 30, 30, 40]);
+            expect(nocbCleaned.getCol('val').values).toEqual(new Float64Array([10, 30, 30, 40]));
         });
 
         it('should replace fixed boundary outliers using replaceTSOutliers with moving average', () => {
-            const data = [[10, 20, 1000, 40, 50]];
+            const data = [new Float64Array([10, 20, 1000, 40, 50])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             const cleaned = table.replaceTSOutliers('val', 'movingAverage', { max: 500 }, 3);
-            expect(cleaned.getCol('val').values).toEqual([10, 20, 30, 40, 50]);
+            expect(cleaned.getCol('val').values).toEqual(new Float64Array([10, 20, 30, 40, 50]));
         });
 
         it('should replace outliers based on dynamic IQR boundaries using replaceTSOutliersIqr', () => {
-            const data = [[10, 12, 14, 15, 16, 18, 1000]];
+            const data = [new Float64Array([10, 12, 14, 15, 16, 18, 1000])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             const cleanedLocf = table.replaceTSOutliersIqr('val', 'locf', 1.5);
-            expect(cleanedLocf.getCol('val').values).toEqual([10, 12, 14, 15, 16, 18, 18]);
+            expect(cleanedLocf.getCol('val').values).toEqual(new Float64Array([10, 12, 14, 15, 16, 18, 18]));
 
             const cleanedMovingAvg = table.replaceTSOutliersIqr('val', 'movingAverage', 1.5, 3);
             const values = cleanedMovingAvg.getCol('val').values;
@@ -354,7 +353,7 @@ describe('Table - Data Cleaning & Imputation', () => {
         });
 
         it('should throw an error when replaceTSOutliers is called without min or max boundary', () => {
-            const data = [[10, 20, 30]];
+            const data = [new Float64Array([10, 20, 30])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
@@ -382,14 +381,14 @@ describe('Table - Data Cleaning & Imputation', () => {
         });
 
         it('should preserve immutability and leave original table untouched', () => {
-            const data = [[10, 999, 30]];
+            const data = [new Float64Array([10, 999, 30])];
             const infos: ColInfo[] = [{ label: 'val', type: 'number' }];
             const table = new Table(data, infos);
 
             const cleaned = table.replaceTSOutliers('val', 'interpolation', { max: 100 });
 
-            expect(cleaned.getCol('val').values).toEqual([10, 20, 30]);
-            expect(table.getCol('val').values).toEqual([10, 999, 30]);
+            expect(cleaned.getCol('val').values).toEqual(new Float64Array([10, 20, 30]));
+            expect(table.getCol('val').values).toEqual(new Float64Array([10, 999, 30]));
         });
     });
 });

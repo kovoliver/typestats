@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import Trend from '../../core/inference/Trend';
 
 describe('Trend Class - Strict Numerical Benchmarks', () => {
-    const noisyData = [12.45, 25.89, 33.12, 51.04, 68.77];
+    const noisyData = new Float64Array([12.45, 25.89, 33.12, 51.04, 68.77]);
 
     describe('Linear Trend (Noisy Data)', () => {
         it('calculates exact linear parameters and MSE for fractional dataset', () => {

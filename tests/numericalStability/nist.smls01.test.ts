@@ -4,33 +4,40 @@ import { std } from '../../core/statistics/univariate.js';
 import { lre } from '../../core/utils/numberUtils.js';
 
 describe('DataMatrix - NIST SmLs01 Numerical Stability Test (Low Difficulty)', () => {
-    const rawNistValues: number[][] = [
-        [0.4, 0.3, 0.5, 0.3, 0.5, 0.3, 0.5, 0.3, 0.5],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6],
-        [0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4],
-        [0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]
+    const rawNistValues: Float64Array[] = [
+        new Float64Array([0.4, 0.3, 0.5, 0.3, 0.5, 0.3, 0.5, 0.3, 0.5]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6]),
+        new Float64Array([0.3, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4, 0.2, 0.4]),
+        new Float64Array([0.5, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6, 0.4, 0.6])
     ];
 
-    const values: number[][] = rawNistValues[0].map((_, colIndex) =>
-        rawNistValues.map(row => row[colIndex])
-    );
+    const numCols = rawNistValues[0].length;
+    const numRows = rawNistValues.length;
+
+    const values: Float64Array[] = Array.from({ length: numCols }, (_, colIndex) => {
+        const col = new Float64Array(numRows);
+        for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+            col[rowIndex] = rawNistValues[rowIndex][colIndex];
+        }
+        return col;
+    });
 
     const colLabels = Array.from({ length: 21 }, (_, i) => `Replicate ${i + 1}`);
     const rowLabels = Array.from({ length: 9 }, (_, i) => `Treatment ${i + 1}`);
@@ -50,7 +57,7 @@ describe('DataMatrix - NIST SmLs01 Numerical Stability Test (Low Difficulty)', (
     };
 
     /**
-     * Developer note on numerical stability threshold (MIN_LRE_THRESHOLD = 14.0):
+     * Developer note on numerical stability threshold (MIN_LRE_THRESHOLD = 15.0):
      *
      * In the NIST SmLs01 dataset, numbers are unshifted on a 10^0 scale (e.g., 0.4).
      * Since there is no large integer constant, zero bits are consumed by integer scale shift,

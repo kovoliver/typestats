@@ -5,12 +5,18 @@ import { lre } from '../../core/utils/numberUtils.js';
 /**
  * NIST StRD - NumAcc4.dat dataset (1001 observations)
  * Source: https://itl.nist.gov/div898/strd/univ/data/NumAcc4.dat
+ * Structure: 500 times 10000000.1, 1 time 10000000.2, 500 times 10000000.3
  */
-const numAcc4Data: number[] = [10000000.2];
+const numAcc4Data = new Float64Array(1001);
 
-for (let i = 0; i < 250; i++) {
-    numAcc4Data.push(10000000.1);
-    numAcc4Data.push(10000000.3);
+for (let i = 0; i < 500; i++) {
+    numAcc4Data[i] = 10000000.1;
+}
+
+numAcc4Data[500] = 10000000.2;
+
+for (let i = 501; i < 1001; i++) {
+    numAcc4Data[i] = 10000000.3;
 }
 
 const CERTIFIED_NUMACC4 = {

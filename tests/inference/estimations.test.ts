@@ -20,7 +20,7 @@ import {
 
 describe('Statistical Estimation and Confidence Intervals (strict)', () => {
     describe('Mean Estimation (IID)', () => {
-        const sample = [10, 12, 14, 15, 19];
+        const sample = new Float64Array([10, 12, 14, 15, 19]);
 
         it('matches the exact known-sigma z-interval', () => {
             const ci = meanEstimationIIDwithSTD(sample, 0.05, 3.0);
@@ -61,7 +61,7 @@ describe('Statistical Estimation and Confidence Intervals (strict)', () => {
     });
 
     describe('SRS Mean Estimation with FPC', () => {
-        const sample = [20, 22, 19, 24, 25];
+        const sample = new Float64Array([20, 22, 19, 24, 25]);
 
         it('matches the exact known-sigma SRS interval', () => {
             const ci = meanEstimationSRSwithSTD(sample, 0.05, 4.0, 500);
@@ -83,7 +83,7 @@ describe('Statistical Estimation and Confidence Intervals (strict)', () => {
     });
 
     describe('Variance Estimation', () => {
-        const sample = [5, 8, 12, 15, 20];
+        const sample = new Float64Array([5, 8, 12, 15, 20]);
 
         it('matches the exact chi-square interval (IID)', () => {
             const ci = varianceEstimationIID(sample, 0.05);
@@ -110,8 +110,8 @@ describe('Statistical Estimation and Confidence Intervals (strict)', () => {
 
     describe('Stratified Sampling Estimations', () => {
         const strata: Stratum[] = [
-            { label: 'Stratum 1', stratumSize: 400, samples: [10, 12, 14] },
-            { label: 'Stratum 2', stratumSize: 600, samples: [20, 22, 24, 26] }
+            { label: 'Stratum 1', stratumSize: 400, samples: new Float64Array([10, 12, 14]) },
+            { label: 'Stratum 2', stratumSize: 600, samples: new Float64Array([20, 22, 24, 26]) }
         ];
 
         it('matches the exact size-weighted stratified mean', () => {
@@ -131,8 +131,8 @@ describe('Statistical Estimation and Confidence Intervals (strict)', () => {
     });
 
     describe('Difference Between Two Means and Proportions', () => {
-        const sample1 = [10, 12, 14, 16];
-        const sample2 = [8, 9, 11, 13];
+        const sample1 = new Float64Array([10, 12, 14, 16]);
+        const sample2 = new Float64Array([8, 9, 11, 13]);
 
         it('matches the exact known-variance mean-difference CI', () => {
             const ci = getMeanDiffKnownVariance(sample1, sample2, 4, 4, 0.05);
@@ -153,7 +153,11 @@ describe('Statistical Estimation and Confidence Intervals (strict)', () => {
         });
 
         it('matches the exact paired mean-difference CI', () => {
-            const ci = getPairedMeanDiff([12, 15, 18], [10, 13, 15], 0.05);
+            const ci = getPairedMeanDiff(
+                new Float64Array([12, 15, 18]),
+                new Float64Array([10, 13, 15]),
+                0.05
+            );
             expect(ci.lower).toBeCloseTo(0.899116, 5);
             expect(ci.upper).toBeCloseTo(3.767551, 5);
         });

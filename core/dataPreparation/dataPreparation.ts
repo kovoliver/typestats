@@ -165,7 +165,7 @@ export function replaceValues(
     type: ImputeType,
     boundaries?: Boundaries,
     preparedValues?:Float64Array
-): number[] {
+): Float64Array {
     const len = values.length;
 
     if (len === 0) {
@@ -174,7 +174,7 @@ export function replaceValues(
 
     const validValues = !preparedValues ? getNonEmptyValues(values) : preparedValues;
     const substitute = getSubstitute(validValues, type, boundaries);
-    const result = new Array<number>(len);
+    const result = new Float64Array(len);
 
     if (boundaries !== undefined) {
         const min = boundaries.min ?? -Infinity;
@@ -217,7 +217,7 @@ export function replaceOutliers(
     type: ImputeType,
     boundaries: Boundaries,
     preparedValues?:Float64Array
-): number[] {
+): Float64Array {
     if (!boundaries || (boundaries.min === undefined && boundaries.max === undefined)) {
         throw new Error('You must provide at least a minimum or a maximum boundary to replace outliers!');
     }
@@ -421,11 +421,17 @@ export function labelEncoding(
     });
 }
 
-export function replaceEmptyValues(values: Float64Array, imputType: ImputeType): Float64Array {
+export function replaceEmptyValues(
+    values: Float64Array, 
+    imputType: ImputeType,
+    preparedValues?:Float64Array
+): Float64Array {
     const len = values.length;
     if (len === 0) return new Float64Array();
 
-    const substitute = getSubstitute(getNonEmptyValues(values), imputType);
+    const validValues = !preparedValues ? getNonEmptyValues(values) : preparedValues;
+
+    const substitute = getSubstitute(validValues, imputType);
     const result = new Float64Array(len);
 
     for (let i = 0; i < len; i++) {

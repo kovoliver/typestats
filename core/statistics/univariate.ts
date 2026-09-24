@@ -154,14 +154,21 @@ export function harmonicMean(values: Float64Array, weights: Float64Array, digits
  * @throws {Error} If `values` is empty.
  */
 export function ssd(values: Float64Array, digits?: number): number {
-    let avg = 0;
+    const len = values.length;
+    if (len === 0) return 0;
+
+    let sum = 0;
+
+    for (let i = 0; i < len; i++) {
+        sum += values[i];
+    }
+    const avg = sum / len;
+
     let sumSquares = 0;
 
-    for (let i = 0; i < values.length; i++) {
-        const delta = values[i] - avg;
-        avg += delta / (i + 1);
-        const delta2 = values[i] - avg;
-        sumSquares += delta * delta2;
+    for (let i = 0; i < len; i++) {
+        const diff = values[i] - avg;
+        sumSquares += diff * diff;
     }
 
     return round(sumSquares, digits);
@@ -194,7 +201,7 @@ export function variance(values: Float64Array, isSample: boolean = true, digits?
  */
 export function std(values: Float64Array, isSample: boolean = true, digits?: number): number {
     validateValues(values, isSample);
-    const v = variance(values, isSample); // nyers variancia
+    const v = variance(values, isSample);
     return round(Math.sqrt(v), digits);
 }
 
