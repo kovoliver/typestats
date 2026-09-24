@@ -15,6 +15,71 @@ def measure(label: str, start_time: float) -> float:
     return end_time
 
 
+def custom_describe(df: pd.DataFrame) -> None:
+    """Mirrors the shape/type-overview/numeric/date summary of the typestats describe()."""
+    n_rows, n_cols = df.shape
+    print(f"Shape: {n_rows} rows x {n_cols} columns\n")
+
+    print("--- Column Overview ---")
+    overview_rows = []
+    for col in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            col_type = "date"
+        elif pd.api.types.is_numeric_dtype(df[col]):
+            col_type = "number"
+        else:
+            col_type = "string"
+        missing = int(df[col].isna().sum())
+        valid = n_rows - missing
+        missing_pct = f"{round(missing / n_rows * 100, 2)}%"
+        overview_rows.append(
+            {
+                "label": col,
+                "type": col_type,
+                "missing": missing,
+                "valid": valid,
+                "missing %": missing_pct,
+            }
+        )
+    print(pd.DataFrame(overview_rows).to_string(index=True))
+
+    numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    if numeric_cols:
+        print("\n--- Numeric Column Statistics ---")
+        numeric_rows = []
+        for col in numeric_cols:
+            series = df[col]
+            missing = int(series.isna().sum())
+            valid = n_rows - missing
+            numeric_rows.append(
+                {
+                    "label": col,
+                    "missing": missing,
+                    "valid": valid,
+                    "mean": round(series.mean(), 3),
+                    "std": round(series.std(), 3),
+                    "min": series.min(),
+                    "max": series.max(),
+                    "median": series.median(),
+                }
+            )
+        print(pd.DataFrame(numeric_rows).to_string(index=True))
+
+    date_cols = [c for c in df.columns if pd.api.types.is_datetime64_any_dtype(df[c])]
+    if date_cols:
+        print("\n--- Date Column Statistics ---")
+        date_rows = []
+        for col in date_cols:
+            date_rows.append(
+                {
+                    "label": col,
+                    "min": df[col].min(),
+                    "max": df[col].max(),
+                }
+            )
+        print(pd.DataFrame(date_rows).to_string(index=True))
+
+
 def pipeline():
     t0 = time.perf_counter()
     t_step = t0
@@ -23,7 +88,7 @@ def pipeline():
     df = pd.read_csv("stat_dataset.csv", sep=",", parse_dates=["date"])
     t_step = measure("Data loading and type conversion", t_step)
 
-    print(df.describe(include="all"))
+    custom_describe(df)
     t_step = measure("Initial descriptive statistics (describe)", t_step)
 
     print("\n=== 1.5 DATA ORDERING ===")
@@ -35,7 +100,7 @@ def pipeline():
     df = df.fillna({"device": "Unknown", "payment_method": "Unknown"})
     t_step = measure("Categorical missing data imputation (fillNa)", t_fill_start)
 
-    print(df.describe(include="all"))
+    custom_describe(df)
     t_step = measure("Descriptive statistics after categorical cleaning (describe)", t_step)
 
     print("\n=== 3. OUTLIER ANALYSIS & SINGLE-PASS TS CLEANING ===")
@@ -80,7 +145,7 @@ def pipeline():
 
     print("\n=== 5. ANOVA & EFFECT SIZE (Categorical vs. Numeric) ===")
     t_anova_start = time.perf_counter()
-    
+
     anova_table = pg.anova(data=df, dv="revenue", between="payment_method", detailed=True)
     print(anova_table.to_string(index=False))
 
@@ -91,7 +156,7 @@ def pipeline():
     ms_between = anova_table.loc[0, "MS"]
     ms_within = anova_table.loc[1, "MS"]
     eta_squared = anova_table.loc[0, "np2"]
-    
+
     f_critical = stats.f.ppf(1 - alpha, df_between, df_within)
     h0_passed = f_val <= f_critical
 
@@ -105,16 +170,16 @@ def pipeline():
 
     print("\n=== 6. CHI-SQUARED TEST & CRAMÉR'S V (Categorical vs. Categorical) ===")
     t_cramer_start = time.perf_counter()
-    
+
     contingency_table = pd.crosstab(df["device"], df["payment_method"], margins=True, margins_name="Total")
     print(contingency_table)
 
     observed = pd.crosstab(df["device"], df["payment_method"]).values
     chi2_val, p_val, dof, expected = stats.chi2_contingency(observed)
-    
+
     chi2_critical = stats.chi2.ppf(1 - alpha, dof)
     chi2_h0_passed = chi2_val <= chi2_critical
-    
+
     cramer_v = association(observed, method="cramer")
 
     print("\n--- Chi-Squared Test of Independence Results ---")
@@ -128,7 +193,7 @@ def pipeline():
     revenue = df["revenue"].to_numpy()
     ad_spend = df["ad_spend"].to_numpy()
     ln_revenue = np.log(revenue)
-    
+
     t_0based = np.arange(0, len(revenue))
     t_1based = np.arange(1, len(revenue) + 1)
     ln_t = np.log(t_1based)
@@ -160,7 +225,7 @@ def pipeline():
 
     print("\n=== 8. BIVARIATE REGRESSION MODELS (Ad Spend -> Revenue) ===")
     t_lin_reg_start = time.perf_counter()
-    
+
     lin_reg = sm.OLS(revenue, sm.add_constant(ad_spend)).fit()
     lin_pred = lin_reg.predict(sm.add_constant(ad_spend))
     lin_rsd = np.sqrt(np.sum((revenue - lin_pred) ** 2) / lin_reg.df_resid)
