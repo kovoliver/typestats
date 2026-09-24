@@ -150,7 +150,7 @@ describe('DateColumn Class', () => {
             ], 'start_dates');
 
             const diffs = col.diffColumn(col2, 'days');
-            expect(diffs).toEqual([5, 0, null, null, null]);
+            expect(diffs).toEqual(new Float64Array([5, 0, NaN, NaN, NaN]));
         });
 
         it('should throw error in diffColumn if column lengths do not match', () => {

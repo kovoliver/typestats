@@ -23,13 +23,13 @@ describe('GroupedTable & Aggregations Integration Tests', () => {
         const countTable = grouped.count();
         console.log('\n--- COUNT (DEFAULT) ---');
         countTable.print();
-        expect(countTable.getCol('count').values).toEqual([2, 3, 1]);
+        expect(countTable.getCol('count').values).toEqual(new Float64Array([2, 3, 1]));
 
         // Aliased count: 'total_headcount'
         const countAliased = grouped.count('total_headcount');
         console.log('\n--- COUNT (ALIAS: total_headcount) ---');
         countAliased.print();
-        expect(countAliased.getCol('total_headcount').values).toEqual([2, 3, 1]);
+        expect(countAliased.getCol('total_headcount').values).toEqual(new Float64Array([2, 3, 1]));
     });
 
     it('should correctly calculate sum() with optional alias', () => {
@@ -40,13 +40,13 @@ describe('GroupedTable & Aggregations Integration Tests', () => {
         const sumDefault = grouped.sum('Salary');
         console.log('\n--- SUM (DEFAULT: Salary_sum) ---');
         sumDefault.print();
-        expect(sumDefault.getCol('Salary_sum').values).toEqual([2200, 2550, 1100]);
+        expect(sumDefault.getCol('Salary_sum').values).toEqual(new Float64Array([2200, 2550, 1100]));
 
         // Custom alias naming: total_payroll
         const sumAliased = grouped.sum('Salary', 'total_payroll');
         console.log('\n--- SUM (ALIAS: total_payroll) ---');
         sumAliased.print();
-        expect(sumAliased.getCol('total_payroll').values).toEqual([2200, 2550, 1100]);
+        expect(sumAliased.getCol('total_payroll').values).toEqual(new Float64Array([2200, 2550, 1100]));
     });
 
     it('should correctly calculate avg() with custom alias', () => {
@@ -57,7 +57,7 @@ describe('GroupedTable & Aggregations Integration Tests', () => {
         const avgTable = grouped.avg('Salary', 'average_salary');
         console.log('\n--- AVG (ALIAS: average_salary) ---');
         avgTable.print();
-        expect(avgTable.getCol('average_salary').values).toEqual([1100, 850, 1100]);
+        expect(avgTable.getCol('average_salary').values).toEqual(new Float64Array([1100, 850, 1100]));
     });
 
     it('should calculate statistical metrics (min, max, std)', () => {
@@ -77,8 +77,8 @@ describe('GroupedTable & Aggregations Integration Tests', () => {
         console.log('\n--- STD (ALIAS: salary_std) ---');
         stdTable.print();
 
-        expect(minTable.getCol('min_salary').values).toEqual([1000, 800]);
-        expect(maxTable.getCol('max_salary').values).toEqual([1200, 900]);
+        expect(minTable.getCol('min_salary').values).toEqual(new Float64Array([1000, 800]));
+        expect(maxTable.getCol('max_salary').values).toEqual(new Float64Array([1200, 900]));
         expect(stdTable.getCol('salary_std').values.length).toBe(2);
     });
 

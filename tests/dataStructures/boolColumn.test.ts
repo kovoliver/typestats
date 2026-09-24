@@ -71,7 +71,7 @@ describe('BoolColumn', () => {
             expect(numCol).toBeInstanceOf(NumberColumn);
             expect(numCol.label).toBe('ActiveStatus_numeric');
             
-            expect(numCol.values).toEqual([1, 0, 1, 0, 1, 0, 1, 0, NaN, NaN, NaN]);
+            expect(numCol.values).toEqual(new Float64Array([1, 0, 1, 0, 1, 0, 1, 0, NaN, NaN, NaN]));
         });
 
         it('should invert boolean values in-place while preserving nulls', () => {

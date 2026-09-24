@@ -84,8 +84,8 @@ describe('StringColumn', () => {
             expect(encodedCols[0].label).toBe('Fruit_apple');
             expect(encodedCols[1].label).toBe('Fruit_banana');
 
-            expect(encodedCols[0].values).toEqual([1, 0, 1]);
-            expect(encodedCols[1].values).toEqual([0, 1, 0]);
+            expect(encodedCols[0].values).toEqual(new Float64Array([1, 0, 1]));
+            expect(encodedCols[1].values).toEqual(new Float64Array([0, 1, 0]));
         });
 
         it('should use cache for subsequent calls of oneHotEncoded', () => {
