@@ -40,6 +40,10 @@ export default class Table {
         this._values = isTrustedSource ? values : this.processValues(values as any[][], colInfos);
     }
 
+    /**
+     * Creates a copy of the original raw column data.
+     * @returns An array of typed arrays or standard primitive arrays representing the table columns.
+     */
     public get originalTable(): ColumnData[] {
         return this._values.map(col => {
             if (col instanceof Float64Array) {
@@ -49,10 +53,18 @@ export default class Table {
         }) as ColumnData[];
     }
 
+    /**
+     * Gets an array of column instances wrapping the underlying table data.
+     * @returns An array containing instances of column objects (NumberColumn, StringColumn, BoolColumn, or DateColumn).
+     */
     public get table(): AnyColumn[] {
         return this._colInfos.map((_, index) => this.getCol(index));
     }
 
+    /**
+     * Gets a deep copy of all column information/metadata within the table.
+     * @returns An array of column metadata objects containing label and type.
+     */
     public get colInfos(): ColInfo[] {
         return this._colInfos.map(info => this.cloneColInfo(info));
     }
@@ -93,6 +105,7 @@ export default class Table {
         return processedValues;
     }
 
+
     private createColumnFromData(values: ColumnData, colInfo: ColInfo): AnyColumn {
         const type = colInfo.type ?? getColType(values as any);
 
@@ -113,6 +126,12 @@ export default class Table {
         return this._colInfos.findIndex(info => info.label === label) !== -1;
     }
 
+    /**
+     * Sets a new label/name for a specific column.
+     * @param identifier - The index or current label of the column to rename.
+     * @param newLabel - The new label name for the column.
+     * @throws {Error} If the new label is empty, not a string, or already exists in another column.
+     */
     public setLabel(identifier: number | string, newLabel: string): void {
         if (isEmpty(newLabel) || typeof newLabel !== 'string') {
             throw new Error('The new label must be a non-empty string!');
@@ -127,6 +146,12 @@ export default class Table {
         this._colInfos[index].label = newLabel;
     }
 
+    /**
+     * Sets new labels for multiple columns at once.
+     * @param identifiers - An array of column indices or current column labels to rename.
+     * @param newLabels - An array of corresponding new label names.
+     * @throws {Error} If arrays lengths mismatch or if any new label is empty.
+     */
     public setLabels(identifiers: (number | string)[], newLabels: string[]): void {
         if (identifiers.length !== newLabels.length) {
             throw new Error("The number of identifiers and new labels don't match!");
@@ -139,6 +164,11 @@ export default class Table {
         identifiers.forEach((id, i) => this.setLabel(id, newLabels[i]));
     }
 
+    /**
+     * Retrieves a column instance by its index or label.
+     * @param identifier - The zero-based index or string label of the column.
+     * @returns A column instance corresponding to the given identifier.
+     */
     public getCol(identifier: number | string): AnyColumn {
         const index = this.getIndex(identifier);
         const values = this._values[index];
@@ -147,16 +177,28 @@ export default class Table {
         return this.createColumnFromData(values, info);
     }
 
+    /**
+     * Casts/reinterprets the specified column's type as numeric.
+     * @param identifier - The index or label of the column.
+     */
     public toNumberCol(identifier: number | string): void {
         const index = this.getIndex(identifier);
         this._colInfos[index].type = 'number';
     }
 
+    /**
+     * Casts/reinterprets the specified column's type as string.
+     * @param identifier - The index or label of the column.
+     */
     public toStringCol(identifier: number | string): void {
         const index = this.getIndex(identifier);
         this._colInfos[index].type = 'string';
     }
 
+    /**
+     * Casts/reinterprets the specified column's type as boolean.
+     * @param identifier - The index or label of the column.
+     */
     public toBoolCol(identifier: number | string): void {
         const index = this.getIndex(identifier);
         this._colInfos[index].type = 'bool';
@@ -181,15 +223,29 @@ export default class Table {
         return index;
     }
 
+    /**
+     * Gets the total number of rows in the table.
+     * @returns The row count.
+     */
     public get rowCount(): number {
         if (this._values.length === 0) return 0;
         return this._values[0].length;
     }
 
+    /**
+     * Gets the total number of columns in the table.
+     * @returns The column count.
+     */
     public get colCount(): number {
         return this._values.length;
     }
 
+    /**
+     * Prints a formatted console table view of the specified row range and limited columns.
+     * @param from - The starting row index (inclusive). Defaults to 0.
+     * @param to - The ending row index (exclusive). Defaults to total row count.
+     * @param maxCols - The maximum number of columns to display before truncating. Defaults to 8.
+     */
     public print(from?: number, to?: number, maxCols: number = 8): void {
         const totalRows = this.rowCount;
         const totalCols = this._values.length;
@@ -251,15 +307,28 @@ export default class Table {
         }
     }
 
+    /**
+     * Prints the first `n` rows of the table to the console.
+     * @param n - The number of initial rows to display. Defaults to 5.
+     */
     public head(n: number = 5): void {
         this.print(0, n);
     }
 
+    /**
+     * Prints the last `n` rows of the table to the console.
+     * @param n - The number of trailing rows to display. Defaults to 5.
+     */
     public tail(n: number = 5): void {
         const total = this.rowCount;
         this.print(Math.max(0, total - n), total);
     }
 
+    /**
+     * Groups the table rows by unique combinations of values in the specified columns.
+     * @param labels - The labels of the columns to group by.
+     * @returns A GroupedTable instance containing the grouped data structures.
+     */
     public groupBy(...labels: string[]) {
         const targetCols = labels.map(label => {
             const index = this.getIndex(label);
@@ -382,10 +451,20 @@ export default class Table {
         return this.newTableByIndices(indices);
     }
 
+    /**
+     * Sorts the table in ascending order based on the specified column labels.
+     * @param labels - The column labels to sort by in priority order.
+     * @returns A new Table instance with sorted rows.
+     */
     public orderByAsc(...labels: string[]): Table {
         return this.orderBy(labels, 'asc');
     }
 
+    /**
+     * Sorts the table in descending order based on the specified column labels.
+     * @param labels - The column labels to sort by in priority order.
+     * @returns A new Table instance with sorted rows.
+     */
     public orderByDesc(...labels: string[]): Table {
         return this.orderBy(labels, 'desc');
     }
@@ -444,6 +523,13 @@ export default class Table {
         return this.newTableByIndices(finalIndices);
     }
 
+    /**
+     * Filters rows based on a predicate function evaluated against values from specified column(s).
+     * @param lbl - A single column label or an array of column labels whose values will be passed to `fn`.
+     * @param fn - A predicate function returning `true` to keep the row or `false` to exclude it.
+     * @returns A new Table containing only the matching rows.
+     * @throws {Error} If identifiers are invalid or not strings.
+     */
     public where(
         lbl: string[] | string,
         fn: (...params: any[]) => boolean
@@ -485,6 +571,12 @@ export default class Table {
         return this.newTableByIndices(finalIndices);
     }
 
+    /**
+     * Filters rows where EVERY provided column passes its respective filter function (AND logical condition).
+     * @param labels - An array of column labels or indices to evaluate.
+     * @param fns - An array of matching filter functions corresponding to each column.
+     * @returns A new Table containing rows where all conditions are met.
+     */
     public whereAll(
         labels: (string | number)[],
         fns: ((value: any) => boolean)[]
@@ -492,6 +584,12 @@ export default class Table {
         return this.whereMultiple(labels, fns, 'and');
     }
 
+    /**
+     * Filters rows where AT LEAST ONE provided column passes its respective filter function (OR logical condition).
+     * @param labels - An array of column labels or indices to evaluate.
+     * @param fns - An array of matching filter functions corresponding to each column.
+     * @returns A new Table containing rows where any condition is met.
+     */
     public whereAny(
         labels: (string | number)[],
         fns: ((value: any) => boolean)[]
@@ -516,6 +614,12 @@ export default class Table {
         return new Table(procCols as TableData, colInfos, true);
     }
 
+    /**
+     * Selects specific columns to create a new Table containing only those columns.
+     * @param labels - Column labels or indices to include in the output table.
+     * @returns A new Table instance containing only the selected columns.
+     * @throws {Error} If no labels are provided.
+     */
     public select(...labels: (string | number)[]): Table {
         if (!labels || labels.length === 0) {
             throw new Error('At least one column identifier must be provided for select!');
@@ -525,6 +629,11 @@ export default class Table {
         return this.getColsByIndices(indices);
     }
 
+    /**
+     * Removes specified columns and returns a new Table with the remaining columns.
+     * @param labels - Column labels or indices to exclude.
+     * @returns A new Table instance with the specified columns removed.
+     */
     public drop(...labels: (string | number)[]): Table {
         const dropIndices = labels.map(label => this.getIndex(label));
         const keepIndices: number[] = [];
@@ -538,14 +647,34 @@ export default class Table {
         return this.getColsByIndices(keepIndices);
     }
 
+    /**
+     * Inserts a new column at the beginning (index 0) of the table.
+     * @param values - An array of values for the new column.
+     * @param colInfo - Metadata for the new column.
+     * @returns A new Table instance including the added column.
+     */
     public addColumnFirst(values: any[], colInfo: ColInfo): Table {
         return this.addColumnAt(values, colInfo, 0);
     }
 
+    /**
+     * Appends a new column at the end of the table.
+     * @param values - An array of values for the new column.
+     * @param colInfo - Metadata for the new column.
+     * @returns A new Table instance including the added column.
+     */
     public addColumnLast(values: any[], colInfo: ColInfo): Table {
         return this.addColumnAt(values, colInfo, this._values.length);
     }
 
+    /**
+     * Inserts a new column at a specified index within the table.
+     * @param values - An array of values for the new column.
+     * @param colInfo - Metadata for the new column.
+     * @param index - The zero-based column position to insert the new column at.
+     * @returns A new Table instance including the added column.
+     * @throws {Error} If the index is out of bounds or row counts mismatch.
+     */
     public addColumnAt(values: any[], colInfo: ColInfo, index: number): Table {
         if (index < 0 || index > this._values.length) {
             throw new Error('The given index is invalid!');
@@ -577,6 +706,13 @@ export default class Table {
         return new Table(newValues as TableData, newInfos, true);
     }
 
+    /**
+     * Removes rows that contain invalid, missing, or null values in specified column(s).
+     * @param labels - Column label(s) to check for missing values.
+     * @param how - Condition mode: 'any' drops the row if any column is missing a value, 'all' drops only if all specified columns are missing values. Defaults to 'any'.
+     * @returns A new Table instance without the dropped rows.
+     * @throws {Error} If no labels are provided.
+     */
     public dropNa(
         labels: ColumnLabel | ColumnLabel[],
         how: 'any' | 'all' = 'any'
@@ -637,6 +773,13 @@ export default class Table {
         return this.newTableByIndices(validIndices.subarray(0, count));
     }
 
+    /**
+     * Removes rows containing outliers in a numeric column based on explicit boundary limits.
+     * @param label - The column index or label to check.
+     * @param boundaries - Lower (`min`) and/or upper (`max`) boundary limits.
+     * @returns A new Table instance without outlier rows.
+     * @throws {Error} If the column is not numeric.
+     */
     public dropOutliers(label: string | number, boundaries: Boundaries): Table {
         const col = this.getCol(label);
 
@@ -648,6 +791,14 @@ export default class Table {
         return this.newTableByIndices(validIndices);
     }
 
+    /**
+     * Removes rows containing outliers in a numeric column using the Interquartile Range (IQR) method.
+     * @param label - The column index or label to check.
+     * @param multiplier - The IQR multiplier factor (e.g., 1.5). Defaults to 1.5.
+     * @param percentMode - Percentile calculation mode. Defaults to 'interpolated'.
+     * @returns A new Table instance without outlier rows.
+     * @throws {Error} If the column is not numeric.
+     */
     public dropOutliersIqr(
         label: string | number,
         multiplier: number = 1.5,
@@ -663,6 +814,13 @@ export default class Table {
         return this.newTableByIndices(validIndices);
     }
 
+    /**
+     * Counts the number of outlier values in a numeric column using explicit boundary limits.
+     * @param label - The column index or label to check.
+     * @param boundaries - Lower (`min`) and/or upper (`max`) boundary limits.
+     * @returns The count of outlier values.
+     * @throws {Error} If the column is not numeric.
+     */
     public countOutliers(
         label: string | number,
         boundaries: Boundaries
@@ -676,6 +834,14 @@ export default class Table {
         return col.countOutliers(boundaries);
     }
 
+    /**
+     * Counts the number of outlier values in a numeric column using IQR boundaries.
+     * @param label - The column index or label to check.
+     * @param multiplier - The IQR multiplier factor. Defaults to 1.5.
+     * @param percentMode - Percentile calculation mode. Defaults to 'interpolated'.
+     * @returns The count of outlier values.
+     * @throws {Error} If the column is not numeric.
+     */
     public countOutliersIqr(
         label: string | number,
         multiplier: number = 1.5,
@@ -702,6 +868,13 @@ export default class Table {
         return new Table(newValues as TableData, this._colInfos, true);
     }
 
+    /**
+     * Imputes missing/NaN values in a numeric column using a specified statistical imputation strategy.
+     * @param label - The column label or index.
+     * @param type - The imputation method ('mean', 'median', 'mode', etc.).
+     * @returns A new Table instance with imputed numeric values.
+     * @throws {Error} If the target column is not numeric.
+     */
     public fillNaNumeric(label: string | number, type: ImputeType): Table {
         const targetCol = this.getCol(label) as NumberColumn;
 
@@ -719,6 +892,16 @@ export default class Table {
         return this.replaceColumnAtIndex(targetIndex, newCol);
     }
 
+    /**
+     * Replaces outlier values in a numeric column with calculated statistical imputations.
+     * @param label - The column label or index.
+     * @param type - The imputation method ('mean', 'median', 'mode', etc.).
+     * @param boundaries - Outlier threshold boundaries.
+     * @param targetColInstance - Optional existing NumberColumn reference to avoid duplicate lookups.
+     * @param preparedValues - Optional Float64Array of valid values to optimize computation.
+     * @returns A new Table instance with replaced outlier values.
+     * @throws {Error} If the target column is not numeric.
+     */
     public replaceOutliers(
         label: string | number,
         type: ImputeType,
@@ -744,6 +927,15 @@ export default class Table {
         return this.replaceColumnAtIndex(targetIndex, newCol);
     }
 
+    /**
+     * Replaces outlier values in a numeric column using IQR boundaries and statistical imputation.
+     * @param label - The column label or index.
+     * @param type - The imputation method ('mean', 'median', 'mode', etc.).
+     * @param multiplier - IQR multiplier factor. Defaults to 1.5.
+     * @param percentMode - Percentile calculation mode. Defaults to 'interpolated'.
+     * @returns A new Table instance with replaced outlier values.
+     * @throws {Error} If the target column is not numeric.
+     */
     public replaceOutliersIQR(
         label: string | number,
         type: ImputeType,
@@ -767,6 +959,13 @@ export default class Table {
         return this.replaceOutliers(label, type, boundaries, targetCol, preparedValues as Float64Array);
     }
 
+    /**
+     * Replaces missing/null values in a column with a constant scalar value.
+     * @param label - The target column label or index.
+     * @param value - The constant value to fill missing cells with (must match column type).
+     * @returns A new Table instance with filled missing values.
+     * @throws {Error} If replacement value type does not match column data type.
+     */
     public fillNa(label: string | number, value: number | string | boolean | Date): Table {
         const targetCol = this.getCol(label);
 
@@ -792,6 +991,14 @@ export default class Table {
         return this.replaceColumnAtIndex(targetIndex, filledValues);
     }
 
+    /**
+     * Maps values of an existing column through a transformation function and appends the output as a new column.
+     * @param label - The source column label or index to read values from.
+     * @param newLabel - The label for the newly created column.
+     * @param fn - A transformation mapping function applied to each non-null cell.
+     * @returns A new Table instance containing the newly mapped column.
+     * @throws {Error} If newLabel exists or if transformation fails.
+     */
     public mapColumn(
         label: string | number,
         newLabel: string,
@@ -827,6 +1034,13 @@ export default class Table {
         return this.addColumnAt(newValues, newColInfo, colIndex + 1);
     }
 
+    /**
+     * Applies an in-place transformation function across values of an existing column.
+     * @param identifier - The label or index of the column to transform.
+     * @param fn - A transformation function applied to non-null cell values.
+     * @returns The current Table instance with modified column values.
+     * @throws {Error} If transformation execution fails.
+     */
     public applyColumn(
         identifier: string | number,
         fn: (val: number | boolean | string) => number | boolean | string
@@ -867,6 +1081,14 @@ export default class Table {
         return this;
     }
 
+    /**
+     * Combines values from multiple numeric columns row-wise using an arithmetic operation and appends the result as a new column.
+     * @param labels - An array of source numeric column labels.
+     * @param operation - The arithmetic operation to execute ('+', '-', '*', '/').
+     * @param newLabel - The label for the resulting output column.
+     * @returns A new Table instance with the combined arithmetic column added.
+     * @throws {Error} If fewer than two labels are provided or any specified column is non-numeric.
+     */
     public combineColumns(
         labels: string[],
         operation: '+' | '-' | '*' | '/',
@@ -942,6 +1164,14 @@ export default class Table {
         return this.addColumnLast(newValues as any, newColInfo);
     }
 
+    /**
+     * Merges string values from multiple columns row-wise joined by a separator string into a new column.
+     * @param labels - Array of column labels to concatenate.
+     * @param separator - String delimiter inserted between column values.
+     * @param newLabel - Label for the newly generated column.
+     * @returns A new Table instance with the merged column inserted.
+     * @throws {Error} If fewer than two column labels are supplied.
+     */
     public mergeColumns(
         labels: string[],
         separator: string,
@@ -1032,14 +1262,29 @@ export default class Table {
         return matrix;
     }
 
+    /**
+     * Calculates a covariance matrix for the specified numeric columns.
+     * @param labels - Array of numeric column labels to evaluate.
+     * @param printed - Whether to print the covariance table matrix to console. Defaults to false.
+     * @returns A 2D square matrix of calculated covariance values.
+     */
     public covariance(labels: string[], printed: boolean = false): number[][] {
         return this.createStatMatrix(labels, covariance, 'covariance', printed);
     }
 
+    /**
+     * Calculates a Pearson correlation matrix for the specified numeric columns.
+     * @param labels - Array of numeric column labels to evaluate.
+     * @param printed - Whether to print the correlation table matrix to console. Defaults to false.
+     * @returns A 2D square matrix of calculated correlation coefficients.
+     */
     public correlation(labels: string[], printed: boolean = false): number[][] {
         return this.createStatMatrix(labels, correlation, 'correlation', printed);
     }
 
+    /**
+     * Prints a comprehensive summary description of the table structure, missing data metrics, and summary statistics to console.
+     */
     public describe(): void {
         console.log(`================================================================================`);
         console.log(`=================================TABLE SUMMARY==================================`);
@@ -1095,6 +1340,10 @@ export default class Table {
         }
     }
 
+    /**
+     * Converts table row data into an array of plain JavaScript objects.
+     * @returns An array of row objects where keys correspond to column labels.
+     */
     public toObject(): Record<string, any>[] {
         const finalObj: Record<string, any>[] = [];
         const rowCount = this.rowCount;
@@ -1113,6 +1362,11 @@ export default class Table {
         return finalObj;
     }
 
+    /**
+     * Serializes the table content into a CSV formatted string.
+     * @param separator - Column delimiter character used in CSV formatting. Defaults to ';'.
+     * @returns The serialized CSV string.
+     */
     public toCSV(separator: string = ';'): string {
         const labels = this._colInfos.map(info => info.label);
         let finalStr = labels.join(separator) + "\n";
@@ -1135,6 +1389,10 @@ export default class Table {
         return finalStr;
     }
 
+    /**
+     * Converts table data into a 2D raw value matrix (rows x columns).
+     * @returns A 2D array matrix containing table cell values.
+     */
     public toMatrix(): any[][] {
         const matrix: any[][] = [];
         const colCount = this._values.length;
@@ -1153,6 +1411,12 @@ export default class Table {
         return matrix;
     }
 
+    /**
+     * Builds a 2D contingency matrix (cross-tabulation) between two categorical columns.
+     * @param colLabel - Column label representing column dimensions of the contingency matrix.
+     * @param rowLabel - Column label representing row dimensions of the contingency matrix.
+     * @returns A DataMatrix object containing observation frequencies.
+     */
     public toContingencyTable(colLabel: string, rowLabel: string): DataMatrix {
         const colValues = this.getCol(colLabel).values;
         const rowValues = this.getCol(rowLabel).values;
@@ -1198,6 +1462,12 @@ export default class Table {
         return new DataMatrix(crossTable, colLabels, rowLabels);
     }
 
+    /**
+     * Formats grouped numerical values into a DataMatrix ready for One-Way Analysis of Variance (ANOVA).
+     * @param groupColLabel - The categorical grouping column label.
+     * @param valueColLabel - The numeric target column label containing observational metrics.
+     * @returns A DataMatrix structuring numerical observations grouped by distinct categorical levels.
+     */
     public toAnovaTable(groupColLabel: string, valueColLabel: string): DataMatrix {
         const groupValues = this.getCol(groupColLabel).values;
         const numericCol = this.getCol(valueColLabel) as NumberColumn;
@@ -1475,6 +1745,14 @@ export default class Table {
         }
     }
 
+    /**
+     * Imputes missing/invalid values in a time series column using time series imputation techniques.
+     * @param label - The target numeric column identifier.
+     * @param imputeType - The time-series imputation method ('locf', 'nocb', 'interpolation', 'movingAverage').
+     * @param movingAvgWindowSize - Window size used when `imputeType` is 'movingAverage'. Defaults to 3.
+     * @returns A new Table instance with imputed time series data.
+     * @throws {Error} If target column is not numeric or empty.
+     */
     public imputeTS(
         label: string | number,
         imputeType: SeriesImputeType,
@@ -1507,6 +1785,16 @@ export default class Table {
         return new Table(newValues as TableData, this._colInfos, true);
     }
 
+    /**
+     * Detects and replaces time series outliers using custom explicit min/max boundaries and a specified time series imputation strategy.
+     * @param label - The target numeric column identifier.
+     * @param imputeType - The time-series imputation method ('locf', 'nocb', 'interpolation', 'movingAverage').
+     * @param boundaries - Lower (`min`) and/or upper (`max`) boundary limits defining valid data ranges.
+     * @param movingAvgWindowSize - Window size used when `imputeType` is 'movingAverage'. Defaults to 3.
+     * @param targetColInstance - Optional existing NumberColumn reference.
+     * @returns A new Table instance with replaced time-series outliers.
+     * @throws {Error} If target column is non-numeric or boundaries are missing.
+     */
     public replaceTSOutliers(
         label: string | number,
         imputeType: SeriesImputeType,
@@ -1564,6 +1852,16 @@ export default class Table {
         return new Table(newValues as TableData, this._colInfos, true);
     }
 
+    /**
+     * Detects and replaces time series outliers using Interquartile Range (IQR) boundaries and time series imputation.
+     * @param label - The target numeric column identifier.
+     * @param imputeType - The time-series imputation method ('locf', 'nocb', 'interpolation', 'movingAverage').
+     * @param multiplier - IQR multiplier factor used for boundary determination. Defaults to 1.5.
+     * @param movingAvgWindowSize - Window size used when `imputeType` is 'movingAverage'. Defaults to 3.
+     * @param percentMode - Percentile calculation algorithm. Defaults to 'interpolated'.
+     * @returns A new Table instance with replaced time-series outliers.
+     * @throws {Error} If target column is non-numeric.
+     */
     public replaceTSOutliersIqr(
         label: string | number,
         imputeType: SeriesImputeType,
