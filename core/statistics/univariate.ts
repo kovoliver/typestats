@@ -1,5 +1,5 @@
 import type { PercentMode } from "../types/types.js";
-import { orderAsc, round } from "../utils/numberUtils.js";
+import { neumaierSum, orderAsc, round } from "../utils/numberUtils.js";
 import { hasEmptyValues } from "../utils/utils.js";
 
 /**
@@ -58,12 +58,10 @@ export function mean(values: Float64Array, digits?: number): number {
         );
     }
 
-    let avg = 0;
+    const n = values.length;
 
-    for (let i = 0; i < values.length; i++) {
-        const delta = values[i] - avg;
-        avg += delta / (i + 1);
-    }
+    let sum = neumaierSum(values);
+    const avg = sum / n;
 
     return round(avg, digits);
 }
@@ -153,25 +151,28 @@ export function harmonicMean(values: Float64Array, weights: Float64Array, digits
  * @returns The sum of squared deviations.
  * @throws {Error} If `values` is empty.
  */
-export function ssd(values: Float64Array, digits?: number): number {
-    const len = values.length;
-    if (len === 0) return 0;
+export function ssd(values: Float64Array, digits?: number) {
+    const n = values.length;
+    const avg = mean(values);
 
-    let sum = 0;
+    let ss = 0;
+    let compensation = 0;
 
-    for (let i = 0; i < len; i++) {
-        sum += values[i];
-    }
-    const avg = sum / len;
-
-    let sumSquares = 0;
-
-    for (let i = 0; i < len; i++) {
+    for (let i = 0; i < n; i++) {
         const diff = values[i] - avg;
-        sumSquares += diff * diff;
+        const x = diff * diff;
+        const t = ss + x;
+
+        if (Math.abs(ss) >= Math.abs(x)) {
+            compensation += (ss - t) + x;
+        } else {
+            compensation += (x - t) + ss;
+        }
+
+        ss = t;
     }
 
-    return round(sumSquares, digits);
+    return round(ss + compensation, digits);
 }
 
 /**
