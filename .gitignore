@@ -37,3 +37,6 @@ core/io/csvWorker.js
 core/io/ioUtils.js
 core/utils/utils.js
 core/types/types.js
+
+rust/target
+rust/Cargo.lock

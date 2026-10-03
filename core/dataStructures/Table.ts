@@ -330,14 +330,18 @@ export default class Table {
      * @returns A GroupedTable instance containing the grouped data structures.
      */
     public groupBy(...labels: string[]) {
-        const targetCols = labels.map(label => {
+        const targetCols = [];
+        const len = labels.length;
+
+        for (let i = 0; i < len; i++) {
+            const label = labels[i];
             const index = this.getIndex(label);
 
-            return {
+            targetCols.push({
                 label: label,
                 values: this._values[index]
-            };
-        });
+            });
+        }
 
         const rowCount = this.rowCount;
         const groups: Record<string, Record<string, ColumnData>> = {};
