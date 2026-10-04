@@ -14,6 +14,10 @@ export const TrendType = {
     exponential: 'exponential',
     polynomial: 'polynomial',
     logarithmic: 'logarithmic',
+    power: 'power',
+    linearNoIntercept:'linear_no_intercept',
+    powerNoIntercept:'power_no_intercept',
+    exponentialNoIntercept:'exponential_no_intercept'
 } as const;
 
 export type TrendType = (typeof TrendType)[keyof typeof TrendType];
@@ -21,7 +25,12 @@ export type TrendType = (typeof TrendType)[keyof typeof TrendType];
 export const RegressionType = {
     linear: 'linear',
     exponential: 'exponential',
+    polynomial: 'polynomial',
+    logarithmic: 'logarithmic',
     power: 'power',
+    linearNoIntercept:'linear_no_intercept',
+    powerNoIntercept:'power_no_intercept',
+    exponentialNoIntercept:'exponential_no_intercept'
 } as const;
 
 export type RegressionType = (typeof RegressionType)[keyof typeof RegressionType];
@@ -192,3 +201,5 @@ export type ColumnData =
     | (boolean | null)[];
 
 export type TableData = ColumnData[];
+
+export type ImputeMode = "impute" | "replace";

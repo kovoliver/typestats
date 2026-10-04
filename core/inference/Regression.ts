@@ -205,17 +205,13 @@ export default class Regression extends Cache {
                 () => { throw new Error('Unreachable code'); }
             );
 
-            let predict: (i: number) => number;
+            const coefficients = new Float64Array([b0, b1]);
 
-            if (regression === 'linear') {
-                predict = (i) => this.linearFunc(b0, b1, this._x[i]);
-            } else if (regression === 'exponential') {
-                predict = (i) => this.exponentialFunc(b0, b1, this._x[i]);
-            } else {
-                predict = (i) => this.powerFunc(b0, b1, this._x[i]);
-            }
+            const mseVal = calculateMSE(
+                this._y, this._x,
+                regression, coefficients, 2
+            );
 
-            const mseVal = calculateMSE(this._y, predict, 2);
             return Math.sqrt(mseVal);
         });
     }
@@ -249,17 +245,13 @@ export default class Regression extends Cache {
                 () => { throw new Error('Unreachable code'); }
             );
 
-            let predict: (i: number) => number;
+            const coefficients = new Float64Array([slope]);
 
-            if (regression === 'linear_no_intercept') {
-                predict = (i) => this._x[i] * slope;
-            } else if (regression === 'exponential_no_intercept') {
-                predict = (i) => Math.pow(slope, this._x[i]);
-            } else {
-                predict = (i) => Math.pow(this._x[i], slope);
-            }
+            const mseVal = calculateMSE(
+                this._y, this._x,
+                regression, coefficients, 1
+            );
 
-            const mseVal = calculateMSE(this._y, predict, 1);
             return Math.sqrt(mseVal);
         });
     }

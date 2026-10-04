@@ -3,8 +3,17 @@ import { Cache } from "../abstractions/abstractClasses.js";
 import Matrix from "../math/Matrix.js";
 import { calculateMSE } from "../utils/numberUtils.js";
 
+/**
+ * Trend models fitted on an equally spaced series.
+ *
+ * Convention: the time index is 1-based, i.e. x = t = 1, 2, ..., n
+ * (the same convention as statsmodels' `add_trend` or Excel's `TREND` with omitted x).
+ * Consequently, the intercept of the linear model (and the scale factor of the
+ * exponential model) refers to t = 0, one step before the first observation.
+ */
 export default class Trend extends Cache {
     private _y: Float64Array;
+    private _x: Float64Array;
     private _n: number;
     private _hasNonPositive: boolean = false;
 
@@ -20,7 +29,7 @@ export default class Trend extends Cache {
     /**
      * Initialises the trend calculator with an array of observations.
      * 
-     * @param values Array of numerical observations where indices represent sequential time units (x = 0, 1, ..., n-1). Must contain at least 2 items.
+     * @param values Array of numerical observations where indices represent sequential time units (x = 1, 2, ..., n). Must contain at least 2 items.
      * @throws {Error} If the input array contains fewer than 2 elements.
      */
     constructor(values: Float64Array) {
@@ -32,6 +41,7 @@ export default class Trend extends Cache {
 
         this._y = values;
         this._n = this._y.length;
+        this._x = new Float64Array(this._n);
         this._hasNonPositive = values.some(v => v <= 0);
 
         let xSum = 0, xC = 0;
@@ -40,7 +50,8 @@ export default class Trend extends Cache {
         let xySum = 0, xyC = 0;
 
         for (let i = 0; i < this._n; i++) {
-            const x = i;
+            const x = i + 1;
+            this._x[i] = x;
             const y = this._y[i];
 
             let t = xSum + x;
@@ -95,7 +106,7 @@ export default class Trend extends Cache {
                 lnyC += Math.abs(lnySum) >= Math.abs(lnVal) ? (lnySum - t) + lnVal : (lnVal - t) + lnySum;
                 lnySum = t;
 
-                const lnxy = i * lnVal;
+                const lnxy = this._x[i] * lnVal;
                 t = lnxySum + lnxy;
                 lnxyC += Math.abs(lnxySum) >= Math.abs(lnxy) ? (lnxySum - t) + lnxy : (lnxy - t) + lnxySum;
                 lnxySum = t;
@@ -136,9 +147,9 @@ export default class Trend extends Cache {
 
     /**
      * Calculates the linear trend model using Ordinary Least Squares (OLS).
-     * Model equation: ŷ = a + b * x
+     * Model equation: ŷ = a + b * x, where x = 1, 2, ..., n.
      * 
-     * @returns An object containing y-intercept (`a`) and slope (`b`).
+     * @returns An object containing y-intercept (`a`, the value at x = 0) and slope (`b`).
      */
     public linear(): { a: number, b: number } {
         return this.getCached('linear', () => {
@@ -153,9 +164,9 @@ export default class Trend extends Cache {
 
     /**
      * Calculates the exponential trend model.
-     * Model equation: ŷ = a * (b^x)
+     * Model equation: ŷ = a * (b^x), where x = 1, 2, ..., n.
      * 
-     * @returns An object containing scale factor (`a`) and growth base (`b`).
+     * @returns An object containing scale factor (`a`, the value at x = 0) and growth base (`b`).
      * @throws {Error} If the dataset contains zero or negative values.
      */
     public exponential(): { a: number, b: number } {
@@ -178,7 +189,7 @@ export default class Trend extends Cache {
 
     /**
      * Calculates a polynomial trend model of a specified degree using matrix inversion.
-     * Model equation: ŷ = a0 + a1*x + a2*(x^2) + ... + ak*(x^k)
+     * Model equation: ŷ = a0 + a1*x + a2*(x^2) + ... + ak*(x^k), where x = 1, 2, ..., n.
      * 
      * @param degree The degree of the polynomial. Must be an integer between 2 and 5.
      * @returns An object mapping coefficient names (`a0`, `a1`, etc.) to their fitted values.
@@ -202,7 +213,7 @@ export default class Trend extends Cache {
                 if (deg !== 0) {
                     let sum = 0, c = 0;
                     for (let i = 0; i < this._n; i++) {
-                        const val = Math.pow(i, deg);
+                        const val = Math.pow(this._x[i], deg);
                         const t = sum + val;
                         c += Math.abs(sum) >= Math.abs(val) ? (sum - t) + val : (val - t) + sum;
                         sum = t;
@@ -215,7 +226,7 @@ export default class Trend extends Cache {
                 if (deg <= degree && deg !== 0) {
                     let compRes = 0, cRes = 0;
                     for (let i = 0; i < this._n; i++) {
-                        const val = Math.pow(i, deg) * this._y[i];
+                        const val = Math.pow(this._x[i], deg) * this._y[i];
                         const t = compRes + val;
                         cRes += Math.abs(compRes) >= Math.abs(val) ? (compRes - t) + val : (val - t) + compRes;
                         compRes = t;
@@ -248,8 +259,8 @@ export default class Trend extends Cache {
     }
 
     /**
-     * Calculates the logarithmic trend model using transformed OLS: z = ln(x + 1).
-     * Model equation: ŷ = a + b * ln(x + 1)
+     * Calculates the logarithmic trend model using transformed OLS: z = ln(x).
+     * Model equation: ŷ = a + b * ln(x), where x = 1, 2, ..., n.
      * 
      * @returns An object containing constant term (`a`) and slope coefficient (`b`).
      * @throws {Error} If there is zero variance in x values or N < 2.
@@ -260,9 +271,9 @@ export default class Trend extends Cache {
             let z2Sum = 0, z2C = 0;
             let ziyi = 0, ziC = 0;
 
-            for (let x = 0; x < this._n; x++) {
-                const z = Math.log(x + 1);
-                const y = this._y[x];
+            for (let i = 0; i < this._n; i++) {
+                const z = Math.log(this._x[i]);
+                const y = this._y[i];
 
                 let t = zSum + z;
                 zC += Math.abs(zSum) >= Math.abs(z) ? (zSum - t) + z : (z - t) + zSum;
@@ -303,22 +314,6 @@ export default class Trend extends Cache {
         });
     }
 
-    private getYHatLinear(a: number, b: number, x: number): number {
-        return a + b * x;
-    }
-
-    private getYHatExponential(a: number, b: number, x: number): number {
-        return a * Math.pow(b, x);
-    }
-
-    private getYHatPolynomial(variables: Float64Array, x: number): number {
-        return variables.reduce((total, val, exp) => total + val * Math.pow(x, exp), 0);
-    }
-
-    private getYHatLogarithmic(a: number, b: number, x: number): number {
-        return a + b * Math.log(x + 1);
-    }
-
     /**
      * Calculates the Mean Squared Error (MSE) for the fitted linear trend model.
      * 
@@ -326,11 +321,13 @@ export default class Trend extends Cache {
      * @returns The average of squared residuals for the linear model.
      */
     public MSELinear(degreesOfFreedom: number = 0): number {
-        const funcObj = this.linear();
+        const { a, b } = this.linear();
 
         return calculateMSE(
-            this._y, 
-            (i) => this.getYHatLinear(funcObj.a, funcObj.b, i),
+            this._y,
+            this._x,
+            'linear',
+            Float64Array.of(a, b),
             degreesOfFreedom
         );
     }
@@ -342,11 +339,13 @@ export default class Trend extends Cache {
      * @returns The average of squared residuals for the exponential model.
      */
     public MSEExponential(degreesOfFreedom: number = 0): number {
-        const funcObj = this.exponential();
+        const { a, b } = this.exponential();
 
         return calculateMSE(
             this._y,
-            (i) => this.getYHatExponential(funcObj.a, funcObj.b, i),
+            this._x,
+            'exponential',
+            Float64Array.of(a, b),
             degreesOfFreedom
         );
     }
@@ -360,16 +359,18 @@ export default class Trend extends Cache {
      */
     public MSEPolynomial(degree: number, degreesOfFreedom: number = 0): number {
         const coeffsObj = this.polynomial(degree);
-        const keys = Object.keys(coeffsObj);
-        const coeffs = new Float64Array(keys.length);
-        
-        for (let i = 0; i < keys.length; i++) {
-            coeffs[i] = coeffsObj[keys[i]];
+        const coeffs = new Float64Array(degree + 1);
+
+        // Ascending order: a0, a1, ..., ak
+        for (let i = 0; i <= degree; i++) {
+            coeffs[i] = coeffsObj[`a${i}`];
         }
 
         return calculateMSE(
             this._y,
-            (i) => this.getYHatPolynomial(coeffs, i),
+            this._x,
+            'polynomial',
+            coeffs,
             degreesOfFreedom
         );
     }
@@ -381,11 +382,13 @@ export default class Trend extends Cache {
      * @returns The average of squared residuals for the logarithmic model.
      */
     public MSELogarithmic(degreesOfFreedom: number = 0): number {
-        const funcObj = this.logarithmic();
+        const { a, b } = this.logarithmic();
 
         return calculateMSE(
             this._y,
-            (i) => this.getYHatLogarithmic(funcObj.a, funcObj.b, i),
+            this._x,
+            'logarithmic',
+            Float64Array.of(a, b),
             degreesOfFreedom
         );
     }

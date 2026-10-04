@@ -1,4 +1,4 @@
-import { Boundaries, ColInfo, ColumnData, ColumnInfo, ColumnLabel, ImputeType, PercentMode, SeriesImputeType, TableData }
+import { Boundaries, ColInfo, ColumnData, ColumnInfo, ColumnLabel, ImputeMode, ImputeType, PercentMode, SeriesImputeType, TableData }
     from '../types/types.js';
 import {
     displayDateString,
@@ -24,6 +24,13 @@ import { getIqrBoundaries, replaceEmptyValues, replaceOutliers }
 import { correlation, covariance } from '../statistics/bivariate.js';
 import DataMatrix from './DataMatrix.js';
 import { round } from '../utils/numberUtils.js';
+import {
+    sortTableIndices,
+    locf, nocb,
+    getInterpolatedValues,
+    movingAverageImputation,
+    interpolation
+} from '../wasm.js';
 
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
@@ -330,7 +337,7 @@ export default class Table {
      * @returns A GroupedTable instance containing the grouped data structures.
      */
     public groupBy(...labels: string[]) {
-        const targetCols = [];
+        const targetCols: { label: string; values: ColumnData }[] = [];
         const len = labels.length;
 
         for (let i = 0; i < len; i++) {
@@ -412,45 +419,12 @@ export default class Table {
     }
 
     private orderBy(labels: string[], type: 'asc' | 'desc'): Table {
-        const length = this.rowCount;
-
-        const indices = new Int32Array(length);
-        for (let i = 0; i < length; i++) {
-            indices[i] = i;
-        }
-
         const columnsData = labels.map(label => {
             const colIdx = this.getIndex(label);
             return this._values[colIdx];
         });
 
-        const dir = type === 'asc' ? 1 : -1;
-        const numCols = columnsData.length;
-
-        indices.sort((a, b) => {
-            for (let i = 0; i < numCols; i++) {
-                const col = columnsData[i];
-                const firstVal = col[a];
-                const secondVal = col[b];
-
-                if (firstVal === secondVal) continue;
-                if (firstVal === null || firstVal === undefined || Number.isNaN(firstVal)) return 1 * dir;
-                if (secondVal === null || secondVal === undefined || Number.isNaN(secondVal)) return -1 * dir;
-
-                if (typeof firstVal === 'number' && typeof secondVal === 'number') {
-                    return (firstVal - secondVal) * dir;
-                }
-
-                if (typeof firstVal === 'string' && typeof secondVal === 'string') {
-                    return (firstVal < secondVal ? -1 : 1) * dir;
-                }
-
-                if (firstVal < secondVal) return -1 * dir;
-                if (firstVal > secondVal) return 1 * dir;
-            }
-
-            return 0;
-        });
+        const indices = sortTableIndices(columnsData, this.rowCount, type === 'asc');
 
         return this.newTableByIndices(indices);
     }
@@ -1528,221 +1502,65 @@ export default class Table {
 
     private locf(
         values: Float64Array,
-        validator: (val: number) => boolean = (val) => isValidNumber(val)
+        mode: ImputeMode,
+        min?: number,
+        max?: number
     ): Float64Array {
-        if (values.length === 0) {
-            throw new Error('The time series does not have values!');
-        }
-
-        let firstValidIdx = -1;
-        for (let i = 0; i < values.length; i++) {
-            if (validator(values[i])) {
-                firstValidIdx = i;
-                break;
-            }
-        }
-
-        if (firstValidIdx === -1) {
-            throw new Error("The given dataset only has invalid values or outliers!");
-        }
-
-        let lastValid = values[firstValidIdx];
-
-        for (let i = 0; i < values.length; i++) {
-            if (validator(values[i])) {
-                lastValid = values[i];
-            } else {
-                values[i] = lastValid;
-            }
-        }
-
+        locf(values, mode, min, max);
         return values;
     }
 
     private nocb(
         values: Float64Array,
-        validator: (val: number) => boolean = (val) => isValidNumber(val)
+        mode: ImputeMode,
+        min?: number,
+        max?: number
     ): Float64Array {
-        if (values.length === 0) {
-            throw new Error('The time series does not have values!');
-        }
-
-        let countInvalid = 0;
-        let hasValid = false;
-
-        for (let i = 0; i < values.length; i++) {
-            if (validator(values[i])) {
-                hasValid = true;
-                break;
-            }
-        }
-
-        if (!hasValid) {
-            throw new Error("The given dataset only has invalid values or outliers!");
-        }
-
-        let validValue = 0;
-        const length = values.length;
-
-        for (let i = 0; i < length; i++) {
-            if (!validator(values[i])) {
-                countInvalid++;
-            } else if (countInvalid !== 0) {
-                for (let j = 1; j <= countInvalid; j++) {
-                    values[i - j] = values[i];
-                }
-
-                countInvalid = 0;
-                validValue = values[i];
-            }
-        }
-
-        if (countInvalid > 0) {
-            for (let i = length - 1; i >= length - countInvalid; i--) {
-                values[i] = validValue;
-            }
-        }
-
+        nocb(values, mode, min, max);
         return values;
-    }
-
-    private getInterpolatedValues(
-        firstValid: number,
-        lastValid: number,
-        steps: number
-    ): Float64Array {
-        const interPolAdd = (lastValid - firstValid) / (steps + 1);
-        let interpolVal = firstValid + interPolAdd;
-        const interpolValues = new Float64Array(steps);
-
-        for (let i = 0; i < steps; i++) {
-            interpolValues[i] = interpolVal;
-            interpolVal += interPolAdd;
-        }
-
-        return interpolValues;
     }
 
     private imputeInterpolation(
         values: Float64Array,
-        validator: (val: number) => boolean = (val) => isValidNumber(val)
+        mode: ImputeMode = "impute",
+        min?: number,
+        max?: number
     ): Float64Array {
-        if (values.length === 0) {
-            throw new Error('The time series does not have values!');
-        }
-
-        let countInvalid = 0;
-        const length = values.length;
-
-        for (let i = 0; i < length; i++) {
-            if (!validator(values[i])) {
-                if (i === 0) {
-                    throw new Error(
-                        'The first element is invalid or an outlier; hence, interpolation is not possible!'
-                    );
-                }
-                countInvalid++;
-            } else if (countInvalid !== 0) {
-                const firstValid = values[i - (countInvalid + 1)];
-                const lastValid = values[i];
-
-                const interpolValues = this.getInterpolatedValues(
-                    firstValid, lastValid, countInvalid
-                );
-
-                for (let j = 0; j < countInvalid; j++) {
-                    values[i - countInvalid + j] = interpolValues[j];
-                }
-
-                countInvalid = 0;
-            }
-        }
-
-        if (countInvalid > 0) {
-            throw new Error(
-                'The last elements are invalid or outliers; hence, interpolation is not possible!'
-            );
-        }
-
+        interpolation(values, mode, min, max);
         return values;
     }
 
     private movingAverageImputation(
         values: Float64Array,
-        windowSize: number = 3,
-        validator: (val: number) => boolean = (val) => isValidNumber(val)
+        mode:ImputeMode,
+        min?:number,
+        max?:number,
+        windowSize: number = 3
     ): Float64Array {
-        if (values.length === 0) {
-            throw new Error('The time series does not have values!');
-        }
-
-        if (windowSize <= 0 || !Number.isInteger(windowSize)) {
-            throw new Error('Window size must be a positive integer!');
-        }
-
-        const length = values.length;
-        const validFlags = new Uint8Array(length);
-
-        let hasAnyValid = false;
-        for (let i = 0; i < length; i++) {
-            const isVal = validator(values[i]);
-            validFlags[i] = isVal ? 1 : 0;
-            if (isVal) hasAnyValid = true;
-        }
-
-        if (!hasAnyValid) {
-            throw new Error("The given dataset only has invalid values or outliers!");
-        }
-
-        const leftRadius = Math.floor(windowSize / 2);
-        const rightRadius = windowSize % 2 === 0 ? leftRadius - 1 : leftRadius;
-
-        for (let i = 0; i < length; i++) {
-            if (validFlags[i] === 0) {
-                let sum = 0;
-                let validCount = 0;
-
-                const start = Math.max(0, i - leftRadius);
-                const end = Math.min(length - 1, i + rightRadius);
-
-                for (let j = start; j <= end; j++) {
-                    if (j !== i && validFlags[j] === 1) {
-                        sum += values[j];
-                        validCount++;
-                    }
-                }
-
-                if (validCount === 0) {
-                    throw new Error(
-                        `Moving average imputation is not possible for index ${i}: no valid values or non-outliers in window size ${windowSize}!`
-                    );
-                }
-
-                values[i] = sum / validCount;
-            }
-        }
-
+        movingAverageImputation(values, mode, min, max, windowSize);
         return values;
     }
 
     private executeTimeSeriesTransformation(
         colValues: Float64Array,
         imputeType: SeriesImputeType,
-        movingAvgWindowSize: number,
-        validator: (val: number) => boolean = (val) => isValidNumber(val)
+        windowSize: number = 3,
+        mode:ImputeMode = "impute",
+        min?:number,
+        max?:number,
     ): Float64Array {
         switch (imputeType) {
             case 'locf':
-                return this.locf(colValues, validator);
+                return this.locf(colValues, mode, min, max);
             case 'nocb':
-                return this.nocb(colValues, validator);
+                return this.nocb(colValues, mode, min, max);
             case 'interpolation':
-                return this.imputeInterpolation(colValues, validator);
+                return this.imputeInterpolation(colValues, mode, min, max);
             case 'movingAverage':
                 return this.movingAverageImputation(
                     colValues,
-                    movingAvgWindowSize,
-                    validator
+                    mode, min, max,
+                    windowSize
                 );
             default:
                 throw new Error('The provided imputation strategy does not exist!');
@@ -1825,27 +1643,12 @@ export default class Table {
         const targetIndex = this.getIndex(label);
         const colValues = new Float64Array(this._values[targetIndex] as Float64Array);
 
-        const validator = (val: number): boolean => {
-            if (!isValidNumber(val)) {
-                return false;
-            }
-
-            if (min !== undefined && val < min) {
-                return false;
-            }
-
-            if (max !== undefined && val > max) {
-                return false;
-            }
-
-            return true;
-        };
-
         const newCol = this.executeTimeSeriesTransformation(
             colValues,
             imputeType,
             movingAvgWindowSize,
-            validator
+            "replace",
+            min, max
         );
 
         const newValues = this._values.map((col, idx) => {

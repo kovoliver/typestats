@@ -12,7 +12,7 @@ pub struct DotProductAndSumPow2Result {
     pub x2_sum: f64,
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = orderAsc)]
 pub fn order_asc(values: &mut [f64]) {
     if values.len() <= 1 {
         return;
@@ -21,7 +21,7 @@ pub fn order_asc(values: &mut [f64]) {
     values.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = orderDesc)]
 pub fn order_desc(values: &mut [f64]) {
     if values.len() <= 1 {
         return;
@@ -30,7 +30,7 @@ pub fn order_desc(values: &mut [f64]) {
     values.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = neumaierSum)]
 pub fn neumaier_sum(values: &[f64]) -> f64 {
     let mut sum: f64 = 0.0;
     let mut c: f64 = 0.0;
@@ -50,15 +50,10 @@ pub fn neumaier_sum(values: &[f64]) -> f64 {
     sum + c
 }
 
-#[wasm_bindgen]
-pub fn variance_and_covariance(
-    x: &[f64],
-    y: &[f64],
-    x_mean: f64,
-    y_mean: f64,
-) -> VarCovResult {
+#[wasm_bindgen(js_name = varianceAndCovariance)]
+pub fn variance_and_covariance(x: &[f64], y: &[f64], x_mean: f64, y_mean: f64) -> VarCovResult {
     let len = x.len();
-    
+
     if len <= 1 {
         return VarCovResult {
             x_var: f64::NAN,
@@ -107,9 +102,7 @@ pub fn variance_and_covariance(
     }
 }
 
-
-
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = neumaierDotProductAndSumPow2)]
 pub fn neumaier_dot_product_and_sum_pow2(x: &[f64], y: &[f64]) -> DotProductAndSumPow2Result {
     let len = x.len();
 
@@ -146,17 +139,35 @@ pub fn neumaier_dot_product_and_sum_pow2(x: &[f64], y: &[f64]) -> DotProductAndS
     xy_sum += xy_c;
     x2_sum += x2_c;
 
-    DotProductAndSumPow2Result {
-        xy_sum,
-        x2_sum,
+    DotProductAndSumPow2Result { xy_sum, x2_sum }
+}
+
+fn squared_residuals(y: &[f64], x: &[f64], predict: impl Fn(f64) -> f64) -> Vec<f64> {
+    if x.is_empty() {
+        y.iter()
+            .enumerate()
+            .map(|(i, &yi)| {
+                let d = yi - predict(i as f64);
+                d * d
+            })
+            .collect()
+    } else {
+        y.iter()
+            .zip(x)
+            .map(|(&yi, &xi)| {
+                let d = yi - predict(xi);
+                d * d
+            })
+            .collect()
     }
 }
 
-
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = calculateMSE)]
 pub fn calculate_mse(
     y_actual: &[f64],
-    predict: &js_sys::Function,
+    x: &[f64],
+    model: &str,
+    coefficients: &[f64],
     degrees_of_freedom: usize,
 ) -> Result<f64, JsValue> {
     let n = y_actual.len();
@@ -165,8 +176,15 @@ pub fn calculate_mse(
         return Ok(f64::NAN);
     }
 
+    if !x.is_empty() && x.len() != n {
+        return Err(JsValue::from_str(
+            "RangeError: x length must match y_actual length, or be empty.",
+        ));
+    }
+
     if degrees_of_freedom >= n {
         let divisor = n as isize - degrees_of_freedom as isize;
+
         return Err(JsValue::from_str(&format!(
             "RangeError: Degrees of freedom corrected divisor ({}) must be positive.",
             divisor
@@ -174,27 +192,76 @@ pub fn calculate_mse(
     }
 
     let divisor = (n - degrees_of_freedom) as f64;
-    let mut sum: f64 = 0.0;
-    let mut c: f64 = 0.0;
 
-    for i in 0..n {
-        let this_val = JsValue::from(i as u32);
-        let y_hat_val = predict.call1(&JsValue::NULL, &this_val)?;
-        let y_hat = y_hat_val.as_f64().unwrap_or(f64::NAN);
-
-        let diff = y_actual[i] - y_hat;
-        let sq_error = diff * diff;
-
-        let t = sum + sq_error;
-
-        if sum.abs() >= sq_error.abs() {
-            c += (sum - t) + sq_error;
-        } else {
-            c += (sq_error - t) + sum;
+    let squared = match model {
+        "linear" | "exponential" | "power" | "logarithmic" if coefficients.len() != 2 => {
+            return Err(JsValue::from_str(
+                "RangeError: this model expects exactly 2 coefficients.",
+            ));
         }
 
-        sum = t;
-    }
+        "linear_no_intercept" | "exponential_no_intercept" | "power_no_intercept"
+            if coefficients.len() != 1 =>
+        {
+            return Err(JsValue::from_str(
+                "RangeError: this model expects exactly 1 coefficient.",
+            ));
+        }
 
-    Ok((sum + c) / divisor)
+        "linear" => {
+            let (a, b) = (coefficients[0], coefficients[1]);
+            squared_residuals(y_actual, x, |t| a + b * t)
+        }
+
+        "exponential" => {
+            let (a, b) = (coefficients[0], coefficients[1]);
+            let ln_b = b.ln();
+            squared_residuals(y_actual, x, |t| a * (t * ln_b).exp())
+        }
+
+        "power" => {
+            let (a, b) = (coefficients[0], coefficients[1]);
+            squared_residuals(y_actual, x, |t| a * t.powf(b))
+        }
+
+        "logarithmic" => {
+            let (a, b) = (coefficients[0], coefficients[1]);
+            squared_residuals(y_actual, x, |t| a + b * t.ln())
+        }
+
+        "polynomial" => {
+            if coefficients.is_empty() {
+                return Err(JsValue::from_str(
+                    "RangeError: polynomial needs at least one coefficient.",
+                ));
+            }
+            squared_residuals(y_actual, x, |t| {
+                coefficients.iter().rev().fold(0.0, |acc, &c| acc * t + c)
+            })
+        }
+
+        "linear_no_intercept" => {
+            let b = coefficients[0];
+            squared_residuals(y_actual, x, |t| b * t)
+        }
+
+        "exponential_no_intercept" => {
+            let ln_b = coefficients[0].ln();
+            squared_residuals(y_actual, x, |t| (t * ln_b).exp())
+        }
+
+        "power_no_intercept" => {
+            let b = coefficients[0];
+            squared_residuals(y_actual, x, |t| t.powf(b))
+        }
+
+        _ => {
+            return Err(JsValue::from_str(&format!(
+                "RangeError: unknown model '{}'.",
+                model
+            )));
+        }
+    };
+
+    Ok(neumaier_sum(&squared) / divisor)
 }

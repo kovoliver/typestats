@@ -1,6 +1,16 @@
 import type { PercentMode } from "../types/types.js";
 import { neumaierSum, orderAsc, round } from "../utils/numberUtils.js";
 import { hasEmptyValues } from "../utils/utils.js";
+import {
+    mean as wasmMean,
+    ssd as wasmSSD,
+    quickselect as wasmQuickSelect,
+    centralMoment2 as wasmCentralMoment2,
+    centralMoment3 as wasmCentralMoment3,
+    centralMoment4 as wasmCentralMoment4,
+    mode as wasmMode,
+    percentile as wasmPercentile
+} from '../wasm.js';
 
 /**
  * Validates an array of numerical values to ensure it is non-empty and meets minimum length requirements.
@@ -58,12 +68,7 @@ export function mean(values: Float64Array, digits?: number): number {
         );
     }
 
-    const n = values.length;
-
-    let sum = neumaierSum(values);
-    const avg = sum / n;
-
-    return round(avg, digits);
+    return round(wasmMean(values), digits);
 }
 
 /**
@@ -152,27 +157,8 @@ export function harmonicMean(values: Float64Array, weights: Float64Array, digits
  * @throws {Error} If `values` is empty.
  */
 export function ssd(values: Float64Array, digits?: number) {
-    const n = values.length;
-    const avg = mean(values);
-
-    let ss = 0;
-    let compensation = 0;
-
-    for (let i = 0; i < n; i++) {
-        const diff = values[i] - avg;
-        const x = diff * diff;
-        const t = ss + x;
-
-        if (Math.abs(ss) >= Math.abs(x)) {
-            compensation += (ss - t) + x;
-        } else {
-            compensation += (x - t) + ss;
-        }
-
-        ss = t;
-    }
-
-    return round(ss + compensation, digits);
+    const ss = wasmSSD(values);
+    return round(ss, digits);
 }
 
 /**
@@ -186,7 +172,7 @@ export function ssd(values: Float64Array, digits?: number) {
  */
 export function variance(values: Float64Array, isSample: boolean = true, digits?: number): number {
     validateValues(values, isSample);
-    const sumSq = ssd(values);
+    const sumSq = wasmSSD(values);
     const length = getDegreesOfFreedom(values, isSample);
     return round(sumSq / length, digits);
 }
@@ -207,34 +193,7 @@ export function std(values: Float64Array, isSample: boolean = true, digits?: num
 }
 
 function quickselect(arr: Float64Array, k: number, left = 0, right = arr.length - 1): number {
-    while (left < right) {
-        const pivotIndex = (left + right) >> 1;
-        const pivotValue = arr[pivotIndex];
-        let i = left;
-        let j = right;
-
-        while (i <= j) {
-            while (arr[i] < pivotValue) i++;
-            while (arr[j] > pivotValue) j--;
-            if (i <= j) {
-                const temp = arr[i];
-                arr[i] = arr[j];
-                arr[j] = temp;
-                i++;
-                j--;
-            }
-        }
-
-        if (k <= j) {
-            right = j;
-        } else if (k >= i) {
-            left = i;
-        } else {
-            break;
-        }
-    }
-
-    return arr[k];
+    return wasmQuickSelect(arr, k, left, right);
 }
 
 /**
@@ -260,69 +219,7 @@ export function percentile(
         throw new Error('The given percentage should be between 0 and 1!');
     }
 
-    const len = values.length;
-    if (len === 0) return NaN;
-
-    const arr = isSorted ? values : values.slice();
-
-    if (percent === 0) {
-        if (!isSorted) quickselect(arr, 0);
-        return round(arr[0], digits);
-    }
-    if (percent === 1) {
-        if (!isSorted) quickselect(arr, len - 1);
-        return round(arr[len - 1], digits);
-    }
-
-    const index = (len - 1) * percent;
-    const intIndex = Math.floor(index);
-    const indexDiff = index - intIndex;
-
-    if (indexDiff === 0) {
-        if (!isSorted) quickselect(arr, intIndex);
-        return round(arr[intIndex], digits);
-    }
-
-    let vLow: number;
-    if (isSorted) {
-        vLow = arr[intIndex];
-    } else {
-        vLow = quickselect(arr, intIndex);
-    }
-
-    let vHigh: number = vLow;
-
-    if (mode === 'interpolated' || mode === 'midpoint' || mode === 'higher' || (mode === 'nearest' && indexDiff >= 0.5)) {
-        if (isSorted) {
-            vHigh = arr[intIndex + 1];
-        } else {
-            vHigh = quickselect(arr, intIndex + 1, intIndex + 1, len - 1);
-        }
-    }
-
-    let result: number;
-
-    switch (mode) {
-        case 'midpoint':
-            result = (vLow + vHigh) / 2;
-            break;
-        case 'lower':
-            result = vLow;
-            break;
-        case 'higher':
-            result = vHigh;
-            break;
-        case 'nearest': {
-            result = indexDiff < 0.5 ? vLow : vHigh;
-            break;
-        }
-        case 'interpolated':
-        default: {
-            const interpolVal = (vHigh - vLow) * indexDiff;
-            result = vLow + interpolVal;
-            break;
-        }
-    }
+    const result = wasmPercentile(values, percent, mode, isSorted);
 
     return round(result, digits);
 }
@@ -415,42 +312,9 @@ export function q4(values: Float64Array, mode: PercentMode = 'interpolated', dig
  * @returns An array containing the mode value(s). Returns an empty array if all elements appear with equal frequency.
  * @throws {Error} If `values` is empty.
  */
-export function mode(values: Float64Array, digits?: number): Float64Array {
+export function mode(values: Float64Array): Float64Array {
     validateValues(values);
-    const counts = new Map<number, number>();
-    let maxCount = 0;
-
-    for (let i = 0; i < values.length; i++) {
-        const val = values[i];
-        const count = (counts.get(val) || 0) + 1;
-        counts.set(val, count);
-
-        if (count > maxCount) {
-            maxCount = count;
-        }
-    }
-
-    if (counts.size > 1 && counts.size * maxCount === values.length) {
-        return new Float64Array(0);
-    }
-
-    let modeCount = 0;
-    for (const count of counts.values()) {
-        if (count === maxCount) {
-            modeCount++;
-        }
-    }
-
-    const modes = new Float64Array(modeCount);
-    let index = 0;
-
-    for (const [val, count] of counts.entries()) {
-        if (count === maxCount) {
-            modes[index++] = round(val, digits);
-        }
-    }
-
-    return modes;
+    return wasmMode(values);
 }
 
 /**
@@ -540,78 +404,15 @@ export function kellySkewness(values: Float64Array, mode: PercentMode = 'interpo
 }
 
 export function centralMoment2(values: Float64Array): number {
-    const N = values.length;
-
-    if (N === 0) return 0;
-    let mean = 0;
-    let M2 = 0;
-
-    for (let i = 0; i < N; i++) {
-        const n = i + 1;
-        const x = values[i];
-
-        const delta = x - mean;
-        const delta_n = delta / n;
-        const term1 = delta * delta_n * (n - 1);
-
-        mean += delta_n;
-        M2 += term1;
-    }
-
-    return M2;
+    return wasmCentralMoment2(values);
 }
 
 export function centralMoment3(values: Float64Array): number {
-    const N = values.length;
-
-    if (N === 0) return 0;
-
-    let mean = 0;
-    let M2 = 0;
-    let M3 = 0;
-
-    for (let i = 0; i < N; i++) {
-        const n = i + 1;
-        const x = values[i];
-
-        const delta = x - mean;
-        const delta_n = delta / n;
-        const term1 = delta * delta_n * (n - 1);
-
-        mean += delta_n;
-        M3 += term1 * delta_n * (n - 2) - 3 * delta_n * M2;
-        M2 += term1;
-    }
-
-    return M3;
+    return wasmCentralMoment3(values);
 }
 
 export function centralMoment4(values: Float64Array): number {
-    const N = values.length;
-
-    if (N === 0) return 0;
-
-    let mean = 0;
-    let M2 = 0;
-    let M3 = 0;
-    let M4 = 0;
-
-    for (let i = 0; i < N; i++) {
-        const n = i + 1;
-        const x = values[i];
-
-        const delta = x - mean;
-        const delta_n = delta / n;
-        const delta_n2 = delta_n * delta_n;
-        const term1 = delta * delta_n * (n - 1);
-
-        mean += delta_n;
-        M4 += term1 * delta_n2 * (n * n - 3 * n + 3) + 6 * delta_n2 * M2 - 4 * delta_n * M3;
-        M3 += term1 * delta_n * (n - 2) - 3 * delta_n * M2;
-        M2 += term1;
-    }
-
-    return M4;
+    return wasmCentralMoment4(values);
 }
 
 export const naiveCentralDeviationsSum = (values: Float64Array, k: number) => {

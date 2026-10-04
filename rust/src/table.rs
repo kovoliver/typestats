@@ -1,6 +1,41 @@
 use std::cmp::Ordering;
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen]
+#[derive(Clone, Copy)]
+pub enum ImputeMode {
+    Impute,
+    Replace,
+}
+
+fn is_valid(value: f64, mode: &str, min: Option<f64>, max: Option<f64>) -> bool {
+    if !value.is_finite() {
+        return false;
+    }
+
+    match mode {
+        "impute" => true,
+
+        "replace" => {
+            if let Some(min) = min {
+                if value < min {
+                    return false;
+                }
+            }
+
+            if let Some(max) = max {
+                if value > max {
+                    return false;
+                }
+            }
+
+            true
+        }
+
+        _ => false,
+    }
+}
+
 #[wasm_bindgen(js_name = sortTableIndices)]
 pub fn sort_table_indices(
     columns_data: &js_sys::Array,
@@ -13,66 +48,57 @@ pub fn sort_table_indices(
         return indices;
     }
 
-    let dir = if is_ascending { 1 } else { -1 };
-    let num_cols = columns_data.length();
+    /*
+     * Convert the JS columns to Rust-owned numeric/string data once.
+     *
+     * This avoids calling Reflect::get() inside sort_by().
+     */
+    let num_cols = columns_data.length() as usize;
 
-    indices.sort_by(|&a, &b| {
-        let idx_a = JsValue::from(a);
-        let idx_b = JsValue::from(b);
+    let mut columns: Vec<Vec<f64>> = Vec::with_capacity(num_cols);
 
-        for i in 0..num_cols {
-            let col = columns_data.get(i);
-            let val_a = js_sys::Reflect::get(&col, &idx_a).unwrap_or(JsValue::NULL);
-            let val_b = js_sys::Reflect::get(&col, &idx_b).unwrap_or(JsValue::NULL);
+    for i in 0..num_cols {
+        let col = columns_data.get(i as u32);
+        let array = js_sys::Float64Array::new(&col);
+        columns.push(array.to_vec());
+    }
 
-            if val_a == val_b {
+    indices.sort_unstable_by(|&a, &b| {
+        let a = a as usize;
+        let b = b as usize;
+
+        for col in &columns {
+            let val_a = col[a];
+            let val_b = col[b];
+
+            let a_nan = val_a.is_nan();
+            let b_nan = val_b.is_nan();
+
+            if a_nan && b_nan {
                 continue;
             }
 
-            let is_a_invalid =
-                val_a.is_null() || val_a.is_undefined() || js_sys::Number::is_nan(&val_a);
-            let is_b_invalid =
-                val_b.is_null() || val_b.is_undefined() || js_sys::Number::is_nan(&val_b);
-
-            // Két érvénytelen érték egyenlőnek számít, megy tovább a következő oszlopra
-            if is_a_invalid && is_b_invalid {
-                continue;
-            }
-
-            if is_a_invalid {
-                return if dir == 1 {
+            if a_nan {
+                return if is_ascending {
                     Ordering::Greater
                 } else {
                     Ordering::Less
                 };
             }
-            if is_b_invalid {
-                return if dir == 1 {
+
+            if b_nan {
+                return if is_ascending {
                     Ordering::Less
                 } else {
                     Ordering::Greater
                 };
             }
 
-            if let (Some(num_a), Some(num_b)) = (val_a.as_f64(), val_b.as_f64()) {
-                let cmp = num_a.partial_cmp(&num_b).unwrap_or(Ordering::Equal);
-                return if dir == 1 { cmp } else { cmp.reverse() };
-            }
+            let cmp = val_a.partial_cmp(&val_b).unwrap_or(Ordering::Equal);
 
-            if let (Some(bool_a), Some(bool_b)) = (val_a.as_bool(), val_b.as_bool()) {
-                let cmp = bool_a.cmp(&bool_b);
-                return if dir == 1 { cmp } else { cmp.reverse() };
+            if cmp != Ordering::Equal {
+                return if is_ascending { cmp } else { cmp.reverse() };
             }
-
-            if let (Some(str_a), Some(str_b)) = (val_a.as_string(), val_b.as_string()) {
-                let cmp = str_a.cmp(&str_b);
-                return if dir == 1 { cmp } else { cmp.reverse() };
-            }
-
-            let str_a = val_a.as_string().unwrap_or_default();
-            let str_b = val_b.as_string().unwrap_or_default();
-            let cmp = str_a.cmp(&str_b);
-            return if dir == 1 { cmp } else { cmp.reverse() };
         }
 
         Ordering::Equal
@@ -81,131 +107,228 @@ pub fn sort_table_indices(
     indices
 }
 
-fn build_flags(values: &[f64], valid_mask: Option<Vec<u8>>) -> Result<Vec<bool>, JsValue> {
-    let len = values.len();
-    if len == 0 {
-        return Err(JsValue::from_str("The time series does not have values!"));
+const ERR_EMPTY: &str = "The time series does not have values!";
+const ERR_NO_VALID: &str = "The given dataset only has invalid values or outliers!";
+
+#[wasm_bindgen]
+pub fn locf(
+    values: &mut [f64],
+    mode: &str,
+    min: Option<f64>,
+    max: Option<f64>,
+) -> Result<(), JsValue> {
+    if values.is_empty() {
+        return Err(JsError::new(ERR_EMPTY).into());
     }
 
-    let flags: Vec<bool> = match valid_mask {
-        Some(mask) => {
-            if mask.len() != len {
-                return Err(JsValue::from_str(&format!(
-                    "The valid mask length ({}) must match the number of values ({})!",
-                    mask.len(),
-                    len
-                )));
-            }
-            mask.iter().map(|&m| m != 0).collect()
-        }
-        None => values.iter().map(|v| !v.is_nan()).collect(),
+    let first_valid = values.iter().position(|&x| is_valid(x, mode, min, max));
+
+    let first_valid = match first_valid {
+        Some(i) => i,
+        None => return Err(JsError::new(ERR_NO_VALID).into()),
     };
 
-    if !flags.iter().any(|&f| f) {
-        return Err(JsValue::from_str(
-            "The given dataset only has invalid values or outliers!",
-        ));
+    let first_value = values[first_valid];
+
+    for value in values.iter_mut().take(first_valid) {
+        *value = first_value;
     }
 
-    Ok(flags)
-}
+    let mut last_valid = first_value;
 
-#[wasm_bindgen(js_name = locf)]
-pub fn locf(values: &mut [f64], valid_mask: Option<Vec<u8>>) -> Result<Vec<f64>, JsValue> {
-    let flags = build_flags(values, valid_mask)?;
-
-    let first_idx = flags.iter().position(|&f| f).unwrap();
-    let mut last_valid = values[first_idx];
-
-    for i in 0..values.len() {
-        if flags[i] {
-            last_valid = values[i];
+    for value in values.iter_mut().skip(first_valid + 1) {
+        if is_valid(*value, mode, min, max) {
+            last_valid = *value;
         } else {
-            values[i] = last_valid;
+            *value = last_valid;
         }
     }
 
-    Ok(values.to_vec())
+    Ok(())
 }
 
-#[wasm_bindgen(js_name = nocb)]
-pub fn nocb(values: &mut [f64], valid_mask: Option<Vec<u8>>) -> Result<Vec<f64>, JsValue> {
-    let flags = build_flags(values, valid_mask)?;
+#[wasm_bindgen]
+pub fn nocb(
+    values: &mut [f64],
+    mode: &str,
+    min: Option<f64>,
+    max: Option<f64>,
+) -> Result<(), JsValue> {
+    if values.is_empty() {
+        return Err(JsError::new(ERR_EMPTY).into());
+    }
 
-    let last_idx = flags.iter().rposition(|&f| f).unwrap();
-    let mut next_valid = values[last_idx];
+    let last_valid = values.iter().rposition(|&x| is_valid(x, mode, min, max));
 
-    for i in (0..values.len()).rev() {
-        if flags[i] {
+    let last_valid = match last_valid {
+        Some(i) => i,
+        None => return Err(JsError::new(ERR_NO_VALID).into()),
+    };
+
+    let last_value = values[last_valid];
+
+    for value in values.iter_mut().skip(last_valid + 1) {
+        *value = last_value;
+    }
+
+    let mut next_valid = last_value;
+
+    for i in (0..last_valid).rev() {
+        if is_valid(values[i], mode, min, max) {
             next_valid = values[i];
         } else {
             values[i] = next_valid;
         }
     }
 
-    Ok(values.to_vec())
+    Ok(())
 }
 
+#[wasm_bindgen(js_name=getInterpolatedValues)]
 pub fn get_interpolated_values(first_valid: f64, last_valid: f64, steps: usize) -> Vec<f64> {
-    let interpol_add = (last_valid - first_valid) / ((steps + 1) as f64);
-    let mut interpol_val = first_valid + interpol_add;
-    let mut interpol_values = Vec::with_capacity(steps);
+    let inter_pol_add = (last_valid - first_valid) / (steps + 1) as f64;
+    let mut interpol_val = first_valid + inter_pol_add;
+    let mut out = Vec::with_capacity(steps);
 
     for _ in 0..steps {
-        interpol_values.push(interpol_val);
-        interpol_val += interpol_add;
+        out.push(interpol_val);
+        interpol_val += inter_pol_add;
+    }
+    out
+}
+
+#[wasm_bindgen(js_name = interpolation)]
+pub fn interpolation(
+    values: &mut [f64],
+    mode: &str,
+    min: Option<f64>,
+    max: Option<f64>,
+) -> Result<(), JsValue> {
+    if values.is_empty() {
+        return Err(JsError::new(ERR_EMPTY).into());
     }
 
-    interpol_values
+    let len = values.len();
+    let mut count_invalid = 0usize;
+
+    for i in 0..len {
+        if !is_valid(values[i], mode, min, max) {
+            if i == 0 {
+                return Err(
+                    JsError::new(
+                        "The first element is invalid or an outlier; hence, interpolation is not possible!"
+                    ).into()
+                );
+            }
+
+            count_invalid += 1;
+        } else if count_invalid != 0 {
+            let first_valid = values[i - (count_invalid + 1)];
+
+            let last_valid = values[i];
+
+            let step = (last_valid - first_valid) / (count_invalid + 1) as f64;
+
+            for j in 0..count_invalid {
+                values[i - count_invalid + j] = first_valid + step * (j + 1) as f64;
+            }
+
+            count_invalid = 0;
+        }
+    }
+
+    if count_invalid > 0 {
+        return Err(JsError::new(
+            "The last elements are invalid or outliers; hence, interpolation is not possible!",
+        )
+        .into());
+    }
+
+    Ok(())
 }
 
 #[wasm_bindgen(js_name = movingAverageImputation)]
 pub fn moving_average_imputation(
     values: &mut [f64],
+    mode: &str,
+    min: Option<f64>,
+    max: Option<f64>,
     window_size: usize,
-    valid_mask: Option<Vec<u8>>,
-) -> Result<Vec<f64>, JsValue> {
-    if window_size == 0 {
-        return Err(JsValue::from_str("Window size must be a positive integer!"));
+) -> Result<(), JsValue> {
+    if values.is_empty() {
+        return Err(JsError::new(ERR_EMPTY).into());
     }
 
-    let flags = build_flags(values, valid_mask)?;
+    if window_size == 0 {
+        return Err(JsError::new("Window size must be a positive integer!").into());
+    }
+
     let len = values.len();
 
+    let mut valid = vec![false; len];
+    let mut has_any_valid = false;
+
+    for i in 0..len {
+        valid[i] = is_valid(values[i], mode, min, max);
+
+        if valid[i] {
+            has_any_valid = true;
+        }
+    }
+
+    if !has_any_valid {
+        return Err(JsError::new(ERR_NO_VALID).into());
+    }
+
     let left_radius = window_size / 2;
+
     let right_radius = if window_size % 2 == 0 {
         left_radius.saturating_sub(1)
     } else {
         left_radius
     };
 
+    let mut prefix_sum = vec![0.0; len + 1];
+    let mut prefix_valid = vec![0usize; len + 1];
+
     for i in 0..len {
-        if flags[i] {
+        prefix_sum[i + 1] = prefix_sum[i];
+        prefix_valid[i + 1] = prefix_valid[i];
+
+        if valid[i] {
+            prefix_sum[i + 1] += values[i];
+            prefix_valid[i + 1] += 1;
+        }
+    }
+
+    for i in 0..len {
+        if valid[i] {
             continue;
         }
 
         let start = i.saturating_sub(left_radius);
-        let end = (i + right_radius).min(len - 1);
+        let end = (len - 1).min(i + right_radius);
 
-        let mut sum = 0.0_f64;
-        let mut valid_count = 0usize;
+        let window_start = start;
+        let window_end = end + 1;
 
-        for j in start..=end {
-            if flags[j] {
-                sum += values[j];
-                valid_count += 1;
-            }
-        }
+        let valid_count = prefix_valid[window_end] - prefix_valid[window_start];
 
         if valid_count == 0 {
-            return Err(JsValue::from_str(&format!(
-                "Moving average imputation is not possible for index {}: no valid values or non-outliers in window size {}!",
-                i, window_size
-            )));
+            return Err(
+                JsError::new(&format!(
+                    "Moving average imputation is not possible for index {}: no valid values or non-outliers in window size {}!",
+                    i,
+                    window_size
+                ))
+                .into()
+            );
         }
 
-        values[i] = sum / (valid_count as f64);
+        let sum = prefix_sum[window_end] - prefix_sum[window_start];
+
+        values[i] = sum / valid_count as f64;
     }
 
-    Ok(values.to_vec())
+    Ok(())
 }

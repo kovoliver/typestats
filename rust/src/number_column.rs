@@ -83,7 +83,7 @@ pub fn describe_stats(values: &[f64], label: Option<String>) -> Result<JsValue, 
 
     let std_val = variance.sqrt();
 
-    let raw_median = percentile(&valid_values, 0.5, Some("interpolated".to_string()), Some(false))?;
+    let raw_median = percentile(&valid_values, 0.5, "interpolated", false);
     let median = round_to(raw_median, 3);
 
     let result = js_sys::Object::new();

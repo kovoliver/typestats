@@ -1,4 +1,9 @@
 import { ColType } from "../types/types.js";
+import { 
+    getMin as wasmGetMin,
+    getMax as wasmGetMax
+}
+from '../wasm.js';
 
 /**
  * Checks if a given value is considered empty (`null`, `undefined`, empty string, or `NaN`).
@@ -500,13 +505,7 @@ export function getMin(values: Float64Array): number {
         throw new Error('Cannot get minimum of an empty array!');
     }
 
-    let min = values[0];
-    for (let i = 1; i < values.length; i++) {
-        if (values[i] < min) {
-            min = values[i];
-        }
-    }
-
+    const min = wasmGetMin(values);
     return min;
 }
 
@@ -523,12 +522,7 @@ export function getMax(values: Float64Array): number {
         throw new Error('Cannot get maximum of an empty array!');
     }
 
-    let max = values[0];
-    for (let i = 1; i < values.length; i++) {
-        if (values[i] > max) {
-            max = values[i];
-        }
-    }
+    const max = wasmGetMax(values);
 
     return max;
 }

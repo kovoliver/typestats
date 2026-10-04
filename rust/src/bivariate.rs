@@ -92,7 +92,7 @@ pub fn chi_square(table: &js_sys::Array) -> Result<f64, JsValue> {
     Ok(final_khi.max(0.0))
 }
 
-#[wasm_bindgen(js_name = betweenSsd)]
+#[wasm_bindgen(js_name = betweenSSD)]
 pub fn between_ssd(table: &js_sys::Array) -> Result<f64, JsValue> {
     let columns: Vec<Vec<f64>> = table
         .iter()
@@ -180,6 +180,7 @@ pub fn scd(x_values: &[f64], y_values: &[f64]) -> f64 {
     sum_cross
 }
 
+#[wasm_bindgen(js_name = getRanks)]
 pub fn get_ranks(values: &[f64]) -> Result<js_sys::Map, JsValue> {
     if values.len() < 2 {
         return Err(JsValue::from_str(
@@ -188,22 +189,25 @@ pub fn get_ranks(values: &[f64]) -> Result<js_sys::Map, JsValue> {
     }
 
     let mut sorted_vals = values.to_vec();
+
     sorted_vals.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let ranks = js_sys::Map::new();
+
     let mut i = 0;
 
     while i < sorted_vals.len() {
         let val = sorted_vals[i];
-        let mut count = 0;
+
+        let mut count = 1;
 
         while i + count < sorted_vals.len() && sorted_vals[i + count] == val {
             count += 1;
         }
 
-        let start_serial = (i + 1) as f64;
-        let end_serial = (i + count) as f64;
-        let avg_rank = (start_serial + end_serial) / 2.0;
+        let start_rank = (i + 1) as f64;
+        let end_rank = (i + count) as f64;
+        let avg_rank = (start_rank + end_rank) * 0.5;
 
         ranks.set(&JsValue::from_f64(val), &JsValue::from_f64(avg_rank));
 

@@ -1,3 +1,4 @@
+import './wasm.js';
 export * as distributions from './distributions/index.js';
 export * as types from './types/index.js';
 export * as utils from './utils/index.js';

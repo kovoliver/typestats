@@ -5,6 +5,7 @@ export default defineConfig({
         globals: true,
         silent: false,
         globalSetup: ['./tests/globalSetup.ts'],
+        setupFiles: ['./tests/wasmSetup.ts'],
         onConsoleLog(log: string, type: 'stdout' | 'stderr'): boolean | void {
             return true;
         },

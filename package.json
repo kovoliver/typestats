@@ -70,6 +70,7 @@
   },
   "files": [
     "dist",
+    "rust/pkg",
     "README.md",
     "LICENSE"
   ],
@@ -137,6 +138,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.0.0",
     "vitest": "^4.1.11",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "rust-wasm": "file:./rust/pkg"
   }
 }

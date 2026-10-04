@@ -43,6 +43,8 @@ import {
     bartlett
 } from "../inference/hypothesis.js";
 
+import { describeStats } from '../wasm.js';
+
 export default class NumberColumn extends Column<number, Float64Array> {
     private regression: Regression | null = null;
     private trend: Trend | null = null;
@@ -1184,56 +1186,6 @@ export default class NumberColumn extends Column<number, Float64Array> {
             return { missing: 0, valid: 0, mean: NaN, std: NaN, min: NaN, median: NaN, max: NaN };
         }
 
-        const validValues = new Float64Array(len);
-        let missing = 0;
-        let validCount = 0;
-
-        let meanAcc = 0;
-        let M2 = 0;
-        let min = Infinity;
-        let max = -Infinity;
-
-        for (let i = 0; i < len; i++) {
-            const val = this._values[i];
-
-            if (!this.isValid(val)) {
-                missing++;
-                continue;
-            }
-
-            const numVal = val as number;
-            validValues[validCount] = numVal;
-            validCount++;
-
-            if (numVal < min) min = numVal;
-            if (numVal > max) max = numVal;
-
-            const delta = numVal - meanAcc;
-            meanAcc += delta / validCount;
-            const delta2 = numVal - meanAcc;
-            M2 += delta * delta2;
-        }
-
-        if (validCount === 0) {
-            return { missing, valid: 0, mean: NaN, std: NaN, min: NaN, median: NaN, max: NaN };
-        }
-
-        const trimmedValidValues = validValues.subarray(0, validCount);
-
-        const variance = validCount > 1 ? M2 / (validCount - 1) : 0;
-        const stdVal = Math.sqrt(variance);
-
-        const median = round(percentile(trimmedValidValues, 0.5, 'interpolated'), 3);
-
-        return {
-            label: this._label,
-            missing,
-            valid: validCount,
-            mean: round(meanAcc, 3),
-            std: round(stdVal, 3),
-            min: round(min, 3),
-            max: round(max, 3),
-            median: median
-        };
+        return describeStats(this._values, this.label);
     }
 }

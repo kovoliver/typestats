@@ -1,3 +1,11 @@
+import { RegressionType } from '../types/types.js';
+import {
+    neumaierSum as wasmNeumaierSum,
+    varianceAndCovariance as wasmVarianceAndCovariance,
+    neumaierDotProductAndSumPow2 as wasmNeumaierDotProductAndSumPow2,
+    calculateMSE as wasmcalculateMSE
+} from '../wasm.js';
+
 export function round(value: number, decimals?: number): number {
     if (decimals === undefined) return value;
 
@@ -132,147 +140,36 @@ export function kahanSumPow(x: Float64Array, pow: number): number {
 }
 
 export function neumaierSum(numbers: Float64Array): number {
-    let sum = 0.0;
-    let c = 0.0;
-
-    for (let i = 0; i < numbers.length; i++) {
-        const x = numbers[i];
-        const t = sum + x;
-
-        if (Math.abs(sum) >= Math.abs(x)) {
-            c += (sum - t) + x;
-        } else {
-            c += (x - t) + sum;
-        }
-
-        sum = t;
-    }
-
-    return sum + c;
+    const result = wasmNeumaierSum(numbers);
+    return result;
 }
 
 export function neumaierSumDotProduct(x: Float64Array, y: Float64Array): number {
-    let sum = 0.0;
-    let c = 0.0;
-
-    for (let i = 0; i < x.length; i++) {
-        const product = x[i] * y[i];
-        const t = sum + product;
-
-        if (Math.abs(sum) >= Math.abs(product)) {
-            c += (sum - t) + product;
-        } else {
-            c += (product - t) + sum;
-        }
-
-        sum = t;
-    }
-
-    return sum + c;
+    return neumaierSumDotProduct(x, y);
 }
 
 export function neumaierSumPow(x: Float64Array, pow: number): number {
-    let sum = 0.0;
-    let c = 0.0;
-
-    for (let i = 0; i < x.length; i++) {
-        const value = Math.pow(x[i], pow);
-        const t = sum + value;
-
-        if (Math.abs(sum) >= Math.abs(value)) {
-            c += (sum - t) + value;
-        } else {
-            c += (value - t) + sum;
-        }
-
-        sum = t;
-    }
-
-    return sum + c;
+    return neumaierSumPow(x, pow);
 }
 
 export function varianceAndCovariance(
     x: Float64Array, y: Float64Array, xMean: number, yMean: number): { xVar: number; cov: number } {
-    const len = x.length;
-    let varSum = 0;
-    let varC = 0;
-    let covSum = 0;
-    let covC = 0;
-
-    for (let i = 0; i < len; i++) {
-        const xDiff = x[i] - xMean;
-        const yDiff = y[i] - yMean;
-
-        const vVal = xDiff * xDiff;
-        const vT = varSum + vVal;
-
-        if (Math.abs(varSum) >= Math.abs(vVal)) {
-            varC += (varSum - vT) + vVal;
-        } else {
-            varC += (vVal - vT) + varSum;
-        }
-
-        varSum = vT;
-
-        const cVal = xDiff * yDiff;
-        const cT = covSum + cVal;
-
-        if (Math.abs(covSum) >= Math.abs(cVal)) {
-            covC += (covSum - cT) + cVal;
-        } else {
-            covC += (cVal - cT) + covSum;
-        }
-
-        covSum = cT;
-    }
-
-    varSum += varC;
-    covSum += covC;
-
-    const df = len - 1;
+    const result = wasmVarianceAndCovariance(x, y, xMean, yMean);
 
     return {
-        xVar: varSum / df,
-        cov: covSum / df
-    };
+        xVar: result.x_var,
+        cov: result.cov
+    }
 }
 
-export function neumaierDotProductAndSumPow2(x: Float64Array, y: Float64Array): { xySum: number; x2Sum: number } {
-    const len = x.length;
-    let xySum = 0;
-    let xyC = 0;
-    let x2Sum = 0;
-    let x2C = 0;
+export function neumaierDotProductAndSumPow2(x: Float64Array, y: Float64Array)
+    : { xySum: number; x2Sum: number } {
+    const result = wasmNeumaierDotProductAndSumPow2(x, y);
 
-    for (let i = 0; i < len; i++) {
-        const xi = x[i];
-        const yi = y[i];
-
-        const xyVal = xi * yi;
-        const xyT = xySum + xyVal;
-
-        if (Math.abs(xySum) >= Math.abs(xyVal)) {
-            xyC += (xySum - xyT) + xyVal;
-        } else {
-            xyC += (xyVal - xyT) + xySum;
-        }
-        xySum = xyT;
-
-        const x2Val = xi * xi;
-        const x2T = x2Sum + x2Val;
-
-        if (Math.abs(x2Sum) >= Math.abs(x2Val)) {
-            x2C += (x2Sum - x2T) + x2Val;
-        } else {
-            x2C += (x2Val - x2T) + x2Sum;
-        }
-        x2Sum = x2T;
+    return {
+        x2Sum: result.x2_sum,
+        xySum: result.xy_sum
     }
-
-    xySum += xyC;
-    x2Sum += x2C;
-
-    return { xySum, x2Sum };
 }
 
 /**
@@ -283,42 +180,16 @@ export function neumaierDotProductAndSumPow2(x: Float64Array, y: Float64Array): 
  * @param degreesOfFreedom - Estimated parameter count (k). Defaults to 0.
  */
 export function calculateMSE(
-    yActual: ArrayLike<number>,
-    predict: (i: number) => number,
+    yActual: Float64Array,
+    x: Float64Array,
+    model: RegressionType,
+    coefficients: Float64Array,
     degreesOfFreedom: number = 0
 ): number {
-    const n = yActual.length;
+    const result = wasmcalculateMSE(
+        yActual, x, model,
+        coefficients, degreesOfFreedom
+    );
 
-    if (n === 0) {
-        return NaN;
-    }
-
-    const divisor = n - degreesOfFreedom;
-
-    if (divisor <= 0) {
-        throw new RangeError(
-            `Degrees of freedom corrected divisor (${divisor}) must be positive.`
-        );
-    }
-
-    let sum = 0;
-    let c = 0;
-
-    for (let i = 0; i < n; i++) {
-        const yHat = predict(i);
-        const diff = yActual[i] - yHat;
-        const sqError = diff * diff;
-
-        const t = sum + sqError;
-
-        if (Math.abs(sum) >= Math.abs(sqError)) {
-            c += (sum - t) + sqError;
-        } else {
-            c += (sqError - t) + sum;
-        }
-
-        sum = t;
-    }
-
-    return (sum + c) / divisor;
+    return result;
 }

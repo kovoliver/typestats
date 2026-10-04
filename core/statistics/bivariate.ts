@@ -2,6 +2,12 @@ import { clampSymmetric, orderAsc, rangeSequence, round } from "../utils/numberU
 import { mean, ssd, std } from "../statistics/univariate.js";
 import { getDegreesOfFreedom } from "../statistics/univariate.js";
 import { flattenArray } from "../utils/utils.js";
+import { 
+    chiSquare as wasmChiSquare,
+    betweenSSD as wasmBetweenSSD,
+    scd as wasmSCD,
+    getRanks as wasmGetRanks
+} from '../wasm.js';
 
 /**
  * Validates a 2D contingency table matrix to ensure it contains at least one row and one column.
@@ -124,70 +130,8 @@ export function calcCombinationTable(table: Float64Array[]): Float64Array[] {
 export function chiSquare(table: Float64Array[], digits?: number): number {
     validateTable(table);
 
-    const numCols = table.length;
-    if (numCols === 0) return 0;
-    const numRows = table[0].length;
-    if (numRows === 0) return 0;
-
-    const colTotals = new Float64Array(numCols);
-    const rowTotals = new Float64Array(numRows);
-    let grandTotal = 0;
-
-    for (let col = 0; col < numCols; col++) {
-        const colArr = table[col];
-        let cTotal = 0;
-
-        for (let row = 0; row < numRows; row++) {
-            const currentEl = colArr[row];
-            cTotal += currentEl;
-            rowTotals[row] += currentEl;
-        }
-
-        colTotals[col] = cTotal;
-        grandTotal += cTotal;
-    }
-
-    if (grandTotal <= 0) {
-        throw new Error("The grand total cannot be zero or negative!");
-    }
-
-    let khi = 0;
-    let compensation = 0;
-
-    for (let col = 0; col < numCols; col++) {
-        const colTotal = colTotals[col];
-        if (colTotal === 0) continue;
-
-        const colArr = table[col];
-
-        for (let row = 0; row < numRows; row++) {
-            const rowTotal = rowTotals[row];
-            if (rowTotal === 0) continue;
-
-            const expectedValue = (colTotal * rowTotal) / grandTotal;
-
-            if (expectedValue < Number.EPSILON) {
-                continue;
-            }
-
-            const observed = colArr[row];
-            const diff = observed - expectedValue;
-            const ratio = (diff * diff) / expectedValue;
-
-            const t = khi + ratio;
-
-            if (Math.abs(khi) >= Math.abs(ratio)) {
-                compensation += (khi - t) + ratio;
-            } else {
-                compensation += (ratio - t) + khi;
-            }
-
-            khi = t;
-        }
-    }
-
-    const finalKhi = khi + compensation;
-    return round(Math.max(0, finalKhi), digits);
+    const finalKhi = wasmChiSquare(table);
+    return round(finalKhi, digits);
 }
 
 /**
@@ -285,54 +229,9 @@ export function betweenSSD(
     const len = table.length;
     if (len === 0) return 0;
 
-    const groupNs = new Float64Array(len);
-    const groupMeans = new Float64Array(len);
-    let validGroupCount = 0;
+    const totalSsd = wasmBetweenSSD(table);
 
-    for (let i = 0; i < len; i++) {
-        const group = table[i];
-        if (!group || group.length === 0) continue;
-
-        groupNs[validGroupCount] = group.length;
-        groupMeans[validGroupCount] = mean(group);
-        validGroupCount++;
-    }
-
-    if (validGroupCount === 0) return 0;
-
-    let combN = groupNs[0];
-    let combMean = groupMeans[0];
-
-    for (let i = 1; i < validGroupCount; i++) {
-        const gn = groupNs[i];
-        const gMean = groupMeans[i];
-        const nextN = combN + gn;
-        const delta = gMean - combMean;
-
-        combMean += delta * (gn / nextN);
-        combN = nextN;
-    }
-
-    const grandMean = combMean;
-
-    let totalSsd = 0;
-    let compensation = 0;
-
-    for (let i = 0; i < validGroupCount; i++) {
-        const gn = groupNs[i];
-        const diff = groupMeans[i] - grandMean;
-        const term = gn * diff * diff;
-
-        const t = totalSsd + term;
-        if (Math.abs(totalSsd) >= Math.abs(term)) {
-            compensation += (totalSsd - t) + term;
-        } else {
-            compensation += (term - t) + totalSsd;
-        }
-        totalSsd = t;
-    }
-
-    return round(Math.max(0, totalSsd + compensation), digits);
+    return round(totalSsd, digits);
 }
 
 /**
@@ -350,21 +249,7 @@ export function etaSquared(table: Float64Array[], digits?: number): number {
 }
 
 function scd(xValues: Float64Array, yValues: Float64Array): number {
-    let avgX = 0;
-    let avgY = 0;
-    let sumCross = 0;
-
-    for (let i = 0; i < xValues.length; i++) {
-        const count = i + 1;
-
-        const deltaX = xValues[i] - avgX;
-        avgX += deltaX / count;
-
-        const deltaY = yValues[i] - avgY;
-        avgY += deltaY / count;
-        sumCross += deltaX * (yValues[i] - avgY);
-    }
-
+    const sumCross = wasmSCD(xValues, yValues);
     return sumCross;
 }
 
@@ -439,24 +324,7 @@ export function getRanks(values: Float64Array): Map<number, number> {
         throw new Error('Values array must contain at least 2 numbers!');
     }
 
-    const uniqueVals = orderAsc(values);
-    const stats = new Map<number, number>();
-
-    for (let i = 0; i < uniqueVals.length; i++) {
-        const val = uniqueVals[i];
-        stats.set(val, (stats.get(val) || 0) + 1);
-    }
-
-    const ranks = new Map<number, number>();
-    let serial = 1;
-
-    for (const [key, value] of stats) {
-        const rank = rangeSequence(serial, (serial + value) - 1)
-            .reduce((total, val) => total + val, 0) / value;
-        ranks.set(key, rank);
-        serial += value;
-    }
-
+    const ranks = wasmGetRanks(values);
     return ranks;
 }
 
