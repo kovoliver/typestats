@@ -14,6 +14,15 @@ export enum ImputeMode {
     Replace = 1,
 }
 
+export class LogYResult {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    readonly ln_y: Float64Array;
+    readonly lnxy_sum: number;
+    readonly lny_sum: number;
+}
+
 export class Matrix {
     free(): void;
     [Symbol.dispose](): void;
@@ -59,11 +68,19 @@ export function flattenArray(table: Array<any>): Float64Array;
 
 export function getInterpolatedValues(first_valid: number, last_valid: number, steps: number): Float64Array;
 
+export function getLogYandLogXYsum(values: Float64Array): LogYResult;
+
+export function getLogarithmicSums(x: Float64Array, y: Float64Array): Float64Array;
+
 export function getMax(values: Float64Array): number;
 
 export function getMin(values: Float64Array): number;
 
+export function getPolynomialSums(x: Float64Array, y: Float64Array, degree: number): Float64Array;
+
 export function getRanks(values: Float64Array): Map<any, any>;
+
+export function getYandXYsum(values: Float64Array): Float64Array;
 
 export function interpolation(values: Float64Array, mode: string, min?: number | null, max?: number | null): void;
 
@@ -106,6 +123,7 @@ export interface InitOutput {
     readonly __wbg_get_dotproductandsumpow2result_xy_sum: (a: number) => number;
     readonly __wbg_get_varcovresult_cov: (a: number) => number;
     readonly __wbg_get_varcovresult_x_var: (a: number) => number;
+    readonly __wbg_logyresult_free: (a: number, b: number) => void;
     readonly __wbg_matrix_free: (a: number, b: number) => void;
     readonly __wbg_set_dotproductandsumpow2result_x2_sum: (a: number, b: number) => void;
     readonly __wbg_set_dotproductandsumpow2result_xy_sum: (a: number, b: number) => void;
@@ -121,11 +139,18 @@ export interface InitOutput {
     readonly describeStats: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly flattenArray: (a: any) => [number, number];
     readonly getInterpolatedValues: (a: number, b: number, c: number) => [number, number];
+    readonly getLogYandLogXYsum: (a: number, b: number) => number;
+    readonly getLogarithmicSums: (a: number, b: number, c: number, d: number) => [number, number];
     readonly getMax: (a: number, b: number) => [number, number, number];
     readonly getMin: (a: number, b: number) => [number, number, number];
+    readonly getPolynomialSums: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly getRanks: (a: number, b: number) => [number, number, number];
+    readonly getYandXYsum: (a: number, b: number) => [number, number];
     readonly interpolation: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
     readonly locf: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
+    readonly logyresult_ln_y: (a: number) => [number, number];
+    readonly logyresult_lnxy_sum: (a: number) => number;
+    readonly logyresult_lny_sum: (a: number) => number;
     readonly matrix_cols: (a: number) => number;
     readonly matrix_determinant: (a: number) => [number, number, number];
     readonly matrix_eigen: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];

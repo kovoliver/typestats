@@ -54,6 +54,49 @@ export const ImputeMode = Object.freeze({
     Replace: 1, "1": "Replace",
 });
 
+export class LogYResult {
+    static __wrap(ptr) {
+        const obj = Object.create(LogYResult.prototype);
+        obj.__wbg_ptr = ptr;
+        LogYResultFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        LogYResultFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_logyresult_free(ptr, 0);
+    }
+    /**
+     * @returns {Float64Array}
+     */
+    get ln_y() {
+        const ret = wasm.logyresult_ln_y(this.__wbg_ptr);
+        var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * @returns {number}
+     */
+    get lnxy_sum() {
+        const ret = wasm.logyresult_lnxy_sum(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get lny_sum() {
+        const ret = wasm.logyresult_lny_sum(this.__wbg_ptr);
+        return ret;
+    }
+}
+if (Symbol.dispose) LogYResult.prototype[Symbol.dispose] = LogYResult.prototype.free;
+
 export class Matrix {
     static __wrap(ptr) {
         const obj = Object.create(Matrix.prototype);
@@ -383,6 +426,33 @@ export function getInterpolatedValues(first_valid, last_valid, steps) {
 
 /**
  * @param {Float64Array} values
+ * @returns {LogYResult}
+ */
+export function getLogYandLogXYsum(values) {
+    const ptr0 = passArrayF64ToWasm0(values, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.getLogYandLogXYsum(ptr0, len0);
+    return LogYResult.__wrap(ret);
+}
+
+/**
+ * @param {Float64Array} x
+ * @param {Float64Array} y
+ * @returns {Float64Array}
+ */
+export function getLogarithmicSums(x, y) {
+    const ptr0 = passArrayF64ToWasm0(x, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF64ToWasm0(y, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.getLogarithmicSums(ptr0, len0, ptr1, len1);
+    var v3 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+    return v3;
+}
+
+/**
+ * @param {Float64Array} values
  * @returns {number}
  */
 export function getMax(values) {
@@ -410,6 +480,23 @@ export function getMin(values) {
 }
 
 /**
+ * @param {Float64Array} x
+ * @param {Float64Array} y
+ * @param {number} degree
+ * @returns {Float64Array}
+ */
+export function getPolynomialSums(x, y, degree) {
+    const ptr0 = passArrayF64ToWasm0(x, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF64ToWasm0(y, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.getPolynomialSums(ptr0, len0, ptr1, len1, degree);
+    var v3 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+    return v3;
+}
+
+/**
  * @param {Float64Array} values
  * @returns {Map<any, any>}
  */
@@ -421,6 +508,19 @@ export function getRanks(values) {
         throw takeFromExternrefTable0(ret[1]);
     }
     return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {Float64Array} values
+ * @returns {Float64Array}
+ */
+export function getYandXYsum(values) {
+    const ptr0 = passArrayF64ToWasm0(values, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.getYandXYsum(ptr0, len0);
+    var v2 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+    return v2;
 }
 
 /**
@@ -744,6 +844,9 @@ function __wbg_get_imports() {
 const DotProductAndSumPow2ResultFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_dotproductandsumpow2result_free(ptr, 1));
+const LogYResultFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_logyresult_free(ptr, 1));
 const MatrixFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_matrix_free(ptr, 1));

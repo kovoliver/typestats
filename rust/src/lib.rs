@@ -5,3 +5,4 @@ pub mod number_utils;
 pub mod table;
 pub mod univariate;
 pub mod utils;
+pub mod trend;

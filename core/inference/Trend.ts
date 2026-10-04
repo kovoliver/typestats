@@ -1,7 +1,15 @@
 import type { TrendType } from "../types/types.js";
 import { Cache } from "../abstractions/abstractClasses.js";
 import Matrix from "../math/Matrix.js";
-import { calculateMSE } from "../utils/numberUtils.js";
+import {
+    calculateMSE
+} from "../utils/numberUtils.js";
+import {
+    getYandXYsum,
+    getLogYandLogXYsum,
+    getLogarithmicSums,
+    getPolynomialSums
+} from "../wasm.js";
 
 /**
  * Trend models fitted on an equally spaced series.
@@ -13,12 +21,13 @@ import { calculateMSE } from "../utils/numberUtils.js";
  */
 export default class Trend extends Cache {
     private _y: Float64Array;
-    private _x: Float64Array;
+    private _x: Float64Array | null = null;
     private _n: number;
     private _hasNonPositive: boolean = false;
-
-    private _xSum: number = 0;
-    private _xSquaresSum: number = 0;
+    private _xMean: number;
+    private _xVar: number;
+    private _xSum: number;
+    private _xSquaresSum: number;
     private _ySum: number = 0;
     private _xySum: number = 0;
 
@@ -35,48 +44,24 @@ export default class Trend extends Cache {
     constructor(values: Float64Array) {
         super();
 
-        if (values.length < 2) {
+        const n = values.length;
+        if (n < 2) {
             throw new Error('Trend calculation requires at least two data points!');
         }
 
         this._y = values;
-        this._n = this._y.length;
-        this._x = new Float64Array(this._n);
+        this._n = n;
         this._hasNonPositive = values.some(v => v <= 0);
 
-        let xSum = 0, xC = 0;
-        let x2Sum = 0, x2C = 0;
-        let ySum = 0, yC = 0;
-        let xySum = 0, xyC = 0;
+        this._xMean = (n + 1) / 2;
+        this._xVar = (n * n - 1) / 12;
+        this._xSum = (n * (n + 1)) / 2;
+        this._xSquaresSum = (n * (n + 1) * (2 * n + 1)) / 6;
 
-        for (let i = 0; i < this._n; i++) {
-            const x = i + 1;
-            this._x[i] = x;
-            const y = this._y[i];
+        const [ySum, xySum] = getYandXYsum(values);
 
-            let t = xSum + x;
-            xC += Math.abs(xSum) >= Math.abs(x) ? (xSum - t) + x : (x - t) + xSum;
-            xSum = t;
-
-            const x2 = x * x;
-            t = x2Sum + x2;
-            x2C += Math.abs(x2Sum) >= Math.abs(x2) ? (x2Sum - t) + x2 : (x2 - t) + x2Sum;
-            x2Sum = t;
-
-            t = ySum + y;
-            yC += Math.abs(ySum) >= Math.abs(y) ? (ySum - t) + y : (y - t) + ySum;
-            ySum = t;
-
-            const xy = x * y;
-            t = xySum + xy;
-            xyC += Math.abs(xySum) >= Math.abs(xy) ? (xySum - t) + xy : (xy - t) + xySum;
-            xySum = t;
-        }
-
-        this._xSum = xSum + xC;
-        this._xSquaresSum = x2Sum + x2C;
-        this._ySum = ySum + yC;
-        this._xySum = xySum + xyC;
+        this._ySum = ySum;
+        this._xySum = xySum;
     }
 
     /**
@@ -88,32 +73,30 @@ export default class Trend extends Cache {
         return this._n;
     }
 
+    /**
+     * Lazy accessor for explicit x-array [1, 2, ..., n], instantiated only when MSE or polynomial/log trends require it.
+     */
+    private get X(): Float64Array {
+        if (this._x === null) {
+            this._x = new Float64Array(this._n);
+            for (let i = 0; i < this._n; i++) {
+                this._x[i] = i + 1;
+            }
+        }
+        return this._x;
+    }
+
     private ensureLogTransformed(): { lnySum: number; lnxySum: number } {
         if (this._hasNonPositive) {
             throw new Error('Exponential trend cannot be calculated for zero or negative values.');
         }
 
         if (this._lnY === null) {
-            this._lnY = new Float64Array(this._n);
-            let lnySum = 0, lnyC = 0;
-            let lnxySum = 0, lnxyC = 0;
+            const { lny_sum, lnxy_sum, ln_y } = getLogYandLogXYsum(this._y);
 
-            for (let i = 0; i < this._n; i++) {
-                const lnVal = Math.log(this._y[i]);
-                this._lnY[i] = lnVal;
-
-                let t = lnySum + lnVal;
-                lnyC += Math.abs(lnySum) >= Math.abs(lnVal) ? (lnySum - t) + lnVal : (lnVal - t) + lnySum;
-                lnySum = t;
-
-                const lnxy = this._x[i] * lnVal;
-                t = lnxySum + lnxy;
-                lnxyC += Math.abs(lnxySum) >= Math.abs(lnxy) ? (lnxySum - t) + lnxy : (lnxy - t) + lnxySum;
-                lnxySum = t;
-            }
-
-            this._lnySum = lnySum + lnyC;
-            this._lnxySum = lnxySum + lnxyC;
+            this._lnY = ln_y;
+            this._lnySum = lny_sum;
+            this._lnxySum = lnxy_sum;
         }
 
         return {
@@ -123,26 +106,16 @@ export default class Trend extends Cache {
     }
 
     /**
-     * Internal OLS helper to compute linear parameters.
-     * @returns {{ a: number, b: number }} Object where `a` is the y-intercept and `b` is the slope.
+     * Helper to compute OLS parameters using closed-form Cov(x, y) / Var(x) logic.
      */
-    private trend(xSum: number, ySum: number, xySum: number, xSquaresSum: number): { a: number, b: number } {
-        const xSquareSumb1 = xSquaresSum * this.N;
-        const xySumb1 = xySum * this.N;
+    private computeOLS(ySum: number, xySum: number): { a: number; b: number } {
+        const yMean = ySum / this._n;
+        const covXY = (xySum / this._n) - (this._xMean * yMean);
 
-        const xSumb2 = xSum * xSum;
-        const ySumb2 = ySum * xSum;
+        const slope = covXY / this._xVar;
+        const intercept = yMean - (slope * this._xMean);
 
-        const denominator = xSquareSumb1 - xSumb2;
-        const numerator = xySumb1 - ySumb2;
-
-        const slope = numerator / denominator;
-        const intercept = (ySum - (slope * xSum)) / this.N;
-
-        return {
-            a: intercept,
-            b: slope
-        };
+        return { a: intercept, b: slope };
     }
 
     /**
@@ -151,14 +124,9 @@ export default class Trend extends Cache {
      * 
      * @returns An object containing y-intercept (`a`, the value at x = 0) and slope (`b`).
      */
-    public linear(): { a: number, b: number } {
+    public linear(): { a: number; b: number } {
         return this.getCached('linear', () => {
-            return this.trend(
-                this._xSum,
-                this._ySum,
-                this._xySum,
-                this._xSquaresSum
-            );
+            return this.computeOLS(this._ySum, this._xySum);
         });
     }
 
@@ -169,16 +137,10 @@ export default class Trend extends Cache {
      * @returns An object containing scale factor (`a`, the value at x = 0) and growth base (`b`).
      * @throws {Error} If the dataset contains zero or negative values.
      */
-    public exponential(): { a: number, b: number } {
+    public exponential(): { a: number; b: number } {
         return this.getCached('exponential', () => {
             const { lnySum, lnxySum } = this.ensureLogTransformed();
-
-            const funcObj = this.trend(
-                this._xSum,
-                lnySum,
-                lnxySum,
-                this._xSquaresSum
-            );
+            const funcObj = this.computeOLS(lnySum, lnxySum);
 
             return {
                 a: Math.exp(funcObj.a),
@@ -201,53 +163,22 @@ export default class Trend extends Cache {
         }
 
         return this.getCached(`polynomial_${degree}`, () => {
-            const eqComps = new Float64Array(degree * 2 + 1);
+            const sums = getPolynomialSums(this.X, this._y, degree);
+
+            const eqComps = sums.subarray(0, degree * 2 + 1);
             const resultComps = new Float64Array(degree + 1);
 
             resultComps[0] = this._ySum;
+            resultComps.set(sums.subarray(degree * 2 + 1), 1);
+
             const equation: Float64Array[] = new Array(degree + 1);
 
-            for (let deg = 0; deg <= degree * 2; deg++) {
-                let compX = this._n;
-
-                if (deg !== 0) {
-                    let sum = 0, c = 0;
-                    for (let i = 0; i < this._n; i++) {
-                        const val = Math.pow(this._x[i], deg);
-                        const t = sum + val;
-                        c += Math.abs(sum) >= Math.abs(val) ? (sum - t) + val : (val - t) + sum;
-                        sum = t;
-                    }
-                    compX = sum + c;
-                }
-
-                eqComps[deg] = compX;
-
-                if (deg <= degree && deg !== 0) {
-                    let compRes = 0, cRes = 0;
-                    for (let i = 0; i < this._n; i++) {
-                        const val = Math.pow(this._x[i], deg) * this._y[i];
-                        const t = compRes + val;
-                        cRes += Math.abs(compRes) >= Math.abs(val) ? (compRes - t) + val : (val - t) + compRes;
-                        compRes = t;
-                    }
-
-                    resultComps[deg] = compRes + cRes;
-                }
-            }
-
             for (let i = 0; i <= degree; i++) {
-                const eqLine = new Float64Array(degree + 1);
-
-                for (let j = 0; j <= degree; j++) {
-                    eqLine[j] = eqComps[i + j];
-                }
-
-                equation[i] = eqLine;
+                equation[i] = eqComps.slice(i, i + degree + 1);
             }
 
-            const m: Matrix = new Matrix(equation);
-            const solved: Float64Array = m.solve(resultComps);
+            const m = new Matrix(equation);
+            const solved = m.solve(resultComps);
 
             const result: Record<string, number> = {};
             for (let i = 0; i < solved.length; i++) {
@@ -265,43 +196,23 @@ export default class Trend extends Cache {
      * @returns An object containing constant term (`a`) and slope coefficient (`b`).
      * @throws {Error} If there is zero variance in x values or N < 2.
      */
-    public logarithmic(): { a: number, b: number } {
+    public logarithmic(): { a: number; b: number } {
         return this.getCached('logarithmic', () => {
-            let zSum = 0, zC = 0;
-            let z2Sum = 0, z2C = 0;
-            let ziyi = 0, ziC = 0;
-
-            for (let i = 0; i < this._n; i++) {
-                const z = Math.log(this._x[i]);
-                const y = this._y[i];
-
-                let t = zSum + z;
-                zC += Math.abs(zSum) >= Math.abs(z) ? (zSum - t) + z : (z - t) + zSum;
-                zSum = t;
-
-                const z2 = z * z;
-                t = z2Sum + z2;
-                z2C += Math.abs(z2Sum) >= Math.abs(z2) ? (z2Sum - t) + z2 : (z2 - t) + z2Sum;
-                z2Sum = t;
-
-                const zy = z * y;
-                t = ziyi + zy;
-                ziC += Math.abs(ziyi) >= Math.abs(zy) ? (ziyi - t) + zy : (zy - t) + ziyi;
-                ziyi = t;
-            }
-
-            const totalZSum = zSum + zC;
-            const totalZ2Sum = z2Sum + z2C;
-            const totalZiyi = ziyi + ziC;
+            const [totalZSum, totalZ2Sum, totalZiyi] = getLogarithmicSums(this.X, this._y);
 
             const zAvg = totalZSum / this.N;
             const yMean = this._ySum / this.N;
 
-            const numerator = this.N * totalZiyi - totalZSum * this._ySum;
-            const denominator = this.N * totalZ2Sum - Math.pow(totalZSum, 2);
+            const numerator =
+                this.N * totalZiyi - totalZSum * this._ySum;
+
+            const denominator =
+                this.N * totalZ2Sum - Math.pow(totalZSum, 2);
 
             if (denominator === 0) {
-                throw new Error('Cannot fit logarithmic trend: Zero variance in x values (all x values are identical or N < 2).');
+                throw new Error(
+                    'Cannot fit logarithmic trend: Zero variance in x values (all x values are identical or N < 2).'
+                );
             }
 
             const slope = numerator / denominator;
@@ -325,7 +236,7 @@ export default class Trend extends Cache {
 
         return calculateMSE(
             this._y,
-            this._x,
+            this.X,
             'linear',
             Float64Array.of(a, b),
             degreesOfFreedom
@@ -343,7 +254,7 @@ export default class Trend extends Cache {
 
         return calculateMSE(
             this._y,
-            this._x,
+            this.X,
             'exponential',
             Float64Array.of(a, b),
             degreesOfFreedom
@@ -361,14 +272,13 @@ export default class Trend extends Cache {
         const coeffsObj = this.polynomial(degree);
         const coeffs = new Float64Array(degree + 1);
 
-        // Ascending order: a0, a1, ..., ak
         for (let i = 0; i <= degree; i++) {
             coeffs[i] = coeffsObj[`a${i}`];
         }
 
         return calculateMSE(
             this._y,
-            this._x,
+            this.X,
             'polynomial',
             coeffs,
             degreesOfFreedom
@@ -386,7 +296,7 @@ export default class Trend extends Cache {
 
         return calculateMSE(
             this._y,
-            this._x,
+            this.X,
             'logarithmic',
             Float64Array.of(a, b),
             degreesOfFreedom
