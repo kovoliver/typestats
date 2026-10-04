@@ -31,6 +31,7 @@ import {
     movingAverageImputation,
     interpolation
 } from '../wasm.js';
+import { performance } from "perf_hooks";
 
 type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 
@@ -1263,6 +1264,7 @@ export default class Table {
     /**
      * Prints a comprehensive summary description of the table structure, missing data metrics, and summary statistics to console.
      */
+
     public describe(): void {
         console.log(`================================================================================`);
         console.log(`=================================TABLE SUMMARY==================================`);
@@ -1277,8 +1279,18 @@ export default class Table {
 
         for (let i = 0; i < this._values.length; i++) {
             const col = this.getCol(i);
-            const missing = col.countMissing();
-            const valid = col.values.length - missing;
+            let isNumericCol = false;
+            let missing = 0;
+
+            if (col instanceof NumberColumn) {
+                isNumericCol = true;
+                const numStats = col.describeStats();
+                missing = numStats.missing;
+                numericStats.push(numStats);
+            }
+
+            missing = isNumericCol ? missing : col.countMissing();
+            const valid = col.count - missing;
 
             const missingPercent = totalRows > 0
                 ? Number(((missing / totalRows) * 100).toFixed(2))
@@ -1291,10 +1303,6 @@ export default class Table {
                 valid: valid,
                 'missing %': `${missingPercent}%`
             });
-
-            if (col instanceof NumberColumn) {
-                numericStats.push(col.describeStats());
-            }
 
             if (col instanceof DateColumn) {
                 dateStats.push({
@@ -1532,9 +1540,9 @@ export default class Table {
 
     private movingAverageImputation(
         values: Float64Array,
-        mode:ImputeMode,
-        min?:number,
-        max?:number,
+        mode: ImputeMode,
+        min?: number,
+        max?: number,
         windowSize: number = 3
     ): Float64Array {
         movingAverageImputation(values, mode, min, max, windowSize);
@@ -1545,9 +1553,9 @@ export default class Table {
         colValues: Float64Array,
         imputeType: SeriesImputeType,
         windowSize: number = 3,
-        mode:ImputeMode = "impute",
-        min?:number,
-        max?:number,
+        mode: ImputeMode = "impute",
+        min?: number,
+        max?: number,
     ): Float64Array {
         switch (imputeType) {
             case 'locf':

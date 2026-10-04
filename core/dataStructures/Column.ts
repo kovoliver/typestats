@@ -100,6 +100,10 @@ export default abstract class Column<
         return this.createInstance([...this._values], newLabel);
     }
 
+    public get count():number {
+        return this._values.length;
+    }
+
     public get values(): ReadonlyArray<T | null> | Float64Array {
         return this._values;
     }

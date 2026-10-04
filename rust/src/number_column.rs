@@ -1,4 +1,4 @@
-use crate::univariate::percentile;
+use crate::univariate::quickselect;
 use wasm_bindgen::prelude::*;
 
 fn round_to(val: f64, digits: u32) -> f64 {
@@ -7,6 +7,26 @@ fn round_to(val: f64, digits: u32) -> f64 {
     }
     let factor = 10.0_f64.powi(digits as i32);
     (val * factor).round() / factor
+}
+
+pub fn median(values: &mut [f64]) -> f64 {
+    let len = values.len();
+
+    if len == 0 {
+        return f64::NAN;
+    }
+
+    if len % 2 == 1 {
+        quickselect(values, len / 2, 0, len - 1)
+    } else {
+        let high_index = len / 2;
+        let low_index = high_index - 1;
+
+        let high = quickselect(values, high_index, 0, len - 1);
+        let low = quickselect(values, low_index, 0, low_index);
+
+        (low + high) / 2.0
+    }
 }
 
 #[wasm_bindgen(js_name = describeStats)]
@@ -83,7 +103,7 @@ pub fn describe_stats(values: &[f64], label: Option<String>) -> Result<JsValue, 
 
     let std_val = variance.sqrt();
 
-    let raw_median = percentile(&valid_values, 0.5, "interpolated", false);
+    let raw_median = median(&mut valid_values);
     let median = round_to(raw_median, 3);
 
     let result = js_sys::Object::new();

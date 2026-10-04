@@ -1,9 +1,9 @@
 import { ColType } from "../types/types.js";
-import { 
+import {
     getMin as wasmGetMin,
     getMax as wasmGetMax
 }
-from '../wasm.js';
+    from '../wasm.js';
 
 /**
  * Checks if a given value is considered empty (`null`, `undefined`, empty string, or `NaN`).
@@ -709,6 +709,25 @@ export function parseNumberFast(val: any) {
     return parseFloat(val);
 }
 
+export function possiblyISO(val: string): boolean {
+    const colon = val.indexOf(':');
+
+    if (colon === -1) {
+        return val.length === 10 &&
+            val.charCodeAt(4) === 45 &&
+            val.charCodeAt(7) === 45;
+    }
+
+    for (let i = colon + 1; i < val.length; i++) {
+        const c = val.charCodeAt(i);
+        
+        if (c === 43 || c === 45 || c === 90 || c === 122 ||
+            c === 71 || c === 103 || c === 85 || c === 117) return true;
+    }
+
+    return false;
+}
+
 export function toUTCTimestampFast(val: string): number | null {
     if (isEmpty(val)) return null;
 
@@ -720,9 +739,7 @@ export function toUTCTimestampFast(val: string): number | null {
 
     if (isNaN(time)) return null;
 
-    const isIsoFormat = trimmed.length >= 10 &&
-        trimmed.charCodeAt(4) === 45 &&
-        trimmed.charCodeAt(7) === 45;
+    const isIsoFormat = possiblyISO(trimmed);
 
     if (isIsoFormat) {
         return time;
