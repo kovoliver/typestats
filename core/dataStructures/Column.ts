@@ -108,14 +108,14 @@ export default abstract class Column<
         return this._values;
     }
 
-    public filterIndices(predicate: (val: T | null, index: number) => boolean): Int32Array {
+    public filterIndices(predicate: (val: T | null, index: number) => boolean): Uint32Array {
         const len = this._values.length;
 
         if (len === 0) {
-            return new Int32Array(0);
+            return new Uint32Array(0);
         }
 
-        const indices = new Int32Array(len);
+        const indices = new Uint32Array(len);
         let count = 0;
 
         for (let i = 0; i < len; i++) {

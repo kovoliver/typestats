@@ -385,7 +385,7 @@ export default class NumberColumn extends Column<number, Float64Array> {
      * @param {Boundaries} boundaries - The lower (`min`) and upper (`max`) threshold boundaries.
      * @returns {number[]} An array of original zero-based row indices that pass boundary validation.
      */
-    public filterIndicesByBoundaries(boundaries: Boundaries): Int32Array {
+    public filterIndicesByBoundaries(boundaries: Boundaries): Uint32Array {
         return this.filterIndices(val => !isInvalidValue(val, boundaries));
     }
 
@@ -400,7 +400,7 @@ export default class NumberColumn extends Column<number, Float64Array> {
     public filterIndicesByIqr(
         multiplier: number = 1.5,
         percentMode: PercentMode = 'interpolated'
-    ): Int32Array {
+    ): Uint32Array {
         const boundaries = this.getIqrBoundaries(multiplier, percentMode);
         return this.filterIndicesByBoundaries(boundaries);
     }

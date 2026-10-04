@@ -412,19 +412,6 @@ export function flattenArray(table) {
 }
 
 /**
- * @param {number} first_valid
- * @param {number} last_valid
- * @param {number} steps
- * @returns {Float64Array}
- */
-export function getInterpolatedValues(first_valid, last_valid, steps) {
-    const ret = wasm.getInterpolatedValues(first_valid, last_valid, steps);
-    var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
-    return v1;
-}
-
-/**
  * @param {Float64Array} values
  * @returns {LogYResult}
  */
@@ -528,13 +515,16 @@ export function getYandXYsum(values) {
  * @param {string} mode
  * @param {number | null} [min]
  * @param {number | null} [max]
+ * @param {Uint32Array | null} [ordered_indices]
  */
-export function interpolation(values, mode, min, max) {
+export function interpolation(values, mode, min, max, ordered_indices) {
     var ptr0 = passArrayF64ToWasm0(values, wasm.__wbindgen_malloc);
     var len0 = WASM_VECTOR_LEN;
     const ptr1 = passStringToWasm0(mode, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.interpolation(ptr0, len0, values, ptr1, len1, !isLikeNone(min), isLikeNone(min) ? 0 : min, !isLikeNone(max), isLikeNone(max) ? 0 : max);
+    var ptr2 = isLikeNone(ordered_indices) ? 0 : passArray32ToWasm0(ordered_indices, wasm.__wbindgen_malloc);
+    var len2 = WASM_VECTOR_LEN;
+    const ret = wasm.interpolation(ptr0, len0, values, ptr1, len1, !isLikeNone(min), isLikeNone(min) ? 0 : min, !isLikeNone(max), isLikeNone(max) ? 0 : max, ptr2, len2);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
@@ -545,13 +535,16 @@ export function interpolation(values, mode, min, max) {
  * @param {string} mode
  * @param {number | null} [min]
  * @param {number | null} [max]
+ * @param {Uint32Array | null} [ordered_indices]
  */
-export function locf(values, mode, min, max) {
+export function locf(values, mode, min, max, ordered_indices) {
     var ptr0 = passArrayF64ToWasm0(values, wasm.__wbindgen_malloc);
     var len0 = WASM_VECTOR_LEN;
     const ptr1 = passStringToWasm0(mode, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.locf(ptr0, len0, values, ptr1, len1, !isLikeNone(min), isLikeNone(min) ? 0 : min, !isLikeNone(max), isLikeNone(max) ? 0 : max);
+    var ptr2 = isLikeNone(ordered_indices) ? 0 : passArray32ToWasm0(ordered_indices, wasm.__wbindgen_malloc);
+    var len2 = WASM_VECTOR_LEN;
+    const ret = wasm.locf(ptr0, len0, values, ptr1, len1, !isLikeNone(min), isLikeNone(min) ? 0 : min, !isLikeNone(max), isLikeNone(max) ? 0 : max, ptr2, len2);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
@@ -590,13 +583,16 @@ export function mode(values) {
  * @param {number | null | undefined} min
  * @param {number | null | undefined} max
  * @param {number} window_size
+ * @param {Uint32Array | null} [ordered_indices]
  */
-export function movingAverageImputation(values, mode, min, max, window_size) {
+export function movingAverageImputation(values, mode, min, max, window_size, ordered_indices) {
     var ptr0 = passArrayF64ToWasm0(values, wasm.__wbindgen_malloc);
     var len0 = WASM_VECTOR_LEN;
     const ptr1 = passStringToWasm0(mode, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.movingAverageImputation(ptr0, len0, values, ptr1, len1, !isLikeNone(min), isLikeNone(min) ? 0 : min, !isLikeNone(max), isLikeNone(max) ? 0 : max, window_size);
+    var ptr2 = isLikeNone(ordered_indices) ? 0 : passArray32ToWasm0(ordered_indices, wasm.__wbindgen_malloc);
+    var len2 = WASM_VECTOR_LEN;
+    const ret = wasm.movingAverageImputation(ptr0, len0, values, ptr1, len1, !isLikeNone(min), isLikeNone(min) ? 0 : min, !isLikeNone(max), isLikeNone(max) ? 0 : max, window_size, ptr2, len2);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
@@ -632,13 +628,16 @@ export function neumaierSum(values) {
  * @param {string} mode
  * @param {number | null} [min]
  * @param {number | null} [max]
+ * @param {Uint32Array | null} [ordered_indices]
  */
-export function nocb(values, mode, min, max) {
+export function nocb(values, mode, min, max, ordered_indices) {
     var ptr0 = passArrayF64ToWasm0(values, wasm.__wbindgen_malloc);
     var len0 = WASM_VECTOR_LEN;
     const ptr1 = passStringToWasm0(mode, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.nocb(ptr0, len0, values, ptr1, len1, !isLikeNone(min), isLikeNone(min) ? 0 : min, !isLikeNone(max), isLikeNone(max) ? 0 : max);
+    var ptr2 = isLikeNone(ordered_indices) ? 0 : passArray32ToWasm0(ordered_indices, wasm.__wbindgen_malloc);
+    var len2 = WASM_VECTOR_LEN;
+    const ret = wasm.nocb(ptr0, len0, values, ptr1, len1, !isLikeNone(min), isLikeNone(min) ? 0 : min, !isLikeNone(max), isLikeNone(max) ? 0 : max, ptr2, len2);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
@@ -708,12 +707,13 @@ export function scd(x_values, y_values) {
 
 /**
  * @param {Array<any>} columns_data
+ * @param {Array<any>} col_types
  * @param {number} row_count
  * @param {boolean} is_ascending
  * @returns {Int32Array}
  */
-export function sortTableIndices(columns_data, row_count, is_ascending) {
-    const ret = wasm.sortTableIndices(columns_data, row_count, is_ascending);
+export function sortTableIndices(columns_data, col_types, row_count, is_ascending) {
+    const ret = wasm.sortTableIndices(columns_data, col_types, row_count, is_ascending);
     var v1 = getArrayI32FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
     return v1;
@@ -755,11 +755,42 @@ function __wbg_get_imports() {
             const ret = Error(getStringFromWasm0(arg0, arg1));
             return ret;
         },
+        __wbg___wbindgen_boolean_get_5b446f51afd21013: function(arg0) {
+            const v = arg0;
+            const ret = typeof(v) === 'boolean' ? v : undefined;
+            return isLikeNone(ret) ? 0xFFFFFF : ret ? 1 : 0;
+        },
         __wbg___wbindgen_copy_to_typed_array_88899a52af046901: function(arg0, arg1, arg2) {
             new Uint8Array(arg2.buffer, arg2.byteOffset, arg2.byteLength).set(getArrayU8FromWasm0(arg0, arg1));
         },
+        __wbg___wbindgen_is_null_e343b7d08827ba72: function(arg0) {
+            const ret = arg0 === null;
+            return ret;
+        },
+        __wbg___wbindgen_is_undefined_8865fb403f8fe9d8: function(arg0) {
+            const ret = arg0 === undefined;
+            return ret;
+        },
+        __wbg___wbindgen_number_get_2e0e7dee9f701a71: function(arg0, arg1) {
+            const obj = arg1;
+            const ret = typeof(obj) === 'number' ? obj : undefined;
+            getDataViewMemory0().setFloat64(arg0 + 8 * 1, isLikeNone(ret) ? 0 : ret, true);
+            getDataViewMemory0().setInt32(arg0 + 4 * 0, !isLikeNone(ret), true);
+        },
+        __wbg___wbindgen_string_get_0380ccaa2f57f0d9: function(arg0, arg1) {
+            const obj = arg1;
+            const ret = typeof(obj) === 'string' ? obj : undefined;
+            var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            var len1 = WASM_VECTOR_LEN;
+            getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+            getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+        },
         __wbg___wbindgen_throw_41e9ee4f547fc59a: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_from_296ca31f8d0f1c52: function(arg0) {
+            const ret = Array.from(arg0);
+            return ret;
         },
         __wbg_get_6c896e0571ddae51: function(arg0, arg1) {
             const ret = arg0[arg1 >>> 0];
@@ -881,6 +912,14 @@ function getArrayU8FromWasm0(ptr, len) {
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
 }
 
+let cachedDataViewMemory0 = null;
+function getDataViewMemory0() {
+    if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
+        cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
+    }
+    return cachedDataViewMemory0;
+}
+
 let cachedFloat64ArrayMemory0 = null;
 function getFloat64ArrayMemory0() {
     if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
@@ -899,6 +938,14 @@ function getInt32ArrayMemory0() {
 
 function getStringFromWasm0(ptr, len) {
     return decodeText(ptr >>> 0, len);
+}
+
+let cachedUint32ArrayMemory0 = null;
+function getUint32ArrayMemory0() {
+    if (cachedUint32ArrayMemory0 === null || cachedUint32ArrayMemory0.byteLength === 0) {
+        cachedUint32ArrayMemory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachedUint32ArrayMemory0;
 }
 
 let cachedUint8ArrayMemory0 = null;
@@ -920,6 +967,13 @@ function handleError(f, args) {
 
 function isLikeNone(x) {
     return x === undefined || x === null;
+}
+
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 function passArrayF64ToWasm0(arg, malloc) {
@@ -1006,8 +1060,10 @@ function __wbg_finalize_init(instance, module) {
     wasmInstance = instance;
     wasm = instance.exports;
     wasmModule = module;
+    cachedDataViewMemory0 = null;
     cachedFloat64ArrayMemory0 = null;
     cachedInt32ArrayMemory0 = null;
+    cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;

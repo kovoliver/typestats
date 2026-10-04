@@ -66,8 +66,6 @@ export function describeStats(values: Float64Array, label?: string | null): any;
 
 export function flattenArray(table: Array<any>): Float64Array;
 
-export function getInterpolatedValues(first_valid: number, last_valid: number, steps: number): Float64Array;
-
 export function getLogYandLogXYsum(values: Float64Array): LogYResult;
 
 export function getLogarithmicSums(x: Float64Array, y: Float64Array): Float64Array;
@@ -82,21 +80,21 @@ export function getRanks(values: Float64Array): Map<any, any>;
 
 export function getYandXYsum(values: Float64Array): Float64Array;
 
-export function interpolation(values: Float64Array, mode: string, min?: number | null, max?: number | null): void;
+export function interpolation(values: Float64Array, mode: string, min?: number | null, max?: number | null, ordered_indices?: Uint32Array | null): void;
 
-export function locf(values: Float64Array, mode: string, min?: number | null, max?: number | null): void;
+export function locf(values: Float64Array, mode: string, min?: number | null, max?: number | null, ordered_indices?: Uint32Array | null): void;
 
 export function mean(values: Float64Array): number;
 
 export function mode(values: Float64Array): Float64Array;
 
-export function movingAverageImputation(values: Float64Array, mode: string, min: number | null | undefined, max: number | null | undefined, window_size: number): void;
+export function movingAverageImputation(values: Float64Array, mode: string, min: number | null | undefined, max: number | null | undefined, window_size: number, ordered_indices?: Uint32Array | null): void;
 
 export function neumaierDotProductAndSumPow2(x: Float64Array, y: Float64Array): DotProductAndSumPow2Result;
 
 export function neumaierSum(values: Float64Array): number;
 
-export function nocb(values: Float64Array, mode: string, min?: number | null, max?: number | null): void;
+export function nocb(values: Float64Array, mode: string, min?: number | null, max?: number | null, ordered_indices?: Uint32Array | null): void;
 
 export function orderAsc(values: Float64Array): void;
 
@@ -108,7 +106,7 @@ export function quickselect(arr: Float64Array, k: number, left: number, right: n
 
 export function scd(x_values: Float64Array, y_values: Float64Array): number;
 
-export function sortTableIndices(columns_data: Array<any>, row_count: number, is_ascending: boolean): Int32Array;
+export function sortTableIndices(columns_data: Array<any>, col_types: Array<any>, row_count: number, is_ascending: boolean): Int32Array;
 
 export function ssd(values: Float64Array): number;
 
@@ -138,7 +136,6 @@ export interface InitOutput {
     readonly chiSquare: (a: any) => [number, number, number];
     readonly describeStats: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly flattenArray: (a: any) => [number, number];
-    readonly getInterpolatedValues: (a: number, b: number, c: number) => [number, number];
     readonly getLogYandLogXYsum: (a: number, b: number) => number;
     readonly getLogarithmicSums: (a: number, b: number, c: number, d: number) => [number, number];
     readonly getMax: (a: number, b: number) => [number, number, number];
@@ -146,8 +143,8 @@ export interface InitOutput {
     readonly getPolynomialSums: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly getRanks: (a: number, b: number) => [number, number, number];
     readonly getYandXYsum: (a: number, b: number) => [number, number];
-    readonly interpolation: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
-    readonly locf: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
+    readonly interpolation: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
+    readonly locf: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly logyresult_ln_y: (a: number) => [number, number];
     readonly logyresult_lnxy_sum: (a: number) => number;
     readonly logyresult_lny_sum: (a: number) => number;
@@ -167,24 +164,24 @@ export interface InitOutput {
     readonly matrix_values: (a: number) => any;
     readonly mean: (a: number, b: number) => [number, number, number];
     readonly mode: (a: number, b: number) => [number, number];
-    readonly movingAverageImputation: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
+    readonly movingAverageImputation: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => [number, number];
     readonly neumaierDotProductAndSumPow2: (a: number, b: number, c: number, d: number) => number;
     readonly neumaierSum: (a: number, b: number) => number;
-    readonly nocb: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
+    readonly nocb: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly orderAsc: (a: number, b: number, c: any) => void;
     readonly orderDesc: (a: number, b: number, c: any) => void;
     readonly percentile: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly quickselect: (a: number, b: number, c: any, d: number, e: number, f: number) => number;
     readonly scd: (a: number, b: number, c: number, d: number) => number;
-    readonly sortTableIndices: (a: any, b: number, c: number) => [number, number];
+    readonly sortTableIndices: (a: any, b: any, c: number, d: number) => [number, number];
     readonly ssd: (a: number, b: number) => [number, number, number];
     readonly varianceAndCovariance: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+    readonly __wbindgen_malloc: (a: number, b: number) => number;
+    readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;
     readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __externref_table_dealloc: (a: number) => void;
-    readonly __wbindgen_malloc: (a: number, b: number) => number;
-    readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_start: () => void;
 }

@@ -1,3 +1,4 @@
+use js_sys::{Array, Float64Array};
 use std::cmp::Ordering;
 use wasm_bindgen::prelude::*;
 
@@ -36,9 +37,25 @@ fn is_valid(value: f64, mode: &str, min: Option<f64>, max: Option<f64>) -> bool 
     }
 }
 
+enum Column {
+    Number(Vec<f64>),
+    String(Vec<Option<String>>),
+    Bool(Vec<Option<bool>>),
+}
+
+#[inline]
+fn reverse_if_desc(ordering: Ordering, ascending: bool) -> Ordering {
+    if ascending {
+        ordering
+    } else {
+        ordering.reverse()
+    }
+}
+
 #[wasm_bindgen(js_name = sortTableIndices)]
 pub fn sort_table_indices(
-    columns_data: &js_sys::Array,
+    columns_data: &Array,
+    col_types: &Array,
     row_count: usize,
     is_ascending: bool,
 ) -> Vec<i32> {
@@ -48,56 +65,123 @@ pub fn sort_table_indices(
         return indices;
     }
 
-    /*
-     * Convert the JS columns to Rust-owned numeric/string data once.
-     *
-     * This avoids calling Reflect::get() inside sort_by().
-     */
-    let num_cols = columns_data.length() as usize;
+    let column_count = columns_data.length() as usize;
 
-    let mut columns: Vec<Vec<f64>> = Vec::with_capacity(num_cols);
+    let mut columns: Vec<Column> = Vec::with_capacity(column_count);
 
-    for i in 0..num_cols {
-        let col = columns_data.get(i as u32);
-        let array = js_sys::Float64Array::new(&col);
-        columns.push(array.to_vec());
+    for i in 0..column_count {
+        let data = columns_data.get(i as u32);
+
+        let col_type = col_types
+            .get(i as u32)
+            .as_f64()
+            .unwrap_or(0.0) as u8;
+
+        match col_type {
+            0 => {
+                let array = Array::from(&data);
+                let mut values = Vec::with_capacity(row_count);
+
+                for row in 0..row_count {
+                    let value = array.get(row as u32);
+
+                    values.push(
+                        if value.is_null() || value.is_undefined() {
+                            None
+                        } else {
+                            value.as_string()
+                        }
+                    );
+                }
+
+                columns.push(Column::String(values));
+            }
+
+            1 => {
+                let array = Float64Array::new(&data);
+                columns.push(Column::Number(array.to_vec()));
+            }
+
+            2 => {
+                let array = Array::from(&data);
+                let mut values = Vec::with_capacity(row_count);
+
+                for row in 0..row_count {
+                    let value = array.get(row as u32);
+
+                    values.push(
+                        if value.is_null() || value.is_undefined() {
+                            None
+                        } else {
+                            value.as_bool()
+                        }
+                    );
+                }
+
+                columns.push(Column::Bool(values));
+            }
+
+            _ => unreachable!("Invalid column type"),
+        }
     }
 
     indices.sort_unstable_by(|&a, &b| {
         let a = a as usize;
         let b = b as usize;
 
-        for col in &columns {
-            let val_a = col[a];
-            let val_b = col[b];
+        for column in &columns {
+            let ordering = match column {
+                Column::Number(values) => {
+                    let x = values[a];
+                    let y = values[b];
 
-            let a_nan = val_a.is_nan();
-            let b_nan = val_b.is_nan();
+                    match (x.is_nan(), y.is_nan()) {
+                        (true, true) => Ordering::Equal,
+                        (true, false) => Ordering::Greater,
+                        (false, true) => Ordering::Less,
 
-            if a_nan && b_nan {
-                continue;
-            }
+                        (false, false) => {
+                            reverse_if_desc(
+                                x.partial_cmp(&y).unwrap(),
+                                is_ascending,
+                            )
+                        }
+                    }
+                }
 
-            if a_nan {
-                return if is_ascending {
-                    Ordering::Greater
-                } else {
-                    Ordering::Less
-                };
-            }
+                Column::String(values) => {
+                    match (&values[a], &values[b]) {
+                        (None, None) => Ordering::Equal,
+                        (None, Some(_)) => Ordering::Greater,
+                        (Some(_), None) => Ordering::Less,
 
-            if b_nan {
-                return if is_ascending {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                };
-            }
+                        (Some(x), Some(y)) => {
+                            reverse_if_desc(
+                                x.cmp(y),
+                                is_ascending,
+                            )
+                        }
+                    }
+                }
 
-            let cmp = val_a.partial_cmp(&val_b).unwrap_or(Ordering::Equal);
+                Column::Bool(values) => {
+                    match (values[a], values[b]) {
+                        (None, None) => Ordering::Equal,
+                        (None, Some(_)) => Ordering::Greater,
+                        (Some(_), None) => Ordering::Less,
 
-            if cmp != Ordering::Equal {
-                return if is_ascending { cmp } else { cmp.reverse() };
+                        (Some(x), Some(y)) => {
+                            reverse_if_desc(
+                                x.cmp(&y),
+                                is_ascending,
+                            )
+                        }
+                    }
+                }
+            };
+
+            if ordering != Ordering::Equal {
+                return ordering;
             }
         }
 
@@ -110,37 +194,70 @@ pub fn sort_table_indices(
 const ERR_EMPTY: &str = "The time series does not have values!";
 const ERR_NO_VALID: &str = "The given dataset only has invalid values or outliers!";
 
+fn validate_order<'a>(
+    ordered_indices: &'a Option<Vec<u32>>,
+    len: usize,
+) -> Result<Option<&'a [u32]>, JsValue> {
+    match ordered_indices {
+        None => Ok(None),
+        Some(o) => {
+            if o.len() != len {
+                return Err(JsError::new(
+                    "The length of orderedIndices must match the length of the values!",
+                )
+                .into());
+            }
+
+            if o.iter().any(|&i| i as usize >= len) {
+                return Err(JsError::new("orderedIndices contains an out-of-range index!").into());
+            }
+
+            Ok(Some(o.as_slice()))
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub fn locf(
     values: &mut [f64],
     mode: &str,
     min: Option<f64>,
     max: Option<f64>,
+    ordered_indices: Option<Vec<u32>>,
 ) -> Result<(), JsValue> {
     if values.is_empty() {
         return Err(JsError::new(ERR_EMPTY).into());
     }
 
-    let first_valid = values.iter().position(|&x| is_valid(x, mode, min, max));
+    let len = values.len();
+    let order = validate_order(&ordered_indices, len)?;
+    let at = |k: usize| -> usize {
+        match order {
+            Some(o) => o[k] as usize,
+            None => k,
+        }
+    };
 
-    let first_valid = match first_valid {
-        Some(i) => i,
+    let first_valid = match (0..len).find(|&k| is_valid(values[at(k)], mode, min, max)) {
+        Some(k) => k,
         None => return Err(JsError::new(ERR_NO_VALID).into()),
     };
 
-    let first_value = values[first_valid];
+    let first_value = values[at(first_valid)];
 
-    for value in values.iter_mut().take(first_valid) {
-        *value = first_value;
+    for k in 0..first_valid {
+        values[at(k)] = first_value;
     }
 
     let mut last_valid = first_value;
 
-    for value in values.iter_mut().skip(first_valid + 1) {
-        if is_valid(*value, mode, min, max) {
-            last_valid = *value;
+    for k in (first_valid + 1)..len {
+        let idx = at(k);
+
+        if is_valid(values[idx], mode, min, max) {
+            last_valid = values[idx];
         } else {
-            *value = last_valid;
+            values[idx] = last_valid;
         }
     }
 
@@ -153,48 +270,45 @@ pub fn nocb(
     mode: &str,
     min: Option<f64>,
     max: Option<f64>,
+    ordered_indices: Option<Vec<u32>>,
 ) -> Result<(), JsValue> {
     if values.is_empty() {
         return Err(JsError::new(ERR_EMPTY).into());
     }
 
-    let last_valid = values.iter().rposition(|&x| is_valid(x, mode, min, max));
+    let len = values.len();
+    let order = validate_order(&ordered_indices, len)?;
+    let at = |k: usize| -> usize {
+        match order {
+            Some(o) => o[k] as usize,
+            None => k,
+        }
+    };
 
-    let last_valid = match last_valid {
-        Some(i) => i,
+    let last_valid = match (0..len).rev().find(|&k| is_valid(values[at(k)], mode, min, max)) {
+        Some(k) => k,
         None => return Err(JsError::new(ERR_NO_VALID).into()),
     };
 
-    let last_value = values[last_valid];
+    let last_value = values[at(last_valid)];
 
-    for value in values.iter_mut().skip(last_valid + 1) {
-        *value = last_value;
+    for k in (last_valid + 1)..len {
+        values[at(k)] = last_value;
     }
 
     let mut next_valid = last_value;
 
-    for i in (0..last_valid).rev() {
-        if is_valid(values[i], mode, min, max) {
-            next_valid = values[i];
+    for k in (0..last_valid).rev() {
+        let idx = at(k);
+
+        if is_valid(values[idx], mode, min, max) {
+            next_valid = values[idx];
         } else {
-            values[i] = next_valid;
+            values[idx] = next_valid;
         }
     }
 
     Ok(())
-}
-
-#[wasm_bindgen(js_name=getInterpolatedValues)]
-pub fn get_interpolated_values(first_valid: f64, last_valid: f64, steps: usize) -> Vec<f64> {
-    let inter_pol_add = (last_valid - first_valid) / (steps + 1) as f64;
-    let mut interpol_val = first_valid + inter_pol_add;
-    let mut out = Vec::with_capacity(steps);
-
-    for _ in 0..steps {
-        out.push(interpol_val);
-        interpol_val += inter_pol_add;
-    }
-    out
 }
 
 #[wasm_bindgen(js_name = interpolation)]
@@ -203,34 +317,41 @@ pub fn interpolation(
     mode: &str,
     min: Option<f64>,
     max: Option<f64>,
+    ordered_indices: Option<Vec<u32>>,
 ) -> Result<(), JsValue> {
     if values.is_empty() {
         return Err(JsError::new(ERR_EMPTY).into());
     }
 
     let len = values.len();
+    let order = validate_order(&ordered_indices, len)?;
+    let at = |k: usize| -> usize {
+        match order {
+            Some(o) => o[k] as usize,
+            None => k,
+        }
+    };
+
     let mut count_invalid = 0usize;
 
-    for i in 0..len {
-        if !is_valid(values[i], mode, min, max) {
-            if i == 0 {
-                return Err(
-                    JsError::new(
-                        "The first element is invalid or an outlier; hence, interpolation is not possible!"
-                    ).into()
-                );
+    for k in 0..len {
+        if !is_valid(values[at(k)], mode, min, max) {
+            if k == 0 {
+                return Err(JsError::new(
+                    "The first element is invalid or an outlier; hence, interpolation is not possible!",
+                )
+                .into());
             }
 
             count_invalid += 1;
         } else if count_invalid != 0 {
-            let first_valid = values[i - (count_invalid + 1)];
-
-            let last_valid = values[i];
+            let first_valid = values[at(k - (count_invalid + 1))];
+            let last_valid = values[at(k)];
 
             let step = (last_valid - first_valid) / (count_invalid + 1) as f64;
 
             for j in 0..count_invalid {
-                values[i - count_invalid + j] = first_valid + step * (j + 1) as f64;
+                values[at(k - count_invalid + j)] = first_valid + step * (j + 1) as f64;
             }
 
             count_invalid = 0;
@@ -254,6 +375,7 @@ pub fn moving_average_imputation(
     min: Option<f64>,
     max: Option<f64>,
     window_size: usize,
+    ordered_indices: Option<Vec<u32>>,
 ) -> Result<(), JsValue> {
     if values.is_empty() {
         return Err(JsError::new(ERR_EMPTY).into());
@@ -264,14 +386,22 @@ pub fn moving_average_imputation(
     }
 
     let len = values.len();
+    let order = validate_order(&ordered_indices, len)?;
+    let at = |k: usize| -> usize {
+        match order {
+            Some(o) => o[k] as usize,
+            None => k,
+        }
+    };
 
+    // Validity and prefix sums are indexed by position in the ordered sequence.
     let mut valid = vec![false; len];
     let mut has_any_valid = false;
 
-    for i in 0..len {
-        valid[i] = is_valid(values[i], mode, min, max);
+    for k in 0..len {
+        valid[k] = is_valid(values[at(k)], mode, min, max);
 
-        if valid[i] {
+        if valid[k] {
             has_any_valid = true;
         }
     }
@@ -291,23 +421,23 @@ pub fn moving_average_imputation(
     let mut prefix_sum = vec![0.0; len + 1];
     let mut prefix_valid = vec![0usize; len + 1];
 
-    for i in 0..len {
-        prefix_sum[i + 1] = prefix_sum[i];
-        prefix_valid[i + 1] = prefix_valid[i];
+    for k in 0..len {
+        prefix_sum[k + 1] = prefix_sum[k];
+        prefix_valid[k + 1] = prefix_valid[k];
 
-        if valid[i] {
-            prefix_sum[i + 1] += values[i];
-            prefix_valid[i + 1] += 1;
+        if valid[k] {
+            prefix_sum[k + 1] += values[at(k)];
+            prefix_valid[k + 1] += 1;
         }
     }
 
-    for i in 0..len {
-        if valid[i] {
+    for k in 0..len {
+        if valid[k] {
             continue;
         }
 
-        let start = i.saturating_sub(left_radius);
-        let end = (len - 1).min(i + right_radius);
+        let start = k.saturating_sub(left_radius);
+        let end: usize = (len - 1).min(k + right_radius);
 
         let window_start = start;
         let window_end = end + 1;
@@ -315,19 +445,17 @@ pub fn moving_average_imputation(
         let valid_count = prefix_valid[window_end] - prefix_valid[window_start];
 
         if valid_count == 0 {
-            return Err(
-                JsError::new(&format!(
-                    "Moving average imputation is not possible for index {}: no valid values or non-outliers in window size {}!",
-                    i,
-                    window_size
-                ))
-                .into()
-            );
+            return Err(JsError::new(&format!(
+                "Moving average imputation is not possible for index {}: no valid values or non-outliers in window size {}!",
+                at(k),
+                window_size
+            ))
+            .into());
         }
 
         let sum = prefix_sum[window_end] - prefix_sum[window_start];
 
-        values[i] = sum / valid_count as f64;
+        values[at(k)] = sum / valid_count as f64;
     }
 
     Ok(())

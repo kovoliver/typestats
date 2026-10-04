@@ -1,4 +1,4 @@
-import { Boundaries, ColInfo, ColumnData, ColumnInfo, ColumnLabel, ImputeMode, ImputeType, PercentMode, SeriesImputeType, TableData }
+import { Boundaries, ColInfo, ColType, ColumnData, ColumnInfo, ColumnLabel, ImputeMode, ImputeType, PercentMode, SeriesImputeType, TableData }
     from '../types/types.js';
 import {
     displayDateString,
@@ -25,9 +25,7 @@ import { correlation, covariance } from '../statistics/bivariate.js';
 import DataMatrix from './DataMatrix.js';
 import { round } from '../utils/numberUtils.js';
 import {
-    sortTableIndices,
     locf, nocb,
-    getInterpolatedValues,
     movingAverageImputation,
     interpolation
 } from '../wasm.js';
@@ -38,14 +36,17 @@ type AnyColumn = NumberColumn & StringColumn & BoolColumn & DateColumn;
 export default class Table {
     private readonly _values: TableData;
     private readonly _colInfos: ColInfo[];
+    private _orderedIndices: Uint32Array | null;
 
     constructor(
         values: any[][] | TableData,
         colInfos: ColInfo[],
         isTrustedSource: boolean = false,
+        orderedIndices: Uint32Array | null = null
     ) {
         this._colInfos = colInfos;
         this._values = isTrustedSource ? values : this.processValues(values as any[][], colInfos);
+        this._orderedIndices = orderedIndices;
     }
 
     /**
@@ -82,6 +83,10 @@ export default class Table {
             label: colInfo.label,
             type: colInfo.type
         };
+    }
+
+    private getPhysicalIndex(rowIndex: number): number {
+        return this._orderedIndices !== null ? this._orderedIndices[rowIndex] : rowIndex;
     }
 
     private processValues(values: any[][], colInfos: ColInfo[]): ColumnData[] {
@@ -179,8 +184,30 @@ export default class Table {
      */
     public getCol(identifier: number | string): AnyColumn {
         const index = this.getIndex(identifier);
-        const values = this._values[index];
+        let values = this._values[index];
         const info = this._colInfos[index];
+
+        if (this._orderedIndices !== null) {
+            const len = this._orderedIndices.length;
+
+            if (values instanceof Float64Array) {
+                const reordered = new Float64Array(len);
+
+                for (let i = 0; i < len; i++) {
+                    reordered[i] = values[this.getPhysicalIndex(i)];
+                }
+
+                values = reordered;
+            } else {
+                const reordered = new Array(len);
+
+                for (let i = 0; i < len; i++) {
+                    reordered[i] = values[this.getPhysicalIndex(i)];
+                }
+                
+                values = reordered;
+            }
+        }
 
         return this.createColumnFromData(values, info);
     }
@@ -275,7 +302,8 @@ export default class Table {
         for (let rowIndex = startIndex; rowIndex < endIndex; rowIndex++) {
             const rowObj: Record<string, any> = {};
 
-            for (let colIndex = 0; colIndex < colsLimit; colIndex++) {
+            for (let i = 0; i < colsLimit; i++) {
+                const colIndex = this.getPhysicalIndex(i);
                 const info = this._colInfos[colIndex];
                 const rawVal = this._values[colIndex][rowIndex];
 
@@ -391,10 +419,9 @@ export default class Table {
         return new GroupedTable(groups as any, labels);
     }
 
-    private newTableByIndices(indices: Int32Array): Table {
+    private newTableByIndices(indices: Uint32Array): Table {
         const rowCount = indices.length;
-        const colCount = this._values.length;
-
+        const colCount = this.colCount;
         const newValues: ColumnData[] = new Array(colCount);
 
         for (let c = 0; c < colCount; c++) {
@@ -402,32 +429,71 @@ export default class Table {
 
             if (procCol instanceof Float64Array) {
                 const targetProc = new Float64Array(rowCount);
+
                 for (let r = 0; r < rowCount; r++) {
                     targetProc[r] = procCol[indices[r]];
                 }
+
                 newValues[c] = targetProc;
             } else {
                 const targetProc = new Array(rowCount);
+
                 for (let r = 0; r < rowCount; r++) {
                     targetProc[r] = procCol[indices[r]];
                 }
+
                 newValues[c] = targetProc;
             }
         }
 
-        const colInfos = this._colInfos.map(info => ({ ...info }));
-        return new Table(newValues as TableData, colInfos, true);
+        return new Table(newValues as TableData, this.colInfos, true);
     }
 
     private orderBy(labels: string[], type: 'asc' | 'desc'): Table {
+        const length = this.rowCount;
+
+        const indices = new Uint32Array(length);
+        for (let i = 0; i < length; i++) {
+            indices[i] = i;
+        }
+
         const columnsData = labels.map(label => {
             const colIdx = this.getIndex(label);
             return this._values[colIdx];
         });
 
-        const indices = sortTableIndices(columnsData, this.rowCount, type === 'asc');
+        const dir = type === 'asc' ? 1 : -1;
+        const numCols = columnsData.length;
 
-        return this.newTableByIndices(indices);
+        indices.sort((a, b) => {
+            for (let i = 0; i < numCols; i++) {
+                const col = columnsData[i];
+                const firstVal = col[a];
+                const secondVal = col[b];
+
+                if (firstVal === secondVal) continue;
+                if (firstVal === null || firstVal === undefined || Number.isNaN(firstVal)) return 1 * dir;
+                if (secondVal === null || secondVal === undefined || Number.isNaN(secondVal)) return -1 * dir;
+
+                if (typeof firstVal === 'number' && typeof secondVal === 'number') {
+                    return (firstVal - secondVal) * dir;
+                }
+
+                if (typeof firstVal === 'string' && typeof secondVal === 'string') {
+                    return (firstVal < secondVal ? -1 : 1) * dir;
+                }
+
+                if (firstVal < secondVal) return -1 * dir;
+                if (firstVal > secondVal) return 1 * dir;
+            }
+
+            return 0;
+        });
+
+        const newValues = this._values.map(col => col.slice());
+
+        this._orderedIndices = indices;
+        return new Table(newValues, this.colInfos, true, indices.slice());
     }
 
     /**
@@ -460,7 +526,7 @@ export default class Table {
 
         const rowCount = this.rowCount;
         if (rowCount === 0) {
-            return this.newTableByIndices(new Int32Array(0));
+            return this.newTableByIndices(new Uint32Array(0));
         }
 
         const targetCols: ColumnData[] = new Array(labelCount);
@@ -469,7 +535,7 @@ export default class Table {
             targetCols[i] = this._values[colIdx];
         }
 
-        const matchingIndices = new Int32Array(rowCount);
+        const matchingIndices = new Uint32Array(rowCount);
         let matchCount = 0;
         const isAnd = andOr === 'and';
 
@@ -532,7 +598,7 @@ export default class Table {
             targetColIndices.push(colIdx);
         }
 
-        const matchingIndices = new Int32Array(this.rowCount);
+        const matchingIndices = new Uint32Array(this.rowCount);
         let matchCount = 0;
 
         for (let row = 0; row < this.rowCount; row++) {
@@ -704,7 +770,7 @@ export default class Table {
 
         const labelList = isArray ? labels : [labels];
         const rowCount = this.rowCount;
-        const validIndices = new Int32Array(rowCount);
+        const validIndices = new Uint32Array(rowCount);
 
         const targetIndices = labelList.map(label => this.getIndex(label));
 
@@ -1514,7 +1580,7 @@ export default class Table {
         min?: number,
         max?: number
     ): Float64Array {
-        locf(values, mode, min, max);
+        locf(values, mode, min, max, this._orderedIndices);
         return values;
     }
 
@@ -1524,7 +1590,7 @@ export default class Table {
         min?: number,
         max?: number
     ): Float64Array {
-        nocb(values, mode, min, max);
+        nocb(values, mode, min, max, this._orderedIndices);
         return values;
     }
 
@@ -1534,7 +1600,7 @@ export default class Table {
         min?: number,
         max?: number
     ): Float64Array {
-        interpolation(values, mode, min, max);
+        interpolation(values, mode, min, max, this._orderedIndices);
         return values;
     }
 
@@ -1545,7 +1611,7 @@ export default class Table {
         max?: number,
         windowSize: number = 3
     ): Float64Array {
-        movingAverageImputation(values, mode, min, max, windowSize);
+        movingAverageImputation(values, mode, min, max, windowSize, this._orderedIndices);
         return values;
     }
 
