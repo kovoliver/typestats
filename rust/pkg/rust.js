@@ -678,6 +678,25 @@ export function percentile(values, percent, mode, is_sorted) {
 }
 
 /**
+ * @param {Array<any>} table
+ * @param {string} sort_type
+ * @param {number} left_idx
+ * @param {number} right_idx
+ * @returns {Uint32Array}
+ */
+export function quickSortTable(table, sort_type, left_idx, right_idx) {
+    const ptr0 = passStringToWasm0(sort_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.quickSortTable(table, ptr0, len0, left_idx, right_idx);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v2 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+    return v2;
+}
+
+/**
  * @param {Float64Array} arr
  * @param {number} k
  * @param {number} left
@@ -703,20 +722,6 @@ export function scd(x_values, y_values) {
     const len1 = WASM_VECTOR_LEN;
     const ret = wasm.scd(ptr0, len0, ptr1, len1);
     return ret;
-}
-
-/**
- * @param {Array<any>} columns_data
- * @param {Array<any>} col_types
- * @param {number} row_count
- * @param {boolean} is_ascending
- * @returns {Int32Array}
- */
-export function sortTableIndices(columns_data, col_types, row_count, is_ascending) {
-    const ret = wasm.sortTableIndices(columns_data, col_types, row_count, is_ascending);
-    var v1 = getArrayI32FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
-    return v1;
 }
 
 /**
@@ -767,16 +772,6 @@ function __wbg_get_imports() {
             const ret = arg0 === null;
             return ret;
         },
-        __wbg___wbindgen_is_undefined_8865fb403f8fe9d8: function(arg0) {
-            const ret = arg0 === undefined;
-            return ret;
-        },
-        __wbg___wbindgen_number_get_2e0e7dee9f701a71: function(arg0, arg1) {
-            const obj = arg1;
-            const ret = typeof(obj) === 'number' ? obj : undefined;
-            getDataViewMemory0().setFloat64(arg0 + 8 * 1, isLikeNone(ret) ? 0 : ret, true);
-            getDataViewMemory0().setInt32(arg0 + 4 * 0, !isLikeNone(ret), true);
-        },
         __wbg___wbindgen_string_get_0380ccaa2f57f0d9: function(arg0, arg1) {
             const obj = arg1;
             const ret = typeof(obj) === 'string' ? obj : undefined;
@@ -788,16 +783,26 @@ function __wbg_get_imports() {
         __wbg___wbindgen_throw_41e9ee4f547fc59a: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
-        __wbg_from_296ca31f8d0f1c52: function(arg0) {
-            const ret = Array.from(arg0);
-            return ret;
-        },
         __wbg_get_6c896e0571ddae51: function(arg0, arg1) {
             const ret = arg0[arg1 >>> 0];
             return ret;
         },
         __wbg_get_unchecked_288889d017702237: function(arg0, arg1) {
             const ret = arg0[arg1 >>> 0];
+            return ret;
+        },
+        __wbg_instanceof_Float64Array_8a59377f9eec1b8b: function(arg0) {
+            let result;
+            try {
+                result = arg0 instanceof Float64Array;
+            } catch (_) {
+                result = false;
+            }
+            const ret = result;
+            return ret;
+        },
+        __wbg_isArray_e15a2ff68ffdbef2: function(arg0) {
+            const ret = Array.isArray(arg0);
             return ret;
         },
         __wbg_length_b5f0008bbf60cf59: function(arg0) {
@@ -902,9 +907,9 @@ function getArrayF64FromWasm0(ptr, len) {
     return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
 }
 
-function getArrayI32FromWasm0(ptr, len) {
+function getArrayU32FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
-    return getInt32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+    return getUint32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
 }
 
 function getArrayU8FromWasm0(ptr, len) {
@@ -926,14 +931,6 @@ function getFloat64ArrayMemory0() {
         cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
     }
     return cachedFloat64ArrayMemory0;
-}
-
-let cachedInt32ArrayMemory0 = null;
-function getInt32ArrayMemory0() {
-    if (cachedInt32ArrayMemory0 === null || cachedInt32ArrayMemory0.byteLength === 0) {
-        cachedInt32ArrayMemory0 = new Int32Array(wasm.memory.buffer);
-    }
-    return cachedInt32ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -1062,7 +1059,6 @@ function __wbg_finalize_init(instance, module) {
     wasmModule = module;
     cachedDataViewMemory0 = null;
     cachedFloat64ArrayMemory0 = null;
-    cachedInt32ArrayMemory0 = null;
     cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();

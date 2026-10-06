@@ -102,11 +102,11 @@ export function orderDesc(values: Float64Array): void;
 
 export function percentile(values: Float64Array, percent: number, mode: string, is_sorted: boolean): number;
 
+export function quickSortTable(table: Array<any>, sort_type: string, left_idx: number, right_idx: number): Uint32Array;
+
 export function quickselect(arr: Float64Array, k: number, left: number, right: number): number;
 
 export function scd(x_values: Float64Array, y_values: Float64Array): number;
-
-export function sortTableIndices(columns_data: Array<any>, col_types: Array<any>, row_count: number, is_ascending: boolean): Int32Array;
 
 export function ssd(values: Float64Array): number;
 
@@ -171,9 +171,9 @@ export interface InitOutput {
     readonly orderAsc: (a: number, b: number, c: any) => void;
     readonly orderDesc: (a: number, b: number, c: any) => void;
     readonly percentile: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+    readonly quickSortTable: (a: any, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly quickselect: (a: number, b: number, c: any, d: number, e: number, f: number) => number;
     readonly scd: (a: number, b: number, c: number, d: number) => number;
-    readonly sortTableIndices: (a: any, b: any, c: number, d: number) => [number, number];
     readonly ssd: (a: number, b: number) => [number, number, number];
     readonly varianceAndCovariance: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly __wbindgen_malloc: (a: number, b: number) => number;

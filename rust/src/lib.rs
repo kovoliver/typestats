@@ -3,6 +3,7 @@ pub mod matrix;
 pub mod number_column;
 pub mod number_utils;
 pub mod table;
+pub mod table_sort;
 pub mod univariate;
 pub mod utils;
 pub mod trend;

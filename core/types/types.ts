@@ -203,3 +203,5 @@ export type ColumnData =
 export type TableData = ColumnData[];
 
 export type ImputeMode = "impute" | "replace";
+
+export type ComparableType = number | string | boolean | null;

@@ -9,6 +9,7 @@ import {
     isValidBool,
     isValidTimestamp,
     toUnixTimestampArray,
+    compareRowsAtIndex,
 }
     from '../utils/utils.js';
 import NumberColumn from './NumberColumn.js';
@@ -26,8 +27,8 @@ import DataMatrix from './DataMatrix.js';
 import { round } from '../utils/numberUtils.js';
 import {
     locf, nocb,
-    movingAverageImputation,
-    interpolation
+    movingAverageImputation, interpolation,
+    quickSortTable as wasmQuickSortTable
 } from '../wasm.js';
 import { performance } from "perf_hooks";
 
@@ -204,7 +205,7 @@ export default class Table {
                 for (let i = 0; i < len; i++) {
                     reordered[i] = values[this.getPhysicalIndex(i)];
                 }
-                
+
                 values = reordered;
             }
         }
@@ -301,11 +302,12 @@ export default class Table {
 
         for (let rowIndex = startIndex; rowIndex < endIndex; rowIndex++) {
             const rowObj: Record<string, any> = {};
+            const realRowIndex = this.getPhysicalIndex(rowIndex);
 
-            for (let i = 0; i < colsLimit; i++) {
-                const colIndex = this.getPhysicalIndex(i);
+            for (let colIndex = 0; colIndex < colsLimit; colIndex++) {
+                
                 const info = this._colInfos[colIndex];
-                const rawVal = this._values[colIndex][rowIndex];
+                const rawVal = this._values[colIndex][realRowIndex];
 
                 let displayVal: any;
 
@@ -453,6 +455,7 @@ export default class Table {
         const length = this.rowCount;
 
         const indices = new Uint32Array(length);
+
         for (let i = 0; i < length; i++) {
             indices[i] = i;
         }
@@ -463,36 +466,13 @@ export default class Table {
         });
 
         const dir = type === 'asc' ? 1 : -1;
-        const numCols = columnsData.length;
 
         indices.sort((a, b) => {
-            for (let i = 0; i < numCols; i++) {
-                const col = columnsData[i];
-                const firstVal = col[a];
-                const secondVal = col[b];
-
-                if (firstVal === secondVal) continue;
-                if (firstVal === null || firstVal === undefined || Number.isNaN(firstVal)) return 1 * dir;
-                if (secondVal === null || secondVal === undefined || Number.isNaN(secondVal)) return -1 * dir;
-
-                if (typeof firstVal === 'number' && typeof secondVal === 'number') {
-                    return (firstVal - secondVal) * dir;
-                }
-
-                if (typeof firstVal === 'string' && typeof secondVal === 'string') {
-                    return (firstVal < secondVal ? -1 : 1) * dir;
-                }
-
-                if (firstVal < secondVal) return -1 * dir;
-                if (firstVal > secondVal) return 1 * dir;
-            }
-
-            return 0;
+            return dir * compareRowsAtIndex(columnsData, a, b);
         });
 
         const newValues = this._values.map(col => col.slice());
 
-        this._orderedIndices = indices;
         return new Table(newValues, this.colInfos, true, indices.slice());
     }
 

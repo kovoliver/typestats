@@ -40,3 +40,5 @@ core/types/types.js
 
 rust/target
 rust/Cargo.lock
+
+tests/debug

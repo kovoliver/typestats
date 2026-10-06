@@ -1,9 +1,9 @@
-import { ColType } from "../types/types.js";
+import { ColType, ComparableType, TableData } from "../types/types.js";
 import {
     getMin as wasmGetMin,
     getMax as wasmGetMax
-}
-    from '../wasm.js';
+} from '../wasm.js';
+import { Worker } from 'node:worker_threads';
 
 /**
  * Checks if a given value is considered empty (`null`, `undefined`, empty string, or `NaN`).
@@ -720,7 +720,7 @@ export function possiblyISO(val: string): boolean {
 
     for (let i = colon + 1; i < val.length; i++) {
         const c = val.charCodeAt(i);
-        
+
         if (c === 43 || c === 45 || c === 90 || c === 122 ||
             c === 71 || c === 103 || c === 85 || c === 117) return true;
     }
@@ -813,4 +813,118 @@ export function flattenArray(table: Float64Array[]): Float64Array {
     }
 
     return flattened;
+}
+
+export function compareTableData(
+    val1: ComparableType,
+    val2: ComparableType
+): number {
+    if (val1 === val2) return 0;
+
+    const isVal1Invalid = val1 === null || (typeof val1 === 'number' && Number.isNaN(val1));
+    const isVal2Invalid = val2 === null || (typeof val2 === 'number' && Number.isNaN(val2));
+
+    if (isVal1Invalid && isVal2Invalid) return 0;
+    if (isVal1Invalid) return 1;
+    if (isVal2Invalid) return -1;
+
+    return val1 > val2 ? 1 : -1;
+}
+
+export function compareRowsAtIndex(
+    table: TableData,
+    rowAIdx: number,
+    rowBIdx: number
+): number {
+    const colCount = table.length;
+
+    for (let c = 0; c < colCount; c++) {
+        const res = compareTableData(table[c][rowAIdx], table[c][rowBIdx]);
+        if (res !== 0) return res;
+    }
+
+    return 0;
+}
+
+export function partition(
+    table: TableData,
+    type: 'asc' | 'desc',
+    leftIdx: number,
+    rightIdx: number,
+    indices: Uint32Array
+): { i: number; j: number } {
+    const dir = type === 'asc' ? 1 : -1;
+    let i = leftIdx;
+    let j = rightIdx;
+
+    const pivotRowIdx = indices[Math.floor((leftIdx + rightIdx) / 2)];
+
+    while (i <= j) {
+        while (compareRowsAtIndex(table, indices[i], pivotRowIdx) === -dir) {
+            i++;
+        }
+
+        while (compareRowsAtIndex(table, indices[j], pivotRowIdx) === dir) {
+            j--;
+        }
+
+        if (i <= j) {
+            const temp = indices[i];
+            indices[i] = indices[j];
+            indices[j] = temp;
+            i++;
+            j--;
+        }
+    }
+
+    return { i, j };
+}
+
+export function quickSortTable(
+    table: TableData,
+    type: 'asc' | 'desc',
+    leftIdx: number,
+    rightIdx: number,
+    indices: Uint32Array | null = null
+): Uint32Array {
+    const rowNumbers = table[0].length;
+
+    if (indices === null) {
+        indices = new Uint32Array(rowNumbers);
+
+        for (let k = 0; k < rowNumbers; k++) {
+            indices[k] = k;
+        }
+    }
+
+    if (leftIdx >= rightIdx) return indices;
+
+    const dir = type === 'asc' ? 1 : -1;
+    let i = leftIdx;
+    let j = rightIdx;
+
+    const pivotRowIdx = indices[Math.floor((leftIdx + rightIdx) / 2)];
+
+    while (i <= j) {
+        while (compareRowsAtIndex(table, indices[i], pivotRowIdx) === -dir) {
+            i++;
+        }
+
+        while (compareRowsAtIndex(table, indices[j], pivotRowIdx) === dir) {
+            j--;
+        }
+
+        if (i <= j) {
+            const temp = indices[i];
+            indices[i] = indices[j];
+            indices[j] = temp;
+            i++;
+            j--;
+        }
+    }
+
+    if (leftIdx < j) quickSortTable(table, type, leftIdx, j, indices);
+    if (i < rightIdx) quickSortTable(table, type, i, rightIdx, indices);
+
+    return indices;
 }

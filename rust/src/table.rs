@@ -1,5 +1,3 @@
-use js_sys::{Array, Float64Array};
-use std::cmp::Ordering;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -35,160 +33,6 @@ fn is_valid(value: f64, mode: &str, min: Option<f64>, max: Option<f64>) -> bool 
 
         _ => false,
     }
-}
-
-enum Column {
-    Number(Vec<f64>),
-    String(Vec<Option<String>>),
-    Bool(Vec<Option<bool>>),
-}
-
-#[inline]
-fn reverse_if_desc(ordering: Ordering, ascending: bool) -> Ordering {
-    if ascending {
-        ordering
-    } else {
-        ordering.reverse()
-    }
-}
-
-#[wasm_bindgen(js_name = sortTableIndices)]
-pub fn sort_table_indices(
-    columns_data: &Array,
-    col_types: &Array,
-    row_count: usize,
-    is_ascending: bool,
-) -> Vec<i32> {
-    let mut indices: Vec<i32> = (0..row_count as i32).collect();
-
-    if columns_data.length() == 0 || row_count == 0 {
-        return indices;
-    }
-
-    let column_count = columns_data.length() as usize;
-
-    let mut columns: Vec<Column> = Vec::with_capacity(column_count);
-
-    for i in 0..column_count {
-        let data = columns_data.get(i as u32);
-
-        let col_type = col_types
-            .get(i as u32)
-            .as_f64()
-            .unwrap_or(0.0) as u8;
-
-        match col_type {
-            0 => {
-                let array = Array::from(&data);
-                let mut values = Vec::with_capacity(row_count);
-
-                for row in 0..row_count {
-                    let value = array.get(row as u32);
-
-                    values.push(
-                        if value.is_null() || value.is_undefined() {
-                            None
-                        } else {
-                            value.as_string()
-                        }
-                    );
-                }
-
-                columns.push(Column::String(values));
-            }
-
-            1 => {
-                let array = Float64Array::new(&data);
-                columns.push(Column::Number(array.to_vec()));
-            }
-
-            2 => {
-                let array = Array::from(&data);
-                let mut values = Vec::with_capacity(row_count);
-
-                for row in 0..row_count {
-                    let value = array.get(row as u32);
-
-                    values.push(
-                        if value.is_null() || value.is_undefined() {
-                            None
-                        } else {
-                            value.as_bool()
-                        }
-                    );
-                }
-
-                columns.push(Column::Bool(values));
-            }
-
-            _ => unreachable!("Invalid column type"),
-        }
-    }
-
-    indices.sort_unstable_by(|&a, &b| {
-        let a = a as usize;
-        let b = b as usize;
-
-        for column in &columns {
-            let ordering = match column {
-                Column::Number(values) => {
-                    let x = values[a];
-                    let y = values[b];
-
-                    match (x.is_nan(), y.is_nan()) {
-                        (true, true) => Ordering::Equal,
-                        (true, false) => Ordering::Greater,
-                        (false, true) => Ordering::Less,
-
-                        (false, false) => {
-                            reverse_if_desc(
-                                x.partial_cmp(&y).unwrap(),
-                                is_ascending,
-                            )
-                        }
-                    }
-                }
-
-                Column::String(values) => {
-                    match (&values[a], &values[b]) {
-                        (None, None) => Ordering::Equal,
-                        (None, Some(_)) => Ordering::Greater,
-                        (Some(_), None) => Ordering::Less,
-
-                        (Some(x), Some(y)) => {
-                            reverse_if_desc(
-                                x.cmp(y),
-                                is_ascending,
-                            )
-                        }
-                    }
-                }
-
-                Column::Bool(values) => {
-                    match (values[a], values[b]) {
-                        (None, None) => Ordering::Equal,
-                        (None, Some(_)) => Ordering::Greater,
-                        (Some(_), None) => Ordering::Less,
-
-                        (Some(x), Some(y)) => {
-                            reverse_if_desc(
-                                x.cmp(&y),
-                                is_ascending,
-                            )
-                        }
-                    }
-                }
-            };
-
-            if ordering != Ordering::Equal {
-                return ordering;
-            }
-        }
-
-        Ordering::Equal
-    });
-
-    indices
 }
 
 const ERR_EMPTY: &str = "The time series does not have values!";
@@ -285,7 +129,10 @@ pub fn nocb(
         }
     };
 
-    let last_valid = match (0..len).rev().find(|&k| is_valid(values[at(k)], mode, min, max)) {
+    let last_valid = match (0..len)
+        .rev()
+        .find(|&k| is_valid(values[at(k)], mode, min, max))
+    {
         Some(k) => k,
         None => return Err(JsError::new(ERR_NO_VALID).into()),
     };

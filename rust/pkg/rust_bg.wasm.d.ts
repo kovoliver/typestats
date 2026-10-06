@@ -56,9 +56,9 @@ export const nocb: (a: number, b: number, c: any, d: number, e: number, f: numbe
 export const orderAsc: (a: number, b: number, c: any) => void;
 export const orderDesc: (a: number, b: number, c: any) => void;
 export const percentile: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+export const quickSortTable: (a: any, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const quickselect: (a: number, b: number, c: any, d: number, e: number, f: number) => number;
 export const scd: (a: number, b: number, c: number, d: number) => number;
-export const sortTableIndices: (a: any, b: any, c: number, d: number) => [number, number];
 export const ssd: (a: number, b: number) => [number, number, number];
 export const varianceAndCovariance: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
 export const __wbindgen_malloc: (a: number, b: number) => number;
