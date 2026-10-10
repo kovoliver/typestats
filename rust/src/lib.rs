@@ -7,3 +7,4 @@ pub mod table_sort;
 pub mod univariate;
 pub mod utils;
 pub mod trend;
+pub mod multi_regression;

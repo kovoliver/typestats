@@ -122,44 +122,44 @@ export class Matrix {
         return ret >>> 0;
     }
     /**
-     * @returns {number}
+     * @param {number} rows
+     * @param {number | null} [cols]
+     * @returns {Matrix}
      */
-    get determinant() {
-        const ret = wasm.matrix_determinant(this.__wbg_ptr);
+    static createIdentityMatrix(rows, cols) {
+        const ret = wasm.matrix_createIdentityMatrix(rows, isLikeNone(cols) ? Number.MAX_SAFE_INTEGER : (cols) >>> 0);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
-        return ret[0];
+        return Matrix.__wrap(ret[0]);
     }
     /**
-     * @param {number | null} [max_iterations]
-     * @param {number | null} [tolerance]
-     * @returns {{ values: Float64Array; vectors: Matrix }}
+     * @param {Float64Array[]} columns
+     * @returns {Matrix}
      */
-    eigen(max_iterations, tolerance) {
-        const ret = wasm.matrix_eigen(this.__wbg_ptr, !isLikeNone(max_iterations), isLikeNone(max_iterations) ? 0 : max_iterations, !isLikeNone(tolerance), isLikeNone(tolerance) ? 0 : tolerance);
+    static fromColumns(columns) {
+        const ptr0 = passArrayJsValueToWasm0(columns, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.matrix_fromColumns(ptr0, len0);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
-        return takeFromExternrefTable0(ret[0]);
+        return Matrix.__wrap(ret[0]);
     }
     /**
-     * @param {number} row_index
-     * @param {number} col_index
-     * @returns {number}
+     * @param {number} row
+     * @param {number} col
+     * @returns {number | undefined}
      */
-    getElement(row_index, col_index) {
-        const ret = wasm.matrix_getElement(this.__wbg_ptr, row_index, col_index);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
-        }
-        return ret[0];
+    getElement(row, col) {
+        const ret = wasm.matrix_getElement(this.__wbg_ptr, row, col);
+        return ret[0] === 0 ? undefined : ret[1];
     }
     /**
      * @returns {Matrix}
      */
-    inverse() {
-        const ret = wasm.matrix_inverse(this.__wbg_ptr);
+    get inverted() {
+        const ret = wasm.matrix_inverted(this.__wbg_ptr);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
@@ -168,54 +168,56 @@ export class Matrix {
     /**
      * @returns {boolean}
      */
-    get isSquare() {
+    isSquare() {
         const ret = wasm.matrix_isSquare(this.__wbg_ptr);
         return ret !== 0;
     }
     /**
      * @returns {boolean}
      */
-    get isSymmetric() {
+    isSymmetric() {
         const ret = wasm.matrix_isSymmetric(this.__wbg_ptr);
         return ret !== 0;
     }
     /**
-     * @param {Matrix} matrix_a
-     * @param {Matrix} matrix_b
+     * @param {Matrix} matrix
      * @returns {Matrix}
      */
-    multiply(matrix_a, matrix_b) {
-        _assertClass(matrix_a, Matrix);
-        _assertClass(matrix_b, Matrix);
-        const ret = wasm.matrix_multiply(this.__wbg_ptr, matrix_a.__wbg_ptr, matrix_b.__wbg_ptr);
+    multiplyCentered(matrix) {
+        _assertClass(matrix, Matrix);
+        const ret = wasm.matrix_multiplyCentered(this.__wbg_ptr, matrix.__wbg_ptr);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
         return Matrix.__wrap(ret[0]);
     }
     /**
-     * @param {Float64Array[]} values
+     * @param {Matrix} matrix
+     * @returns {Matrix}
      */
-    constructor(values) {
-        const ret = wasm.matrix_new(isLikeNone(values) ? 0 : addToExternrefTable0(values));
+    multiply(matrix) {
+        _assertClass(matrix, Matrix);
+        const ret = wasm.matrix_multiply(this.__wbg_ptr, matrix.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return Matrix.__wrap(ret[0]);
+    }
+    /**
+     * @param {Float64Array} values
+     * @param {number} rows
+     * @param {number} cols
+     */
+    constructor(values, rows, cols) {
+        const ptr0 = passArrayF64ToWasm0(values, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.matrix_new(ptr0, len0, rows, cols);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
         this.__wbg_ptr = ret[0];
         MatrixFinalization.register(this, this.__wbg_ptr, this);
         return this;
-    }
-    /**
-     * @param {number} pivot_row
-     * @param {number} pivot_col
-     * @returns {Matrix}
-     */
-    pivot(pivot_row, pivot_col) {
-        const ret = wasm.matrix_pivot(this.__wbg_ptr, pivot_row, pivot_col);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
-        }
-        return Matrix.__wrap(ret[0]);
     }
     /**
      * @returns {number}
@@ -225,19 +227,16 @@ export class Matrix {
         return ret >>> 0;
     }
     /**
-     * @param {Float64Array} b
-     * @returns {Float64Array}
+     * @param {Matrix} matrix
+     * @returns {Matrix}
      */
-    solve(b) {
-        const ptr0 = passArrayF64ToWasm0(b, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.matrix_solve(this.__wbg_ptr, ptr0, len0);
-        if (ret[3]) {
-            throw takeFromExternrefTable0(ret[2]);
+    solve(matrix) {
+        _assertClass(matrix, Matrix);
+        const ret = wasm.matrix_solve(this.__wbg_ptr, matrix.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
         }
-        var v2 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
-        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
-        return v2;
+        return Matrix.__wrap(ret[0]);
     }
     /**
      * @returns {Matrix}
@@ -247,7 +246,7 @@ export class Matrix {
         return Matrix.__wrap(ret);
     }
     /**
-     * @returns {Float64Array[]}
+     * @returns {Float64Array}
      */
     get values() {
         const ret = wasm.matrix_values(this.__wbg_ptr);
@@ -255,6 +254,61 @@ export class Matrix {
     }
 }
 if (Symbol.dispose) Matrix.prototype[Symbol.dispose] = Matrix.prototype.free;
+
+export class MultiRegression {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        MultiRegressionFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_multiregression_free(ptr, 0);
+    }
+    /**
+     * @param {string | null} [regression_type]
+     * @returns {number}
+     */
+    calculateRSD(regression_type) {
+        var ptr0 = isLikeNone(regression_type) ? 0 : passStringToWasm0(regression_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.multiregression_calculateRSD(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0];
+    }
+    /**
+     * @param {string | null} [regression_type]
+     * @returns {Matrix}
+     */
+    calculateRegression(regression_type) {
+        var ptr0 = isLikeNone(regression_type) ? 0 : passStringToWasm0(regression_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.multiregression_calculateRegression(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return Matrix.__wrap(ret[0]);
+    }
+    /**
+     * @param {Float64Array[]} independents
+     * @param {Float64Array} dependent
+     */
+    constructor(independents, dependent) {
+        const ptr0 = passArrayJsValueToWasm0(independents, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.multiregression_new(ptr0, len0, dependent);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0];
+        MultiRegressionFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+}
+if (Symbol.dispose) MultiRegression.prototype[Symbol.dispose] = MultiRegression.prototype.free;
 
 export class VarCovResult {
     static __wrap(ptr) {
@@ -783,10 +837,6 @@ function __wbg_get_imports() {
         __wbg___wbindgen_throw_41e9ee4f547fc59a: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
-        __wbg_get_6c896e0571ddae51: function(arg0, arg1) {
-            const ret = arg0[arg1 >>> 0];
-            return ret;
-        },
         __wbg_get_unchecked_288889d017702237: function(arg0, arg1) {
             const ret = arg0[arg1 >>> 0];
             return ret;
@@ -813,10 +863,6 @@ function __wbg_get_imports() {
             const ret = arg0.length;
             return ret;
         },
-        __wbg_matrix_new: function(arg0) {
-            const ret = Matrix.__wrap(arg0);
-            return ret;
-        },
         __wbg_new_28744009d011f847: function() {
             const ret = new Map();
             return ret;
@@ -833,10 +879,6 @@ function __wbg_get_imports() {
             const ret = new Float64Array(getArrayF64FromWasm0(arg0, arg1));
             return ret;
         },
-        __wbg_new_with_length_469fcc27bd71672e: function(arg0) {
-            const ret = new Array(arg0 >>> 0);
-            return ret;
-        },
         __wbg_prototypesetcall_d49a4fab5ca427bc: function(arg0, arg1, arg2) {
             Float64Array.prototype.set.call(getArrayF64FromWasm0(arg0, arg1), arg2);
         },
@@ -847,9 +889,6 @@ function __wbg_get_imports() {
         __wbg_set_6ae97e73113c4f0b: function(arg0, arg1, arg2) {
             const ret = arg0.set(arg1, arg2);
             return ret;
-        },
-        __wbg_set_bea140a88be9b277: function(arg0, arg1, arg2) {
-            arg0[arg1 >>> 0] = arg2;
         },
         __wbindgen_generic_0000000000000001: function(arg0) {
             // Cast intrinsic for `F64 -> Externref`.
@@ -886,6 +925,9 @@ const LogYResultFinalization = (typeof FinalizationRegistry === 'undefined')
 const MatrixFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_matrix_free(ptr, 1));
+const MultiRegressionFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_multiregression_free(ptr, 1));
 const VarCovResultFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_varcovresult_free(ptr, 1));
@@ -977,6 +1019,16 @@ function passArrayF64ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 8, 8) >>> 0;
     getFloat64ArrayMemory0().set(arg, ptr / 8);
     WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayJsValueToWasm0(array, malloc) {
+    const ptr = malloc(array.length * 4, 4) >>> 0;
+    for (let i = 0; i < array.length; i++) {
+        const add = addToExternrefTable0(array[i]);
+        getDataViewMemory0().setUint32(ptr + 4 * i, add, true);
+    }
+    WASM_VECTOR_LEN = array.length;
     return ptr;
 }
 

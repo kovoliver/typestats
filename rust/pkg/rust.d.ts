@@ -26,20 +26,28 @@ export class LogYResult {
 export class Matrix {
     free(): void;
     [Symbol.dispose](): void;
-    eigen(max_iterations?: number | null, tolerance?: number | null): { values: Float64Array; vectors: Matrix };
-    getElement(row_index: number, col_index: number): number;
-    inverse(): Matrix;
-    multiply(matrix_a: Matrix, matrix_b: Matrix): Matrix;
-    constructor(values: Float64Array[]);
-    pivot(pivot_row: number, pivot_col: number): Matrix;
-    solve(b: Float64Array): Float64Array;
+    static createIdentityMatrix(rows: number, cols?: number | null): Matrix;
+    static fromColumns(columns: Float64Array[]): Matrix;
+    getElement(row: number, col: number): number | undefined;
+    isSquare(): boolean;
+    isSymmetric(): boolean;
+    multiplyCentered(matrix: Matrix): Matrix;
+    multiply(matrix: Matrix): Matrix;
+    constructor(values: Float64Array, rows: number, cols: number);
+    solve(matrix: Matrix): Matrix;
     readonly cols: number;
-    readonly determinant: number;
-    readonly isSquare: boolean;
-    readonly isSymmetric: boolean;
+    readonly inverted: Matrix;
     readonly rows: number;
     readonly transposed: Matrix;
-    readonly values: Float64Array[];
+    readonly values: Float64Array;
+}
+
+export class MultiRegression {
+    free(): void;
+    [Symbol.dispose](): void;
+    calculateRSD(regression_type?: string | null): number;
+    calculateRegression(regression_type?: string | null): Matrix;
+    constructor(independents: Float64Array[], dependent: Float64Array);
 }
 
 export class VarCovResult {
@@ -123,6 +131,7 @@ export interface InitOutput {
     readonly __wbg_get_varcovresult_x_var: (a: number) => number;
     readonly __wbg_logyresult_free: (a: number, b: number) => void;
     readonly __wbg_matrix_free: (a: number, b: number) => void;
+    readonly __wbg_multiregression_free: (a: number, b: number) => void;
     readonly __wbg_set_dotproductandsumpow2result_x2_sum: (a: number, b: number) => void;
     readonly __wbg_set_dotproductandsumpow2result_xy_sum: (a: number, b: number) => void;
     readonly __wbg_set_varcovresult_cov: (a: number, b: number) => void;
@@ -149,22 +158,25 @@ export interface InitOutput {
     readonly logyresult_lnxy_sum: (a: number) => number;
     readonly logyresult_lny_sum: (a: number) => number;
     readonly matrix_cols: (a: number) => number;
-    readonly matrix_determinant: (a: number) => [number, number, number];
-    readonly matrix_eigen: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
-    readonly matrix_getElement: (a: number, b: number, c: number) => [number, number, number];
-    readonly matrix_inverse: (a: number) => [number, number, number];
+    readonly matrix_createIdentityMatrix: (a: number, b: number) => [number, number, number];
+    readonly matrix_fromColumns: (a: number, b: number) => [number, number, number];
+    readonly matrix_getElement: (a: number, b: number, c: number) => [number, number];
+    readonly matrix_inverted: (a: number) => [number, number, number];
     readonly matrix_isSquare: (a: number) => number;
     readonly matrix_isSymmetric: (a: number) => number;
-    readonly matrix_multiply: (a: number, b: number, c: number) => [number, number, number];
-    readonly matrix_new: (a: number) => [number, number, number];
-    readonly matrix_pivot: (a: number, b: number, c: number) => [number, number, number];
+    readonly matrix_multiply: (a: number, b: number) => [number, number, number];
+    readonly matrix_multiplyCentered: (a: number, b: number) => [number, number, number];
+    readonly matrix_new: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly matrix_rows: (a: number) => number;
-    readonly matrix_solve: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly matrix_solve: (a: number, b: number) => [number, number, number];
     readonly matrix_transposed: (a: number) => number;
     readonly matrix_values: (a: number) => any;
     readonly mean: (a: number, b: number) => [number, number, number];
     readonly mode: (a: number, b: number) => [number, number];
     readonly movingAverageImputation: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => [number, number];
+    readonly multiregression_calculateRSD: (a: number, b: number, c: number) => [number, number, number];
+    readonly multiregression_calculateRegression: (a: number, b: number, c: number) => [number, number, number];
+    readonly multiregression_new: (a: number, b: number, c: any) => [number, number, number];
     readonly neumaierDotProductAndSumPow2: (a: number, b: number, c: number, d: number) => number;
     readonly neumaierSum: (a: number, b: number) => number;
     readonly nocb: (a: number, b: number, c: any, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
